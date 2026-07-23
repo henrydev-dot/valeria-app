@@ -1,6 +1,19 @@
 import { GoogleGenAI } from '@google/genai';
 import { AnalysisResult, NumerologyData, PlanetPosition, TransitData, UserInput } from '../types';
 import { ZODIAC_DATA } from '../constants';
+import {
+    AI_BYPASS,
+    AI_MODEL,
+    cannedInterpretation,
+    cannedHorary,
+    cannedTarot,
+    cannedCoffee,
+    cannedDailyHoroscope,
+    cannedWeeklyHoroscope,
+    cannedCompatibility,
+    cannedDailyTarotMessage,
+    cannedNumerology,
+} from './aiBypass';
 
 // Lazy-initialize Gemini Client (dotenv must load before this is called)
 let _ai: GoogleGenAI | null = null;
@@ -17,6 +30,7 @@ export const generateInterpretation = async (
     astrology: { sun: PlanetPosition; moon: PlanetPosition; rising: PlanetPosition },
     numerology: NumerologyData
 ): Promise<AnalysisResult['aiInterpretation']> => {
+    if (AI_BYPASS) return cannedInterpretation(inputData.name, astrology.sun.sign, astrology.moon.sign, astrology.rising.sign, numerology.lifePath);
 
     const sunData = ZODIAC_DATA[astrology.sun.sign];
     const moonData = ZODIAC_DATA[astrology.moon.sign];
@@ -57,7 +71,7 @@ export const generateInterpretation = async (
 
     try {
         const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: AI_MODEL,
             contents: prompt,
             config: {
                 responseMimeType: "application/json"
@@ -116,10 +130,11 @@ export const askHoraryQuestion = async (
     currentPlanets: PlanetPosition[],
     userContext: UserInput
 ): Promise<string> => {
+    if (AI_BYPASS) return cannedHorary(question, userContext.name);
     const today = new Date().toISOString().split('T')[0];
     const prompt = `
     Bugünün Tarihi: ${today}
-    
+
     Senin adın Valeria. Sezgileri çok güçlü, mistik yeteneklere sahip spiritüel bir rehbersin. ASLA yapay zeka olduğunu söyleme. Karşındaki kişiyle doğrudan, samimi ve "Sen" diliyle konuş.
     
     Soru: "${question}"
@@ -131,11 +146,12 @@ export const askHoraryQuestion = async (
 
     try {
         const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: AI_MODEL,
             contents: prompt,
         });
         return response.text || "Yıldızlar sessiz.";
     } catch (error) {
+        console.error('[AI] askHoraryQuestion failed, using fallback:', error);
         return "Yıldızlar şu an bu sorunun cevabını saklı tutuyor. (API Hatası)";
     }
 };
@@ -147,6 +163,7 @@ export const generateTarotInterpretation = async (
     question: string,
     user: any
 ): Promise<string> => {
+    if (AI_BYPASS) return cannedTarot(cardName, isReversed, user);
     const direction = isReversed ? "ters" : "düz";
     const today = new Date().toISOString().split('T')[0];
     const prompt = `
@@ -171,11 +188,12 @@ export const generateTarotInterpretation = async (
 
     try {
         const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: AI_MODEL,
             contents: prompt,
         });
         return response.text || "Kartlar şu an sessiz...";
     } catch (error) {
+        console.error('[AI] generateTarotInterpretation failed, using fallback:', error);
         return "Bu kart derin bir mesaj taşıyor. Sezgilerinize güvenin.";
     }
 };
@@ -186,6 +204,7 @@ export const generateCoffeeReading = async (
     user: any,
     question?: string
 ): Promise<{ soruCevabi: string; askHayati: string; kariyer: string; aile: string }> => {
+    if (AI_BYPASS) return cannedCoffee(user, question);
 
     const userContext = `
     Bugünün Tarihi: ${new Date().toISOString().split('T')[0]}
@@ -241,7 +260,7 @@ export const generateCoffeeReading = async (
 
     try {
         const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: AI_MODEL,
             contents: parts,
         });
         let text = response.text || '';
@@ -290,6 +309,7 @@ export const generateDailyHoroscope = async (sign: string): Promise<{
     luckyColor: string;
     compatibility: string;
 }> => {
+    if (AI_BYPASS) return cannedDailyHoroscope(sign);
     const today = new Date().toISOString().split('T')[0];
     const prompt = `
     Sen profesyonel bir astrologsun. ${sign} burcu için ${today} tarihli günlük yorum yaz.
@@ -308,7 +328,7 @@ export const generateDailyHoroscope = async (sign: string): Promise<{
 
     try {
         const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: AI_MODEL,
             contents: prompt,
             config: { responseMimeType: "application/json" }
         });
@@ -341,6 +361,7 @@ export const generateWeeklyHoroscope = async (sign: string): Promise<{
     career: string;
     advice: string;
 }> => {
+    if (AI_BYPASS) return cannedWeeklyHoroscope(sign);
     const today = new Date();
     const weekEnd = new Date(today);
     weekEnd.setDate(today.getDate() + 6);
@@ -359,7 +380,7 @@ export const generateWeeklyHoroscope = async (sign: string): Promise<{
 
     try {
         const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: AI_MODEL,
             contents: prompt,
             config: { responseMimeType: "application/json" }
         });
@@ -392,10 +413,11 @@ export const generateCompatibility = async (sign1: string, sign2: string): Promi
     strengths: string[];
     challenges: string[];
 }> => {
+    if (AI_BYPASS) return cannedCompatibility(sign1, sign2);
     const today = new Date().toISOString().split('T')[0];
     const prompt = `
     Bugünün Tarihi: ${today}
-    
+
     Sen profesyonel bir astrologsun. ${sign1} ve ${sign2} burçları arasındaki uyumu analiz et.
     
     Aşağıdaki JSON formatında SADECE JSON döndür:
@@ -413,7 +435,7 @@ export const generateCompatibility = async (sign1: string, sign2: string): Promi
 
     try {
         const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: AI_MODEL,
             contents: prompt,
             config: { responseMimeType: "application/json" }
         });
@@ -445,6 +467,7 @@ export const generateDailyTarotMessage = async (
     isReversed: boolean,
     userSign: string
 ): Promise<string> => {
+    if (AI_BYPASS) return cannedDailyTarotMessage(cardName, isReversed, userSign);
     const direction = isReversed ? "ters" : "düz";
     const today = new Date().toISOString().split('T')[0];
     const prompt = `
@@ -458,7 +481,7 @@ export const generateDailyTarotMessage = async (
 
     try {
         const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: AI_MODEL,
             contents: prompt,
         });
         return response.text || `Bugün ${cardName} kartı sizinle. Evrenin mesajlarına kulak verin.`;
@@ -476,6 +499,7 @@ export const generateNumerologyReading = async (
     soulUrge: number,
     personality: number
 ): Promise<{ lifePath: string; expression: string; soulUrge: string; personality: string; genel: string }> => {
+    if (AI_BYPASS) return cannedNumerology(name, lifePath, expression, soulUrge, personality);
     const today = new Date().toISOString().split('T')[0];
     const prompt = `
     Bugünün Tarihi: ${today}
@@ -507,7 +531,7 @@ export const generateNumerologyReading = async (
 
     try {
         const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: AI_MODEL,
             contents: prompt,
             config: { responseMimeType: "application/json" }
         });

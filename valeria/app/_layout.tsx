@@ -14,6 +14,8 @@ import * as api from '../src/api';
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
         shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
     }),
