@@ -195,6 +195,19 @@ export default function AstrologyScreen() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [homeTemplates, profile.name, profile.sunSign, profile.deityName]);
 
+    // Coerce API values to a display string. loveAnalysis comes back as an
+    // object ({ mistakes, idealPartner, attractionDynamics }); flatten it.
+    const asText = (v: unknown): string | undefined => {
+        if (typeof v === 'string') return v.trim() || undefined;
+        if (v && typeof v === 'object') {
+            const o = v as Record<string, unknown>;
+            const parts = [o.idealPartner, o.attractionDynamics, o.mistakes]
+                .filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
+            return parts.length ? parts.join('\n\n') : undefined;
+        }
+        return undefined;
+    };
+
     const sections = useMemo(() => ([
         {
             key: 'ozet',
@@ -202,16 +215,16 @@ export default function AstrologyScreen() {
             icon: 'sparkles-outline' as const,
             iconColor: Colors.accentYellow,
             glow: true,
-            ai: analysis?.personalitySummary as string | undefined,
+            ai: asText(analysis?.personalitySummary),
             fallback: templates.kozmikOzet,
         },
         {
             key: 'ruhsal',
-            title: 'Ruhsal Analiz',
-            icon: 'eye-outline' as const,
+            title: 'İlişki & Ruh Analizi',
+            icon: 'heart-outline' as const,
             iconColor: Colors.purpleLight,
             glow: false,
-            ai: analysis?.loveAnalysis as string | undefined,
+            ai: asText(analysis?.loveAnalysis),
             fallback: templates.ruhsalAnaliz,
         },
         {
@@ -220,7 +233,7 @@ export default function AstrologyScreen() {
             icon: 'calendar-outline' as const,
             iconColor: Colors.info,
             glow: false,
-            ai: analysis?.prediction as string | undefined,
+            ai: asText(analysis?.prediction),
             fallback: templates.haftalikKehanet,
         },
     ]), [analysis, templates]);
@@ -249,7 +262,7 @@ export default function AstrologyScreen() {
     // ─── Loading / error states ─────────────────────────────────────
     if (status === 'loading') {
         return (
-            <Screen>
+            <Screen edges={['top']}>
                 <AppText variant="title" center>Astroloji</AppText>
                 <AppText variant="caption" center style={styles.subtitle}>
                     Natal haritanız hazırlanıyor
@@ -267,7 +280,7 @@ export default function AstrologyScreen() {
 
     if (status === 'error') {
         return (
-            <Screen>
+            <Screen edges={['top']}>
                 <AppText variant="title" center>Astroloji</AppText>
                 <EmptyState
                     icon={<Ionicons name="planet-outline" size={56} color={Colors.purpleLight} />}
@@ -283,7 +296,7 @@ export default function AstrologyScreen() {
     const hasAspects = Array.isArray(chartData?.aspects) && chartData.aspects.length > 0;
 
     return (
-        <Screen refreshing={refreshing} onRefresh={onRefresh}>
+        <Screen edges={['top']} refreshing={refreshing} onRefresh={onRefresh}>
             <AppText variant="title" center>Astroloji</AppText>
             <AppText variant="caption" center style={styles.subtitle}>
                 Natal haritanız ve kozmik rehberlik

@@ -170,7 +170,7 @@ export default function DiscoverScreen() {
     };
 
     return (
-        <Screen>
+        <Screen edges={['top']}>
             <AppText variant="hero" style={styles.title}>Keşfet</AppText>
 
             {/* Disclaimer */}

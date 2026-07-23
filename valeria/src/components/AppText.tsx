@@ -13,6 +13,21 @@ interface AppTextProps extends TextProps {
 /**
  * Single typography primitive. Use variants instead of raw fontSize/fontWeight.
  */
+// Guard against accidentally passing a plain object as a child, which would
+// otherwise throw "Objects are not valid as a React child" and crash the screen.
+function safeChildren(children: React.ReactNode): React.ReactNode {
+    if (
+        children != null &&
+        typeof children === 'object' &&
+        !Array.isArray(children) &&
+        !(children as any).$$typeof
+    ) {
+        if (__DEV__) console.warn('AppText received a non-renderable object child; ignoring.');
+        return null;
+    }
+    return children;
+}
+
 export function AppText({
     variant = 'body',
     color,
@@ -31,7 +46,7 @@ export function AppText({
             ]}
             {...rest}
         >
-            {children}
+            {safeChildren(children)}
         </Text>
     );
 }

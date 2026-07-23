@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { OnboardingScaffold, AppText, OptionWheel } from '../../src/components';
+import { OnboardingScaffold, AppText, WheelPicker } from '../../src/components';
 import { useUserStore } from '../../src/stores/useUserStore';
 import { Colors } from '../../src/theme/colors';
 import { Spacing, BorderRadius } from '../../src/theme/spacing';
@@ -33,14 +33,15 @@ export default function Step4() {
             onNext={handleNext}
         >
             {!unknown ? (
-                <View style={styles.timeRow}>
-                    <View style={styles.col}>
-                        <AppText variant="label" center style={styles.label}>Saat</AppText>
-                        <OptionWheel value={hour} options={HOURS} onChange={setHour} />
+                <View>
+                    <View style={styles.timeLabels}>
+                        <AppText variant="label" center style={styles.col}>Saat</AppText>
+                        <AppText variant="label" center style={styles.col}>Dakika</AppText>
                     </View>
-                    <View style={styles.col}>
-                        <AppText variant="label" center style={styles.label}>Dakika</AppText>
-                        <OptionWheel value={minute} options={MINUTES} onChange={setMinute} />
+                    <View style={styles.timeRow}>
+                        <WheelPicker options={HOURS} value={hour} onChange={setHour} />
+                        <View style={styles.colon}><AppText variant="h1" color={Colors.textMuted}>:</AppText></View>
+                        <WheelPicker options={MINUTES} value={minute} onChange={setMinute} />
                     </View>
                 </View>
             ) : (
@@ -73,7 +74,17 @@ export default function Step4() {
 }
 
 const styles = StyleSheet.create({
-    timeRow: { flexDirection: 'row', gap: Spacing.lg },
+    timeLabels: { flexDirection: 'row', marginTop: Spacing.xl, marginBottom: Spacing.sm },
+    timeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Colors.surface1,
+        borderRadius: BorderRadius.lg,
+        borderWidth: 1,
+        borderColor: Colors.border,
+        paddingHorizontal: Spacing.sm,
+    },
+    colon: { width: 20, alignItems: 'center' },
     col: { flex: 1 },
     label: { marginBottom: Spacing.sm },
     unknownBox: {

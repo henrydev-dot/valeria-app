@@ -38,14 +38,15 @@ const ZODIAC_ICONS: Record<string, string> = {
 const zodiacUri = (sign?: string) =>
     `${API_HOST}/images/burclar/${ZODIAC_ICONS[sign || ''] || 'icons8-aries-100.png'}`;
 
-// Element → single-color Ionicon (tinting a vector glyph is fine; the PNG
-// element art has no "earth" asset and must never be tinted, so we use icons).
-const ELEMENT_ICON: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
-    'Ateş': { icon: 'flame', color: Colors.warning },
-    'Toprak': { icon: 'leaf', color: Colors.success },
-    'Hava': { icon: 'cloud', color: Colors.info },
-    'Su': { icon: 'water', color: Colors.purpleLight },
+// Element → real element artwork served from the backend (/images/elementler).
+// Earth has no dedicated element asset, so it falls back to the planet glyph.
+const ELEMENT_IMAGE: Record<string, string> = {
+    'Ateş': `${API_HOST}/images/elementler/icons8-fire-100.png`,
+    'Hava': `${API_HOST}/images/elementler/icons8-air-100.png`,
+    'Su': `${API_HOST}/images/elementler/icons8-water-element-100.png`,
+    'Toprak': `${API_HOST}/images/gezegenler/icons8-earth-symbol-100.png`,
 };
+const elementUri = (el?: string) => ELEMENT_IMAGE[el || ''] || ELEMENT_IMAGE['Su'];
 
 /** A section heading with an optional "Tümünü Gör" affordance. */
 function SectionTitle({
@@ -180,14 +181,13 @@ export default function HomeScreen() {
     }, [refreshEnt, loadProfile, loadContent, loadAnalysis]);
 
     const dailySummary = analysisData?.prediction || analysisData?.personalitySummary || dailySummaryFallback;
-    const element = ELEMENT_ICON[profile.element || ''] || ELEMENT_ICON['Su'];
     const houseCount = analysisData?.houses?.length ?? 0;
     const retroCount = analysisData?.retrogradePlanets?.length ?? 0;
 
     const goAstrology = () => router.push('/(tabs)/astrology');
 
     return (
-        <Screen refreshing={refreshing} onRefresh={onRefresh}>
+        <Screen edges={['top']} refreshing={refreshing} onRefresh={onRefresh}>
             {/* Greeting */}
             <View style={styles.greetingBlock}>
                 <AppText variant="title">Merhaba, {firstName}</AppText>
@@ -224,9 +224,7 @@ export default function HomeScreen() {
                     </NatalPill>
                     <View style={styles.natalDivider} />
                     <NatalPill label="Element" value={profile.element || ''}>
-                        <View style={styles.natalIconBox}>
-                            <Ionicons name={element.icon} size={22} color={element.color} />
-                        </View>
+                        <Image source={{ uri: elementUri(profile.element) }} style={styles.natalIcon} resizeMode="contain" />
                     </NatalPill>
                 </View>
             </Card>

@@ -6,6 +6,7 @@ export { Card } from './Card';
 export { Header } from './Header';
 export { GradientBackground } from './GradientBackground';
 export { Field, Chip, SegmentedControl, OptionWheel } from './FormControls';
+export { WheelPicker } from './WheelPicker';
 export { ProgressBar, EmptyState, LoadingView, Skeleton } from './Feedback';
 export { OnboardingScaffold } from './OnboardingScaffold';
 

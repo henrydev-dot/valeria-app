@@ -185,7 +185,7 @@ export default function ProfileScreen() {
     ];
 
     return (
-        <Screen>
+        <Screen edges={['top']}>
             {/* Profile Header */}
             <View style={styles.headerTop}>
                 <TouchableOpacity

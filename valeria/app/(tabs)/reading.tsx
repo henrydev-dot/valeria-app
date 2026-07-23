@@ -202,7 +202,7 @@ export default function ReadingScreen() {
     const costLabel = (cost: number) => (cost === 0 ? 'Ücretsiz' : `${cost} kredi`);
 
     return (
-        <Screen keyboard>
+        <Screen edges={['top']} keyboard>
             <AppText variant="hero" style={styles.heading}>Fal</AppText>
             <AppText variant="body" style={styles.subheading}>
                 Sana nasıl yol gösterelim? Bir fal türü seç.
