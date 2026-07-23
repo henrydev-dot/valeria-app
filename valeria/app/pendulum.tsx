@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, TouchableOpacity, Dimensions, StatusBar } from 'react-native';
 import Svg, { Circle, Line, Text as SvgText, G, Path } from 'react-native-svg';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GradientBackground, Screen, Header, AppText, Button, Card } from '../src/components';
@@ -9,6 +8,27 @@ import { Colors } from '../src/theme/colors';
 import { Spacing, BorderRadius } from '../src/theme/spacing';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+
+// --- Landscape board geometry -------------------------------------------------
+// The phone stays physically portrait; we draw the board rotated 90deg so the
+// LONG screen edge becomes the board's width. The rotated container is sized
+// width = SCREEN_H, height = SCREEN_W, so after the rotation its bounding box is
+// exactly SCREEN_W x SCREEN_H — it fills the screen edge-to-edge, no empty bands.
+const BOARD_W = SCREEN_H; // landscape width  (long edge)
+const BOARD_H = SCREEN_W; // landscape height (short edge)
+
+const CX = BOARD_W / 2; // pivot x — horizontal centre
+const CY = 34; // pivot y — near the top, fan opens downward
+const OUTER_LABEL_PAD = 22; // room for the letter labels drawn beyond rOuter
+const BOTTOM_PAD = 24; // room for the instruction line under the arc
+
+// Radius bound by BOTH the (short) height and the (long) width so nothing clips.
+const R_OUTER = Math.min(
+    BOARD_H - CY - OUTER_LABEL_PAD - BOTTOM_PAD, // vertical fit (binding on tall phones)
+    BOARD_W / 2 - OUTER_LABEL_PAD - 12, // horizontal fit
+);
+const R_INNER = R_OUTER * 0.7;
+const R_NUMBERS = R_OUTER * 0.45;
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const NUMBERS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
@@ -19,6 +39,17 @@ const STEPS = [
     'Enerjinizi odaklayıp sorunuzu zihninizde sorun.',
     'Sarkacın yöneldiği harf, sayı veya cevabı izleyin.',
 ];
+
+// Downward semicircle: 2° -> 178° with +y pointing down (right -> bottom -> left).
+const ARC_START = 2;
+const ARC_END = 178;
+const ARC_RANGE = ARC_END - ARC_START;
+
+const arcPath = (r: number) => {
+    const s = (ARC_START * Math.PI) / 180;
+    const e = (ARC_END * Math.PI) / 180;
+    return `M ${CX + r * Math.cos(s)} ${CY + r * Math.sin(s)} A ${r} ${r} 0 1 1 ${CX + r * Math.cos(e)} ${CY + r * Math.sin(e)}`;
+};
 
 export default function PendulumScreen() {
     const [phase, setPhase] = useState<'intro' | 'board'>('intro');
@@ -65,54 +96,38 @@ export default function PendulumScreen() {
         );
     }
 
-    // --- Portrait board: pivot at top-center, fan sweeps downward ---
-    const cx = SCREEN_W / 2;
-    const rOuter = SCREEN_W / 2 - 36;
-    const rInner = rOuter * 0.7;
-    const rNumbers = rOuter * 0.45;
-    const boardHeight = rOuter + 40;
-    // Vertically centre the fan, but never under the top inset / close button.
-    const cy = Math.max(insets.top + 64, (SCREEN_H - boardHeight) / 2);
-
-    const arcStart = 2;
-    const arcEnd = 178;
-    const arcRange = arcEnd - arcStart;
-
-    const arcPath = (r: number) => {
-        const s = (arcStart * Math.PI) / 180;
-        const e = (arcEnd * Math.PI) / 180;
-        return `M ${cx + r * Math.cos(s)} ${cy + r * Math.sin(s)} A ${r} ${r} 0 1 1 ${cx + r * Math.cos(e)} ${cy + r * Math.sin(e)}`;
-    };
-
+    // --- Full-bleed landscape board ---
     return (
         <GradientBackground stars={30}>
             <StatusBar hidden />
-            <View style={styles.boardContainer}>
-                <Svg width={SCREEN_W} height={SCREEN_H}>
-                    {/* Arcs */}
-                    <Path d={arcPath(rOuter)} stroke={Colors.borderAccent} strokeWidth={1.5} fill="none" />
-                    <Path d={arcPath(rInner)} stroke={Colors.purpleA25} strokeWidth={1} fill="none" />
-                    <Path d={arcPath(rNumbers)} stroke={Colors.purpleA15} strokeWidth={0.75} fill="none" />
 
-                    {/* Letters */}
+            {/* Rotated board: sized to the screen so the 90deg rotation fills it. */}
+            <View style={styles.rotatedBoard} pointerEvents="none">
+                <Svg width={BOARD_W} height={BOARD_H}>
+                    {/* Arcs */}
+                    <Path d={arcPath(R_OUTER)} stroke={Colors.borderAccent} strokeWidth={1.5} fill="none" />
+                    <Path d={arcPath(R_INNER)} stroke={Colors.purpleA25} strokeWidth={1} fill="none" />
+                    <Path d={arcPath(R_NUMBERS)} stroke={Colors.purpleA15} strokeWidth={0.75} fill="none" />
+
+                    {/* Letters (outer ring) */}
                     {LETTERS.map((letter, i) => {
-                        const angle = arcStart + (i / (LETTERS.length - 1)) * arcRange;
+                        const angle = ARC_START + (i / (LETTERS.length - 1)) * ARC_RANGE;
                         const rad = (angle * Math.PI) / 180;
-                        const x1 = cx + (rInner + 3) * Math.cos(rad);
-                        const y1 = cy + (rInner + 3) * Math.sin(rad);
-                        const x2 = cx + (rOuter - 3) * Math.cos(rad);
-                        const y2 = cy + (rOuter - 3) * Math.sin(rad);
-                        const labelR = rOuter + 15;
-                        const lx = cx + labelR * Math.cos(rad);
-                        const ly = cy + labelR * Math.sin(rad);
+                        const x1 = CX + (R_INNER + 4) * Math.cos(rad);
+                        const y1 = CY + (R_INNER + 4) * Math.sin(rad);
+                        const x2 = CX + (R_OUTER - 4) * Math.cos(rad);
+                        const y2 = CY + (R_OUTER - 4) * Math.sin(rad);
+                        const labelR = R_OUTER + 14;
+                        const lx = CX + labelR * Math.cos(rad);
+                        const ly = CY + labelR * Math.sin(rad);
                         return (
                             <G key={`l-${i}`}>
-                                <Line x1={x1} y1={y1} x2={x2} y2={y2} stroke={Colors.purpleLight} strokeWidth={1.5} />
+                                <Line x1={x1} y1={y1} x2={x2} y2={y2} stroke={Colors.purpleLight} strokeWidth={1.25} />
                                 <SvgText
                                     x={lx}
                                     y={ly + 5}
                                     textAnchor="middle"
-                                    fontSize={13}
+                                    fontSize={15}
                                     fontWeight="700"
                                     fill={Colors.textPrimary}
                                     rotation={angle - 90}
@@ -124,17 +139,17 @@ export default function PendulumScreen() {
                         );
                     })}
 
-                    {/* Numbers */}
+                    {/* Numbers (middle ring) */}
                     {NUMBERS.map((num, i) => {
-                        const angle = arcStart + (i / (NUMBERS.length - 1)) * arcRange;
+                        const angle = ARC_START + (i / (NUMBERS.length - 1)) * ARC_RANGE;
                         const rad = (angle * Math.PI) / 180;
-                        const x1 = cx + (rNumbers + 3) * Math.cos(rad);
-                        const y1 = cy + (rNumbers + 3) * Math.sin(rad);
-                        const x2 = cx + (rInner - 3) * Math.cos(rad);
-                        const y2 = cy + (rInner - 3) * Math.sin(rad);
-                        const labelR = (rNumbers + rInner) / 2;
-                        const lx = cx + labelR * Math.cos(rad);
-                        const ly = cy + labelR * Math.sin(rad);
+                        const x1 = CX + (R_NUMBERS + 3) * Math.cos(rad);
+                        const y1 = CY + (R_NUMBERS + 3) * Math.sin(rad);
+                        const x2 = CX + (R_INNER - 3) * Math.cos(rad);
+                        const y2 = CY + (R_INNER - 3) * Math.sin(rad);
+                        const labelR = (R_NUMBERS + R_INNER) / 2;
+                        const lx = CX + labelR * Math.cos(rad);
+                        const ly = CY + labelR * Math.sin(rad);
                         return (
                             <G key={`n-${i}`}>
                                 <Line x1={x1} y1={y1} x2={x2} y2={y2} stroke={Colors.purpleA25} strokeWidth={1} />
@@ -154,58 +169,61 @@ export default function PendulumScreen() {
                         );
                     })}
 
-                    {/* EVET (left) / HAYIR (right) near the pivot */}
+                    {/* EVET (left / green) & HAYIR (right / red) near the pivot */}
                     <SvgText
-                        x={cx - rNumbers * 0.5}
-                        y={cy + rNumbers * 0.62}
+                        x={CX - R_NUMBERS * 0.5}
+                        y={CY + R_NUMBERS * 0.62}
                         textAnchor="middle"
-                        fontSize={18}
+                        fontSize={19}
                         fontWeight="800"
                         fill={Colors.success}
                     >
                         EVET
                     </SvgText>
                     <SvgText
-                        x={cx + rNumbers * 0.5}
-                        y={cy + rNumbers * 0.62}
+                        x={CX + R_NUMBERS * 0.5}
+                        y={CY + R_NUMBERS * 0.62}
                         textAnchor="middle"
-                        fontSize={18}
+                        fontSize={19}
                         fontWeight="800"
                         fill={Colors.error}
                     >
                         HAYIR
                     </SvgText>
 
-                    {/* Center divider */}
-                    <Line x1={cx} y1={cy + 16} x2={cx} y2={cy + rNumbers - 14} stroke={Colors.purpleA15} strokeWidth={0.8} />
+                    {/* Center divider between EVET / HAYIR */}
+                    <Line x1={CX} y1={CY + 18} x2={CX} y2={CY + R_NUMBERS - 14} stroke={Colors.purpleA15} strokeWidth={0.8} />
 
-                    {/* Pivot */}
-                    <Circle cx={cx} cy={cy} r={13} fill={Colors.purpleA25} stroke={Colors.accentYellow} strokeWidth={2} />
-                    <Circle cx={cx} cy={cy} r={3.5} fill={Colors.accentYellow} />
-                    <SvgText x={cx} y={cy - 22} textAnchor="middle" fontSize={10} fill={Colors.textMuted}>
+                    {/* Pivot ("Sarkaç noktası") */}
+                    <Circle cx={CX} cy={CY} r={13} fill={Colors.purpleA25} stroke={Colors.accentYellow} strokeWidth={2} />
+                    <Circle cx={CX} cy={CY} r={3.5} fill={Colors.accentYellow} />
+                    <SvgText x={CX} y={CY - 20} textAnchor="middle" fontSize={11} fill={Colors.textMuted}>
                         Sarkaç noktası
                     </SvgText>
-                </Svg>
 
-                {/* Close button — plain (unrotated) view, large hit area */}
-                <TouchableOpacity
-                    style={[styles.closeBtn, { top: insets.top + 8 }]}
-                    onPress={() => setPhase('intro')}
-                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                    accessibilityRole="button"
-                    accessibilityLabel="Tahtayı kapat"
-                >
-                    <Ionicons name="close" size={24} color={Colors.textPrimary} />
-                </TouchableOpacity>
-
-                {/* Bottom hint */}
-                <View style={[styles.hint, { bottom: insets.bottom + 20 }]}>
-                    <Ionicons name="phone-portrait-outline" size={16} color={Colors.textMuted} />
-                    <AppText variant="caption" center style={styles.hintText}>
+                    {/* Instruction line, under the arc, reads with the landscape board */}
+                    <SvgText
+                        x={CX}
+                        y={BOARD_H - 12}
+                        textAnchor="middle"
+                        fontSize={11}
+                        fill={Colors.textMuted}
+                    >
                         Telefonu düz bir yüzeye yatırın ve sarkacı orta noktadan sarkıtın.
-                    </AppText>
-                </View>
+                    </SvgText>
+                </Svg>
             </View>
+
+            {/* Close (X) — NON-rotated screen overlay, real top corner, easy to reach */}
+            <TouchableOpacity
+                style={[styles.closeBtn, { top: insets.top + 8 }]}
+                onPress={() => setPhase('intro')}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Tahtayı kapat"
+            >
+                <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
         </GradientBackground>
     );
 }
@@ -234,7 +252,17 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     stepText: { flex: 1 },
-    boardContainer: { flex: 1 },
+    // Rotated so the long screen edge becomes the board width. Centering the
+    // (SCREEN_H x SCREEN_W) box on the screen means the 90deg rotation lands its
+    // bounding box exactly on the screen rect — no empty margins.
+    rotatedBoard: {
+        position: 'absolute',
+        width: BOARD_W,
+        height: BOARD_H,
+        left: (SCREEN_W - BOARD_W) / 2,
+        top: (SCREEN_H - BOARD_H) / 2,
+        transform: [{ rotate: '90deg' }],
+    },
     closeBtn: {
         position: 'absolute',
         right: Spacing.lg,
@@ -246,14 +274,4 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    hint: {
-        position: 'absolute',
-        left: Spacing.xl,
-        right: Spacing.xl,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: Spacing.sm,
-    },
-    hintText: { flexShrink: 1 },
 });
