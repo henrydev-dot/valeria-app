@@ -81,10 +81,10 @@ export const auth = {
             body: JSON.stringify({ email, password }),
         }),
 
-    apple: (appleId: string, email?: string, name?: string) =>
+    apple: (appleId: string, email?: string, name?: string, identityToken?: string) =>
         apiFetch<{ accessToken: string; refreshToken: string; user: any }>('/auth/apple', {
             method: 'POST',
-            body: JSON.stringify({ appleId, email, name }),
+            body: JSON.stringify({ appleId, email, name, identityToken }),
         }),
 };
 

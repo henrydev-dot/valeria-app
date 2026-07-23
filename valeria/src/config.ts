@@ -13,3 +13,17 @@ export const Config = {
     disclaimer:
         'Valeria içeriği eğlence ve kişisel içgörü amaçlıdır; profesyonel tıbbi, hukuki veya finansal tavsiye yerine geçmez.',
 } as const;
+
+/**
+ * Feature flags.
+ *
+ * For the first App Store submission we ship WITHOUT in-app purchases
+ * (Guideline 3.1.1): all paid/credit-purchase and fake-ad flows are hidden and
+ * the app is fully free — credits are only earned (daily reward, streak, level,
+ * first free question). Flip `purchasesEnabled` back to true once real StoreKit
+ * IAP + server-side receipt validation are wired.
+ */
+export const Features = {
+    purchasesEnabled: false, // hide "Kredi Yükle" / premium purchase (no real IAP yet)
+    adsEnabled: false,       // no real ad SDK — hide "reklam izle"; use honest daily reward instead
+} as const;

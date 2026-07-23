@@ -1,4 +1,47 @@
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+
+const APPLE_ISS = 'https://appleid.apple.com';
+const APPLE_KEYS_URL = 'https://appleid.apple.com/auth/keys';
+// Accept either configured client id or the app's known bundle id.
+const APPLE_AUDIENCES = [process.env.APPLE_CLIENT_ID, 'com.astrovaleria.app'].filter(Boolean) as string[];
+
+interface AppleJwk { kid: string; n: string; e: string; kty: string; alg: string }
+let _keyCache: { keys: AppleJwk[]; at: number } | null = null;
+
+async function fetchAppleKeys(): Promise<AppleJwk[]> {
+    // Cache Apple's public keys for 12h.
+    if (_keyCache && Date.now() - _keyCache.at < 12 * 60 * 60 * 1000) return _keyCache.keys;
+    const res = await fetch(APPLE_KEYS_URL);
+    if (!res.ok) throw new Error(`Apple keys fetch failed: ${res.status}`);
+    const data = (await res.json()) as { keys: AppleJwk[] };
+    _keyCache = { keys: data.keys, at: Date.now() };
+    return data.keys;
+}
+
+export interface AppleIdentity { sub: string; email?: string; emailVerified?: boolean }
+
+/**
+ * Verify an Apple Sign In identity token (JWT) against Apple's public keys.
+ * Returns the verified identity (sub = stable Apple user id) or throws.
+ */
+export async function verifyAppleIdentityToken(identityToken: string): Promise<AppleIdentity> {
+    const decodedHeader = jwt.decode(identityToken, { complete: true }) as { header: { kid: string; alg: string } } | null;
+    if (!decodedHeader?.header?.kid) throw new Error('Geçersiz Apple token başlığı');
+
+    const keys = await fetchAppleKeys();
+    const jwk = keys.find((k) => k.kid === decodedHeader.header.kid);
+    if (!jwk) throw new Error('Apple imza anahtarı bulunamadı');
+
+    const publicKey = crypto.createPublicKey({ key: jwk as any, format: 'jwk' });
+    const payload = jwt.verify(identityToken, publicKey, {
+        algorithms: ['RS256'],
+        issuer: APPLE_ISS,
+        audience: APPLE_AUDIENCES as [string, ...string[]],
+    }) as any;
+
+    return { sub: payload.sub, email: payload.email, emailVerified: payload.email_verified === 'true' || payload.email_verified === true };
+}
 
 /**
  * Apple Sign In token revocation (App Store Guideline 5.1.1(v)).

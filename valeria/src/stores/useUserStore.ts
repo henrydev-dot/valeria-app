@@ -33,7 +33,7 @@ interface UserState {
     loadProfile: () => Promise<void>;
     saveProfile: () => Promise<void>;
     login: (email: string, password: string) => Promise<{ onboardingComplete: boolean }>;
-    appleLogin: (appleId: string, email?: string, name?: string) => Promise<{ onboardingComplete: boolean }>;
+    appleLogin: (appleId: string, email?: string, name?: string, identityToken?: string) => Promise<{ onboardingComplete: boolean }>;
     register: (email: string, password: string, name: string) => Promise<void>;
     onboarding: (data: Record<string, any>) => Promise<void>;
     logout: () => Promise<void>;
@@ -121,8 +121,8 @@ export const useUserStore = create<UserState>((set, get) => ({
         return { onboardingComplete: res.user.onboardingComplete || false };
     },
 
-    appleLogin: async (appleId, email, name) => {
-        const res = await api.auth.apple(appleId, email || undefined, name || undefined);
+    appleLogin: async (appleId, email, name, identityToken) => {
+        const res = await api.auth.apple(appleId, email || undefined, name || undefined, identityToken);
         await api.setTokens(res.accessToken, res.refreshToken);
         set({ isAuthenticated: true });
         await get().loadProfile();

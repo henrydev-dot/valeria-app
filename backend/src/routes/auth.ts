@@ -3,8 +3,10 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
 import { generateTokens } from '../middleware/authMiddleware';
+import { verifyAppleIdentityToken } from '../utils/appleAuth';
 
 const router = Router();
+const IS_PROD = process.env.NODE_ENV === 'production';
 
 // POST /auth/register
 router.post('/register', async (req: Request, res: Response) => {
@@ -112,7 +114,24 @@ router.post('/login', async (req: Request, res: Response) => {
 // POST /auth/apple
 router.post('/apple', async (req: Request, res: Response) => {
     try {
-        const { appleId, email, name } = req.body;
+        const { appleId: rawAppleId, identityToken, email: bodyEmail, name } = req.body;
+
+        // Prefer verifying Apple's signed identity token. In production it is
+        // required; without it we would be trusting a client-supplied id.
+        let appleId = rawAppleId as string | undefined;
+        let email = bodyEmail as string | undefined;
+
+        if (identityToken) {
+            try {
+                const identity = await verifyAppleIdentityToken(identityToken);
+                appleId = identity.sub;
+                email = identity.email || bodyEmail;
+            } catch (e: any) {
+                return res.status(401).json({ error: 'Apple kimliği doğrulanamadı', code: 'INVALID_APPLE_TOKEN' });
+            }
+        } else if (IS_PROD) {
+            return res.status(400).json({ error: 'identityToken zorunludur', code: 'MISSING_TOKEN' });
+        }
 
         if (!appleId) {
             return res.status(400).json({ error: 'Apple ID zorunludur', code: 'MISSING_FIELDS' });

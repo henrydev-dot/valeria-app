@@ -9,6 +9,7 @@ import { performCalculations, getCurrentMoonPhase } from '../utils/calculations'
 import { ZODIAC_DATA, TURKISH_CITIES } from '../constants';
 import { UserInput } from '../types';
 import { revokeAppleToken } from '../utils/appleAuth';
+import { coordsForCountry } from '../data/worldCapitals';
 
 const router = Router();
 
@@ -108,10 +109,12 @@ router.post('/onboarding', authMiddleware, async (req: AuthRequest, res: Respons
             return res.status(400).json({ error: 'Tüm alanlar zorunludur', code: 'MISSING_FIELDS' });
         }
 
-        // Şehir koordinatlarını bul
+        // Şehir koordinatlarını bul: önce TR şehir tablosu, sonra ülke başkenti,
+        // en son İstanbul (varsayılan).
         const cityData = TURKISH_CITIES.find(c => c.name === birthCity);
-        const latitude = cityData ? cityData.lat.toString() : '41.0082';
-        const longitude = cityData ? cityData.lon.toString() : '28.9784';
+        const countryCoords = coordsForCountry(birthCountry);
+        const latitude = cityData ? cityData.lat.toString() : (countryCoords ? countryCoords.lat.toString() : '41.0082');
+        const longitude = cityData ? cityData.lon.toString() : (countryCoords ? countryCoords.lon.toString() : '28.9784');
 
         // Kullanıcı bilgilerini güncelle
         user.name = name;

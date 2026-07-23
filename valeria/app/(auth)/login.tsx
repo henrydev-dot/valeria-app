@@ -73,7 +73,7 @@ export default function LoginScreen() {
             const appleName = credential.fullName
                 ? [credential.fullName.givenName, credential.fullName.familyName].filter(Boolean).join(' ')
                 : undefined;
-            const result = await appleLogin(credential.user, credential.email || undefined, appleName);
+            const result = await appleLogin(credential.user, credential.email || undefined, appleName, credential.identityToken || undefined);
             await loadEnt();
             routeAfterAuth(result.onboardingComplete);
         } catch (e: any) {
