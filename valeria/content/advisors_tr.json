@@ -1,0 +1,298 @@
+[
+    {
+        "id": 1,
+        "name": "Elif Yildiz",
+        "specialties": [
+            "Tarot",
+            "Astroloji",
+            "Ruhsal Rehberlik"
+        ],
+        "rating": 4.9,
+        "sessions": 1240,
+        "bio": "15 yillik deneyimle tarot ve astroloji alaninda profesyonel okumalar sunuyorum. Bireylerin ic yolculuklarinda rehberlik etmek benim tutukum.",
+        "packages": [
+            {
+                "duration": "10 dk",
+                "credits": 30
+            },
+            {
+                "duration": "20 dk",
+                "credits": 50
+            }
+        ],
+        "reviews": [
+            {
+                "user": "Ayse K.",
+                "rating": 5,
+                "text": "Cok detayli ve isabetli bir okuma oldu. Tesekkurler."
+            },
+            {
+                "user": "Mehmet B.",
+                "rating": 5,
+                "text": "Gercekten yol gosterici ve profesyonel bir yaklasim."
+            }
+        ]
+    },
+    {
+        "id": 2,
+        "name": "Kaan Demir",
+        "specialties": [
+            "Kahve Fali",
+            "Ruya Yorumu"
+        ],
+        "rating": 4.8,
+        "sessions": 890,
+        "bio": "Kahve fali ve ruya yorum alaninda uzmanlasmis, sezgisel okumalariyla taninan bir danismanim.",
+        "packages": [
+            {
+                "duration": "10 dk",
+                "credits": 25
+            },
+            {
+                "duration": "20 dk",
+                "credits": 45
+            }
+        ],
+        "reviews": [
+            {
+                "user": "Zeynep S.",
+                "rating": 5,
+                "text": "Kahve falinda cok basarili. Onerilerim kesinlikle olumlu."
+            },
+            {
+                "user": "Ali R.",
+                "rating": 4,
+                "text": "Samimi ve guven veren bir gorusme oldu."
+            }
+        ]
+    },
+    {
+        "id": 3,
+        "name": "Selin Ay",
+        "specialties": [
+            "Kristal Terapi",
+            "Enerji Calismasi",
+            "Meditasyon"
+        ],
+        "rating": 4.9,
+        "sessions": 670,
+        "bio": "Kristaller ve enerji calismasi uzerine egitim almis, bireylerin ic dengesini bulmalarinda yardimci olan bir terapistim.",
+        "packages": [
+            {
+                "duration": "10 dk",
+                "credits": 35
+            },
+            {
+                "duration": "20 dk",
+                "credits": 60
+            }
+        ],
+        "reviews": [
+            {
+                "user": "Defne Y.",
+                "rating": 5,
+                "text": "Kristal onerilerini uyguladim ve cok fayda gordum."
+            }
+        ]
+    },
+    {
+        "id": 4,
+        "name": "Baris Kaya",
+        "specialties": [
+            "Numeroloji",
+            "Astroloji"
+        ],
+        "rating": 4.7,
+        "sessions": 550,
+        "bio": "Sayilarin ve yildizlarin dilini anlamak benim ustalaliim. Numeroloji ve astroloji ile hayatinizdaki donguuleri kesfediin.",
+        "packages": [
+            {
+                "duration": "10 dk",
+                "credits": 25
+            },
+            {
+                "duration": "20 dk",
+                "credits": 40
+            }
+        ],
+        "reviews": [
+            {
+                "user": "Can M.",
+                "rating": 5,
+                "text": "Numerolojik analiz cok aydnlatici oldu."
+            }
+        ]
+    },
+    {
+        "id": 5,
+        "name": "Naz Celik",
+        "specialties": [
+            "Tarot",
+            "Iliski Danismanligi"
+        ],
+        "rating": 4.8,
+        "sessions": 980,
+        "bio": "Iliskki ve ask konularinda uzmanlasmis tarot okuyucusu. Kalp meselelerinde netlik arayanlar icin buradayim.",
+        "packages": [
+            {
+                "duration": "10 dk",
+                "credits": 30
+            },
+            {
+                "duration": "20 dk",
+                "credits": 55
+            }
+        ],
+        "reviews": [
+            {
+                "user": "Ece D.",
+                "rating": 5,
+                "text": "Iliski konusunda cok yarali oldu Naz Hanim."
+            }
+        ]
+    },
+    {
+        "id": 6,
+        "name": "Emre Ozkan",
+        "specialties": [
+            "Run Okuma",
+            "Sarkas Faali"
+        ],
+        "rating": 4.6,
+        "sessions": 420,
+        "bio": "Eski Iskandinav geleneklerinden esinlennnmiis run okuma ve sarkac calismalari yapyyorum.",
+        "packages": [
+            {
+                "duration": "10 dk",
+                "credits": 30
+            },
+            {
+                "duration": "20 dk",
+                "credits": 50
+            }
+        ],
+        "reviews": [
+            {
+                "user": "Burak T.",
+                "rating": 4,
+                "text": "Run okumasi farkli ve ilginc bir deneyimdi."
+            }
+        ]
+    },
+    {
+        "id": 7,
+        "name": "Asli Simsek",
+        "specialties": [
+            "Astroloji",
+            "Natal Harita",
+            "Transit"
+        ],
+        "rating": 4.9,
+        "sessions": 1560,
+        "bio": "Profesyonel astrlog olarak natal harita, transit ve ilerleme analizleri sunuyorum. Yildizlleriin rehberliginde kararlar alin.",
+        "packages": [
+            {
+                "duration": "10 dk",
+                "credits": 35
+            },
+            {
+                "duration": "20 dk",
+                "credits": 60
+            }
+        ],
+        "reviews": [
+            {
+                "user": "Gizem A.",
+                "rating": 5,
+                "text": "Natal harita analizi inanilmaaz detayli ve aciklayiciydi."
+            }
+        ]
+    },
+    {
+        "id": 8,
+        "name": "Deniz Akar",
+        "specialties": [
+            "Meditasyon",
+            "Nefes Calismasi",
+            "Enerji"
+        ],
+        "rating": 4.7,
+        "sessions": 380,
+        "bio": "Meditasyon ve nefes calismasi rehberi. Ic huzura giden yolda size eslik etmek istiyorum.",
+        "packages": [
+            {
+                "duration": "10 dk",
+                "credits": 20
+            },
+            {
+                "duration": "20 dk",
+                "credits": 35
+            }
+        ],
+        "reviews": [
+            {
+                "user": "Simge K.",
+                "rating": 5,
+                "text": "Nefes calsmasi seanslarinden cok verim aldim."
+            }
+        ]
+    },
+    {
+        "id": 9,
+        "name": "Ceren Bulut",
+        "specialties": [
+            "Kahve Fali",
+            "Tarot",
+            "El Okuma"
+        ],
+        "rating": 4.8,
+        "sessions": 720,
+        "bio": "Geleneksel Tuark kahve fali, tarot ve el okuma alanlarinda danismanlik sunuyorum.",
+        "packages": [
+            {
+                "duration": "10 dk",
+                "credits": 25
+            },
+            {
+                "duration": "20 dk",
+                "credits": 45
+            }
+        ],
+        "reviews": [
+            {
+                "user": "Merve O.",
+                "rating": 5,
+                "text": "Hem kahve fali hem tarot seansni birlikte yaptik, muhteesemdi."
+            }
+        ]
+    },
+    {
+        "id": 10,
+        "name": "Cem Yalcin",
+        "specialties": [
+            "Ruhsal Rehberlik",
+            "Regresyon",
+            "Karma Analizi"
+        ],
+        "rating": 4.6,
+        "sessions": 310,
+        "bio": "Ruhssl rehberlik ve gecmis yassam regresyon calismmalari ile bireylerin karmik derslerini anlamalarina yardimci oluyorum.",
+        "packages": [
+            {
+                "duration": "10 dk",
+                "credits": 35
+            },
+            {
+                "duration": "20 dk",
+                "credits": 60
+            }
+        ],
+        "reviews": [
+            {
+                "user": "Oguzhan L.",
+                "rating": 4,
+                "text": "Farkli bir bakis acisi kazadim, tesekkurler."
+            }
+        ]
+    }
+]

@@ -1,0 +1,268 @@
+@import "tailwindcss";
+
+:root {
+  --purple-dark: #1a0a2e;
+  --purple-mid: #2d1450;
+  --purple-light: #7c3aed;
+  --purple-glow: #a855f7;
+  --gold: #f5c842;
+  --gold-dim: #d4a017;
+  --text-primary: #f0e6ff;
+  --text-secondary: #b8a0d4;
+  --card-bg: rgba(45, 20, 80, 0.6);
+}
+
+/* Removed unlayered * reset because Tailwind does this automatically, and unlayered CSS overrides Tailwind layers */
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--purple-dark);
+    color: var(--text-primary);
+    overflow-x: hidden;
+  }
+}
+
+
+/* Animated gradient background */
+.hero-gradient {
+  background: linear-gradient(135deg, #0f0520 0%, #1a0a2e 25%, #2d1450 50%, #1a0a2e 75%, #0f0520 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+}
+
+@keyframes gradientShift {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Floating stars */
+.stars {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  animation: twinkle var(--duration, 3s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+  opacity: 0;
+}
+
+@keyframes twinkle {
+
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+/* Glow effects */
+.glow-purple {
+  box-shadow: 0 0 30px rgba(168, 85, 247, 0.3), 0 0 60px rgba(168, 85, 247, 0.1);
+}
+
+.glow-gold {
+  box-shadow: 0 0 20px rgba(245, 200, 66, 0.3), 0 0 40px rgba(245, 200, 66, 0.1);
+}
+
+.text-glow {
+  text-shadow: 0 0 20px rgba(168, 85, 247, 0.5), 0 0 40px rgba(168, 85, 247, 0.2);
+}
+
+.text-glow-gold {
+  text-shadow: 0 0 15px rgba(245, 200, 66, 0.4);
+}
+
+/* Floating animation */
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.float-delay {
+  animation: float 6s ease-in-out 2s infinite;
+}
+
+/* Slide in animations */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(60px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.8s ease-out forwards;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.6s ease-out forwards;
+}
+
+/* Card hover */
+.feature-card {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(12px);
+}
+
+.feature-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 20px 50px rgba(168, 85, 247, 0.2), 0 0 30px rgba(168, 85, 247, 0.1);
+  border-color: rgba(168, 85, 247, 0.4);
+}
+
+/* Tarot card carousel */
+@keyframes scrollCards {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.scroll-cards {
+  animation: scrollCards 40s linear infinite;
+}
+
+.scroll-cards:hover {
+  animation-play-state: paused;
+}
+
+/* Gods carousel - reverse */
+@keyframes scrollGodsReverse {
+  0% {
+    transform: translateX(-50%);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.scroll-gods {
+  animation: scrollGodsReverse 35s linear infinite;
+}
+
+/* Zodiac orbit */
+@keyframes orbit {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.orbit {
+  animation: orbit 60s linear infinite;
+}
+
+.orbit-reverse {
+  animation: orbit 45s linear infinite reverse;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #f5c842 0%, #a855f7 50%, #f5c842 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientShift 4s ease infinite;
+}
+
+/* Phone mockup glow */
+.phone-glow {
+  box-shadow: 0 0 80px rgba(168, 85, 247, 0.4), 0 0 120px rgba(168, 85, 247, 0.1), inset 0 0 30px rgba(168, 85, 247, 0.1);
+}
+
+/* Pulse */
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(245, 200, 66, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 40px rgba(245, 200, 66, 0.6), 0 0 80px rgba(245, 200, 66, 0.2);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Section divider */
+.section-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.3), transparent);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--purple-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--purple-light);
+  border-radius: 3px;
+}

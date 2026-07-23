@@ -1,0 +1,21 @@
+{
+    "kozmikOzet": [
+        "Sevgili {name}, bugun kozmik enerjiler sizin lehinize calisiyor. {sunSign} burcunuzun etkisiyle ic dunyanizda bir netllesme sureci basliyor. Sezgileriniz her zamankinden daha guclu; onlara guvenin.",
+        "{name}, gokyuzundeki gezegen hareketleri onemli mesajlar tasiyor. {sunSign} enerjisi ile bu hafta ozellikle {goals} alanlarinda ilerlemeler yasayabilirsiniz. Acik ve alici olun.",
+        "Bugun {sunSign} burcu icin ozel bir gun. {name}, evrenin sizinle iletisim halinde olduunu hissedeceksiniz. Ozellikle {goals} konularinda guzel gelismeler kapinizda."
+    ],
+    "ruhsalAnaliz": [
+        "{name}, ruhsal enerji haritaniz incelendiginde {deity} arketipinizin bu donemde aktif oldugu gorulmektedir. Ic dunyanizda bir dönusum sureci yasaniyor. {crystals} kristallerinizin enerjisi size bu surecte destek olabilir.\n\nBu hafta ozellikle meditasyon ve ic muhasebe calismalarinda verimli sonuclar alabilirsiniz. Kendinize zaman ayirin ve ic sesinizi dinleyin. Evrenin mesajlari dikkatli olanlar icin her zaman mevcuttur.",
+        "{sunSign} burcunun kozmik etkisi altinda, {name}, duygusal derinlik ve sezgisel guc kazaniyorsunuz. {deity} arkeippinizin bilgeligi sizi yonlendiriyor. Bu donemde {crystals} kristalleri ile calismak faydali olacaktir.\n\nKendi ic dunyaniza dondugunuzde bulacaginiz cevaplar, dis dunyanin sunabileceginden cok daha deerli olacak. Sabir ve farkindalkla ilerleyin."
+    ],
+    "haftalikKehanet": [
+        "Bu hafta {sunSign} burcu icin transformasyon enerjileri guclu. Ozellikle haftanin ortasinda alinacak kararlar uzun vadeli etkilere sahip olabilir. Sabirlii olun ve sezgilerinize guvenin.",
+        "Hafta basinda enerjik ve mottive hissedeceksiniz, {name}. Ortasina dogru ic muhasebe donemi basliyor. Hafta sonunda ise sosyal baglantllariniz guclenecek.",
+        "{sunSign} burcu bu hafta bolluuk ve bereket enerjilerinden destekleniyor. Maddi konulardda olumlu gelismeler yassanabilir. Frsatlara acik olun ama temkinli de kalin."
+    ],
+    "askIliskiler": [
+        "{name}, {deity} arketipinizin ask hayatiiniza etklisi bu donem guclu. Ilisklerinizde derinlik ve anlam aryyorsunuz. Tek basina iseniz, evrenin size dogru kisiyi yonlendirmek icinn calistgini bilin.",
+        "Ask ve iliskiilerde {sunSign} burcunun etkisi hissedilecek. Iletisim ve anlayis bu donemiin anahtar kelimeleri. Partnernizle acik ve durust konusmalar yapin.",
+        "{crystals} krisstalleri ask enerjinizi guglendirmek icin ideal. Bu hafta duygusal anlaaamda kendinize ve partner adaylarniiza karsi daha acik olun, {name}."
+    ]
+}

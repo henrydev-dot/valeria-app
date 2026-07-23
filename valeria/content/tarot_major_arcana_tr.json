@@ -1,0 +1,332 @@
+[
+    {
+        "id": 0,
+        "nameTR": "Deli",
+        "nameEN": "The Fool",
+        "keywordsTR": [
+            "yeni başlangıçlar",
+            "macera",
+            "spontanlık",
+            "özgürlük"
+        ],
+        "uprightTR": "Yeni bir yolculuğun eşiğinde duruyorsunuz. Bilinen güvencelerden sıyrılmak ve bilinmeze doğru cesurca adım atmak zamanı. Bu kart, içsel özgürlüğünüze güvenmenizi ve hayatın sunacağı fırsatlara açık olmanızı işaret ediyor. Planlamadan çok sezgilerinize güvenin.",
+        "reversedTR": "Dikkatsizlik ve düşüncesizce atılan adımlar konusunda uyarı veriyor. Özgürlük ile sorumsuzluk arasındaki ince çizgiye dikkat edin. Risk almak iyidir, ancak sonuçlarını düşünmeden hareket etmek sizi zor durumlara sokabilir.",
+        "archetypeTR": "Başlangıç Ruhu",
+        "adviceTR": "Küçülük korkalarına rağmen ileri adım atın. Yeni başlangıçlar cesaret ister."
+    },
+    {
+        "id": 1,
+        "nameTR": "Büyücü",
+        "nameEN": "The Magician",
+        "keywordsTR": [
+            "güç",
+            "beceri",
+            "konsantrasyon",
+            "irade"
+        ],
+        "uprightTR": "Elinizde tüm kaynaklara sahipsiniz. İradenizi ve yeteneklerinizi doğru yönlendirdiğinizde oluşturmak istediğiniz her şeyi yaratabilirsiniz. Bu kart, iç dünyanız ile dış dünyayı uyumlu hale getirmenizi ve niyetlerinizi netleştirmenizi söylüyor.",
+        "reversedTR": "Potansiyelinizi tam kullanamadığınız bir dönem. Odak kaybı, motivasyon düşüklüğü veya yeteneklerinizi yanlış yönlere harcamak söz konusu olabilir. Manipülasyondan kaçının ve özünüze sadık kalın.",
+        "archetypeTR": "Yaratıcı Güç",
+        "adviceTR": "Niyetinizi netçe belirleyin. Sahip olduğunuz araçları bilinçle kullanın."
+    },
+    {
+        "id": 2,
+        "nameTR": "Baş Rahibe",
+        "nameEN": "The High Priestess",
+        "keywordsTR": [
+            "sezgi",
+            "gizem",
+            "iç bilgelik",
+            "bilinçdışı"
+        ],
+        "uprightTR": "İç sesinize kulak verin. Yüzeysellikten uzak, derinliklerde yatan bilgelik sizi yönlendirmek istiyor. Bu dönemde mantık kadar sezgilerinize de güvenin. Sessizlikte bulacağınız cevaplar, gürültüde asla bulamayacaklarınızdan daha değerli.",
+        "reversedTR": "İç sesinizi bastırıyor veya görmezden geliyor olabilirsiniz. Dışarıdan gelen baskılar sizi kendi yolunuzdan saptırmakta. Durup iç dünyanıza dönün, kendinizle yeniden bağlantı kurun.",
+        "archetypeTR": "İç Bilgelik",
+        "adviceTR": "Sessizliğe çekilin ve iç dünyanızı dinleyin. Cevaplar zihnimizde değil, ruhumuzda."
+    },
+    {
+        "id": 3,
+        "nameTR": "İmparatoriçe",
+        "nameEN": "The Empress",
+        "keywordsTR": [
+            "bereket",
+            "doğayla uyum",
+            "yaratıcılık",
+            "dişilik"
+        ],
+        "uprightTR": "Bolluk ve bereket dönemi başlıyor. Yaratıcılığınız doruk noktasında. Hem fiziksel hem ruhsal anlamda beslenme ve büyüme önemli. Doğayla bağlantınızı güçlendirecek aktiviteler bu dönemde size iyi gelecek.",
+        "reversedTR": "Kendinize yeterince bakmıyor olabilirsiniz. Yaratıcı blokaj veya duygusal tükenme işaretleri görünüyor. Kendi ihtiyaçlarınızı başkalarının önüne koymaktan çekinmeyin.",
+        "archetypeTR": "Bereket Tanrıçası",
+        "adviceTR": "Kendinizi besleyin. Yaratıcı enerjinizi doğal akışına bırakın."
+    },
+    {
+        "id": 4,
+        "nameTR": "İmparator",
+        "nameEN": "The Emperor",
+        "keywordsTR": [
+            "otorite",
+            "yapı",
+            "istikrar",
+            "liderlik"
+        ],
+        "uprightTR": "Disiplin ve yapı zamanı. Hedeflerinize ulaşmak için sağlam temeller atmanız gerekiyor. Liderlik vasıflarınız ön plana çıkıyor. Karar alma süreçlerinizde kararlı ve tutarlı olun.",
+        "reversedTR": "Aşırı kontrol veya katılık sorun yaratabilir. Esnek olmak zorundasınız. Otorite ile baskı arasındaki sınırı gözden kaçırmamaya dikkat edin.",
+        "archetypeTR": "Yapı Kurucusu",
+        "adviceTR": "Planlarınızı somutlaştırın. Disiplinli ama esnek kalın."
+    },
+    {
+        "id": 5,
+        "nameTR": "Baş Rahip",
+        "nameEN": "The Hierophant",
+        "keywordsTR": [
+            "gelenek",
+            "öğretmenlik",
+            "rehberlik",
+            "inanç sistemi"
+        ],
+        "uprightTR": "Kurallara ve yerleşik sistemlere uymak bu dönemde size yararlı olacak. Bir mentor veya rehber arayın. Geleneksel değerleri ve toplumsal normları değerli kılın, ancak körükörüne değil bilinçle.",
+        "reversedTR": "Kalıpları kırma ve kendi yolunuzu çizme zamanı geldi. Başkalarının beklentileri sizi kısıtlıyor olabilir. Otantik inançlarınızı sorgulayıp yeniden tanımlayın.",
+        "archetypeTR": "Bilge Öğretmen",
+        "adviceTR": "Bir rehbere danışın veya kendiniz rehber olun. Bilgelik paylaşıldıkça çoğalır."
+    },
+    {
+        "id": 6,
+        "nameTR": "Aşıklar",
+        "nameEN": "The Lovers",
+        "keywordsTR": [
+            "aşk",
+            "uyum",
+            "seçim",
+            "değer sistemi"
+        ],
+        "uprightTR": "Önemli bir seçim karşınızda. Bu seçim romantik bir ilişki olabileceği gibi, değerlerinizle uyumlu bir hayat yolu seçimi de olabilir. Kalbinizin ve mantığınızın arasındaki dengeyi bulun.",
+        "reversedTR": "İlişkide uyumsuzluk veya değerlerle çelişen kararlar. İç çatışmalar ve kararsızlık dönemi. Önceliklerinizi gözden geçirin ve kendinize dürüst olun.",
+        "archetypeTR": "Uyum Arayıcısı",
+        "adviceTR": "Kalbinize danışın ancak mantığınızı da görmezden gelmeyin."
+    },
+    {
+        "id": 7,
+        "nameTR": "Savaş Arabası",
+        "nameEN": "The Chariot",
+        "keywordsTR": [
+            "zafer",
+            "irade gücü",
+            "kararlılık",
+            "ilerleme"
+        ],
+        "uprightTR": "Engelleri aşmak için gereken güç sizde mevcut. Kararlılık ve odaklanma ile hedeflerinize ulaşacaksınız. Zıt güçleri dengelemeyi başardığınızda zafer kaçınılmazdır.",
+        "reversedTR": "Kontrol kaybı veya yönü belirsiz ilerleme. Engellerle başa çıkmakta zorlanabilirsiniz. Stratejinizi gözden geçirin ve nereye gittiğinizi netleştirin.",
+        "archetypeTR": "İradenin Savaşçısı",
+        "adviceTR": "Odaklanın ve engellere aldırmadan ilerleyin. Zafer kararlılıktan gelir."
+    },
+    {
+        "id": 8,
+        "nameTR": "Güç",
+        "nameEN": "Strength",
+        "keywordsTR": [
+            "iç güç",
+            "cesaret",
+            "sabır",
+            "şefkat"
+        ],
+        "uprightTR": "Gerçek güç, kaba kuvvette değil iç huzurda ve sabırdadır. İçsel güçlüklerinizle yüzleşme zamanı. Korkularınızla şefkatle başa çıkın. Sabır ve anlayış, bu dönemde en büyük silahınız.",
+        "reversedTR": "Kendine güven eksikliği veya iç çatışmalarla mücadele. Korkularınız sizi felce uğratabilir. Küçük adımlarla başlayarak cesaretinizi yeniden inşa edin.",
+        "archetypeTR": "Şefkatli Savaşçı",
+        "adviceTR": "İç gücünüze güvenin. Şefkat, gücün en saf halidir."
+    },
+    {
+        "id": 9,
+        "nameTR": "Ermiş",
+        "nameEN": "The Hermit",
+        "keywordsTR": [
+            "iç arayış",
+            "yalnızlık",
+            "rehberlik",
+            "içsel ışık"
+        ],
+        "uprightTR": "Kendinize dönme ve iç arayış yapma zamanı. Toplumsal gürültüden uzaklaşarak kendi ışığınızı bulmanız gerekiyor. Meditasyon, derin düşünce ve yalnız kalma bu dönemde size çok şey katacak.",
+        "reversedTR": "Aşırı izolasyon veya iç dünyanıza kapanma. Yalnızlık seçiminiz olmaktan çıkıyor ve zorunluluk halini alıyor olabilir. Dengeyi bulmak için güvendiğiniz kişilere açılın.",
+        "archetypeTR": "Işık Taşıyıcı",
+        "adviceTR": "Sessizlikte kendinizi bulun. Her cevap içinizdedir."
+    },
+    {
+        "id": 10,
+        "nameTR": "Kader Çarkı",
+        "nameEN": "Wheel of Fortune",
+        "keywordsTR": [
+            "döngüler",
+            "şans",
+            "değişim",
+            "kader"
+        ],
+        "uprightTR": "Hayatınızda önemli bir döngü tamamlanıyor. Yeni fırsatlar kapınızı çalıyor. Şansın sizden yana olduğu bir dönemdesiniz, ancak bu fırsatlardan faydalanmak için harekete geçmeniz gerekiyor.",
+        "reversedTR": "Olumsuz döngüler veya kontrolünüz dışındaki gelişmeler. Direnmek yerine akışa bırakın. Her düşüş yeni bir yükselişin başlangıcı olabilir.",
+        "archetypeTR": "Kaderin Döngüsü",
+        "adviceTR": "Değişimi kucaklayın. Hayatın döngülerine güvenin."
+    },
+    {
+        "id": 11,
+        "nameTR": "Adalet",
+        "nameEN": "Justice",
+        "keywordsTR": [
+            "adalet",
+            "denge",
+            "doğruluk",
+            "sorumluluk"
+        ],
+        "uprightTR": "Adalet ve dürüstlük ön planda. Kararlarınızın sonuçlarıyla yüzleşme zamanı. Dengeli ve tarafsız olun. Hukuki konular lehinize sonuçlanabilir.",
+        "reversedTR": "Adaletsizlik hissi veya sorumluluktan kaçma. Eylemlerinizin sonuçlarıyla yüzleşmekten kaçınıyorsunuz. Dengeli kalmak ve dürüst olmak zorunlu.",
+        "archetypeTR": "Denge Koruyucusu",
+        "adviceTR": "Doğrudan yana olun. Denge her zaman kendini kurar."
+    },
+    {
+        "id": 12,
+        "nameTR": "Asılı Adam",
+        "nameEN": "The Hanged Man",
+        "keywordsTR": [
+            "teslim olma",
+            "farklı bakış",
+            "bekleme",
+            "fedakarlık"
+        ],
+        "uprightTR": "Durun ve farklı bir perspektiften bakın. Bazen ilerlemenin yolu geri adım atmaktan geçer. Bu bekleme süreci boş değil, sizi olgunlaştırıyor. Teslim olma ve sabır, bu kartın anahtar mesajları.",
+        "reversedTR": "Gereksiz fedakarlıklar veya oyalanma. Beklemek artık verimli değil, hareket etme zamanı gelmiş olabilir. Ataletten kurtulun.",
+        "archetypeTR": "Farklı Gören",
+        "adviceTR": "Bazen durmak en büyük ilerlemedir. Perspektifinizi değiştirin."
+    },
+    {
+        "id": 13,
+        "nameTR": "Ölüm",
+        "nameEN": "Death",
+        "keywordsTR": [
+            "dönüşüm",
+            "son ve başlangıç",
+            "bırakma",
+            "yenilenme"
+        ],
+        "uprightTR": "Büyük bir dönüşüm yaşanıyor. Eski kalıpların, alışkanlıkların veya ilişkilerin sona ermesi gerekiyor ki yeni kapılar açılsın. Bu bir son değil, sonsuz bir yeniden doğuş. Değişim kaçınılmaz; kucaklayın.",
+        "reversedTR": "Değişime direnç. Geçmişe tutunma ve bırakamama. Eski yapılar sizi aşağı çekiyor. Bırakmanın özgürlük olduğunu kabul edin.",
+        "archetypeTR": "Dönüşüm Gücü",
+        "adviceTR": "Eskiyi bırakın. Her son yeni ve daha iyi bir başlangıcın habercisidir."
+    },
+    {
+        "id": 14,
+        "nameTR": "Denge",
+        "nameEN": "Temperance",
+        "keywordsTR": [
+            "denge",
+            "sabır",
+            "uyum",
+            "ölçülülük"
+        ],
+        "uprightTR": "Dengelilik ve ölçülülük anahtardır. Aşırılıklardan kaçının ve hayatınızın her alanında uyum arayın. Sabır ve itidal ile hareket ettiğinizde en iyi sonuçlara ulaşırsınız.",
+        "reversedTR": "Dengesizlik ve aşırılık. Bir alanda çok fazla enerji harcarken diğerlerini ihmal ediyor olabilirsiniz. Önceliklerinizi yeniden düzenleyin.",
+        "archetypeTR": "Uyum Ustası",
+        "adviceTR": "Her şeyde ölçü ve denge arayın. Usluluk güç işaretidir."
+    },
+    {
+        "id": 15,
+        "nameTR": "Şeytan",
+        "nameEN": "The Devil",
+        "keywordsTR": [
+            "bağımlılık",
+            "tutsak edici kalıplar",
+            "gölge",
+            "maddecilik"
+        ],
+        "uprightTR": "Sizi kısıtlayan bağımlılıklara veya kalıplara dikkat. Maddi dünya sizi içine çekerken ruhsal boyutu ihmal etmeyin. Bu bağların farkına varmak, özgürlüğün ilk adımıdır.",
+        "reversedTR": "Zincirlerden kurtulma ve özgürlüğe kavuşma zamanı. Bağımlılıklarınızı kırmaya başlıyorsunuz. Bu cesur adımı takdirle karşılayın ve devam edin.",
+        "archetypeTR": "Gölge Aynası",
+        "adviceTR": "Sizi neyin tutsak ettiğini fark edin. Farkındalık özgürlüğün başlangıcıdır."
+    },
+    {
+        "id": 16,
+        "nameTR": "Kule",
+        "nameEN": "The Tower",
+        "keywordsTR": [
+            "ani değişim",
+            "yıkılma",
+            "aydınlanma",
+            "özgürleşme"
+        ],
+        "uprightTR": "Ani ve beklenmedik bir değişim geliyor. Eskiyen yapılar yerle bir olurken yeni ve daha sağlam temeller için alan açılıyor. Bu sarsıntı korkutucu olsa da sonunda sizi özgürleştirecek.",
+        "reversedTR": "Kaçınılmaz değişimi erteleme veya hafifletme çabası. Direnmek yerine adapte olun. Kontrol edemediğiniz şeylerle savaşı bırakın.",
+        "archetypeTR": "Yıkım ve Yeniden Doğuş",
+        "adviceTR": "Yıkım sonrası yeniden inşa edin. En sağlam yapılar fırtınadan sonra kurulur."
+    },
+    {
+        "id": 17,
+        "nameTR": "Yıldız",
+        "nameEN": "The Star",
+        "keywordsTR": [
+            "umut",
+            "ilham",
+            "yenilenme",
+            "huzur"
+        ],
+        "uprightTR": "Zorlukların ardından umut ve iyileşme dönemi başlıyor. İlham kaynaklarınıza yeniden bağlanın. İç huzurunuzu bulmak için kendinize zaman tanıyın. Yıldızlar sizin için parlıyor.",
+        "reversedTR": "Umutsuzluk ve ilham kaybı. Karanlık bir dönemden geçiyor olabilirsiniz ama bu geçici. Küçük umutlara tutunun ve sabredin.",
+        "archetypeTR": "Umut Işığı",
+        "adviceTR": "Umudunuzu kaybetmeyin. En karanlık gecenin ardından en parlak yıldızlar görülür."
+    },
+    {
+        "id": 18,
+        "nameTR": "Ay",
+        "nameEN": "The Moon",
+        "keywordsTR": [
+            "yanılsama",
+            "sezgi",
+            "bilinçdışı",
+            "korkular"
+        ],
+        "uprightTR": "Her şey göründüğü gibi değil. Yanılsamalara ve korkularınıza dikkat edin. Bilinçdışı içerikler yüzeye çıkıyor; rüyalarınıza ve sezgilerinize dikkat edin. Netlik arayın ama sabırlı olun.",
+        "reversedTR": "Korkuların dağılması ve netlik kazanma. Yanılsamaların ardından gerçeği görmeye başlıyorsunuz. Sezgilerinize güvenin.",
+        "archetypeTR": "Gizemli Rehber",
+        "adviceTR": "Korkularınızla yüzleşin. Karanlıkta bile sezgileriniz size yol gösterir."
+    },
+    {
+        "id": 19,
+        "nameTR": "Güneş",
+        "nameEN": "The Sun",
+        "keywordsTR": [
+            "başarı",
+            "neşe",
+            "canlılık",
+            "berraklık"
+        ],
+        "uprightTR": "Parlak ve başarılı bir dönem sizi bekliyor. Neşe, canlılık ve başarı hayatınızın her alanında kendini gösterecek. Çocuksu bir coşku ve samimiyetle hayata yaklaşın.",
+        "reversedTR": "Geçici bir bulutlanma. Neşe ve başarı hâlâ yakınızda ama erteleniyor olabilir. Olumlu bakış açınızı koruyun ve sabırla bekleyin.",
+        "archetypeTR": "Işık Kaynağı",
+        "adviceTR": "Işığınızı parlatın. Gerçek otantik olduğunuzda başarı doğal olarak gelir."
+    },
+    {
+        "id": 20,
+        "nameTR": "Mahkeme",
+        "nameEN": "Judgement",
+        "keywordsTR": [
+            "diriliş",
+            "hesap verme",
+            "iç çağrı",
+            "özgürleşme"
+        ],
+        "uprightTR": "Büyük bir iç uyanış ve kendini değerlendirme zamanı. Geçmişinizle hesaplaşın ve kendinizi affedin. İç çağrınıza kulak verin; ruhsal olarak yeni bir seviyeye geçiş yapıyorsunuz.",
+        "reversedTR": "İç eleştiri ve kendini affedememe. Geçmiş hatalarına takılıp kalma. Kendinize merhamet gösterin ve ileriye bakın.",
+        "archetypeTR": "Uyanış Çağrısı",
+        "adviceTR": "Kendinizle yüzleşin. Affetmek en büyük güç gösterisidir."
+    },
+    {
+        "id": 21,
+        "nameTR": "Dünya",
+        "nameEN": "The World",
+        "keywordsTR": [
+            "tamamlanma",
+            "başarı",
+            "bütünlük",
+            "döngüsellik"
+        ],
+        "uprightTR": "Büyük bir döngü tamamlanıyor. Başarı ve bütünlük duygusu ile doluyorsunuz. Emeklerinizin karşılığını alma zamanı. Yeni ve daha yüksek bir döngünün başında duruyorsunuz.",
+        "reversedTR": "Tamamlanmamış işler veya kapanmamış döngüler. Bir şeyleri bitirmeden yenilerine başlamak sizi yoracaktır. Önce mevcut süreçlerinizi sonlandırın.",
+        "archetypeTR": "Tümlenme",
+        "adviceTR": "Başarılarınızı kutlayın. Her son aynı zamanda yeni bir başlangıçtır."
+    }
+]

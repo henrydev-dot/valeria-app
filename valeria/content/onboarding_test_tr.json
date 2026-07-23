@@ -1,0 +1,644 @@
+{
+    "questions": [
+        {
+            "id": 1,
+            "questionTR": "Zor bir kararla karsilasitiginizda ilk tepkiniz ne olur?",
+            "options": [
+                {
+                    "text": "Durumu analiz eder, mantikli cozum arareim",
+                    "traits": {
+                        "Wisdom": 3,
+                        "Order": 1
+                    }
+                },
+                {
+                    "text": "Icgudulerime guvenip hemen harekete gecerim",
+                    "traits": {
+                        "Power": 2,
+                        "Adventure": 2
+                    }
+                },
+                {
+                    "text": "Duygularmi dinler, kalbimiin sesine uyarim",
+                    "traits": {
+                        "Emotion": 3,
+                        "Freedom": 1
+                    }
+                },
+                {
+                    "text": "Baskalarina daniisir, fikir aliirim",
+                    "traits": {
+                        "Wisdom": 1,
+                        "Order": 2,
+                        "Emotion": 1
+                    }
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "questionTR": "Idealinizdeki tatil nasil olurdu?",
+            "options": [
+                {
+                    "text": "Tarihi kalintilari ve muzeleeri gezmek",
+                    "traits": {
+                        "Wisdom": 3,
+                        "Order": 1
+                    }
+                },
+                {
+                    "text": "Dagda tek basina kamp yapmak",
+                    "traits": {
+                        "Freedom": 3,
+                        "Adventure": 1
+                    }
+                },
+                {
+                    "text": "Sevdiklerimle sahilde dinlenmek",
+                    "traits": {
+                        "Emotion": 2,
+                        "Freedom": 1,
+                        "Order": 1
+                    }
+                },
+                {
+                    "text": "Macera sporu ve kesfif turu",
+                    "traits": {
+                        "Adventure": 3,
+                        "Power": 1
+                    }
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "questionTR": "Bir grupta genellikle hangi rolu ustlenirsiniz?",
+            "options": [
+                {
+                    "text": "Lider — yonu ben bellirlerim",
+                    "traits": {
+                        "Power": 3,
+                        "Order": 1
+                    }
+                },
+                {
+                    "text": "Strateji kurucu — plan yapaarim",
+                    "traits": {
+                        "Wisdom": 2,
+                        "Order": 2
+                    }
+                },
+                {
+                    "text": "Arabulucu — herkesii dinlerim",
+                    "traits": {
+                        "Emotion": 3,
+                        "Wisdom": 1
+                    }
+                },
+                {
+                    "text": "Bagimsiz — kendi yolumu cizerim",
+                    "traits": {
+                        "Freedom": 3,
+                        "Adventure": 1
+                    }
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "questionTR": "Hangi element size en yakin hissettirir?",
+            "options": [
+                {
+                    "text": "Ates — tutku ve guc",
+                    "traits": {
+                        "Power": 3,
+                        "Adventure": 1
+                    }
+                },
+                {
+                    "text": "Su — derinlik ve duygu",
+                    "traits": {
+                        "Emotion": 3,
+                        "Wisdom": 1
+                    }
+                },
+                {
+                    "text": "Hava — ozgurluk ve zeka",
+                    "traits": {
+                        "Freedom": 2,
+                        "Wisdom": 2
+                    }
+                },
+                {
+                    "text": "Toprak — istikrar ve duzeen",
+                    "traits": {
+                        "Order": 3,
+                        "Power": 1
+                    }
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "questionTR": "Basarinin anahtari sizce nedir?",
+            "options": [
+                {
+                    "text": "Disiplin ve caliskanlik",
+                    "traits": {
+                        "Order": 3,
+                        "Power": 1
+                    }
+                },
+                {
+                    "text": "Yaraticilik ve cesaret",
+                    "traits": {
+                        "Adventure": 2,
+                        "Freedom": 2
+                    }
+                },
+                {
+                    "text": "Empati ve insaan iliskileri",
+                    "traits": {
+                        "Emotion": 3,
+                        "Wisdom": 1
+                    }
+                },
+                {
+                    "text": "Bilgi ve stratejii",
+                    "traits": {
+                        "Wisdom": 3,
+                        "Order": 1
+                    }
+                }
+            ]
+        },
+        {
+            "id": 6,
+            "questionTR": "Ruyalarinizdda en sik ne gorursunuz?",
+            "options": [
+                {
+                    "text": "Ucmak veya yuksek yerlerden bakmak",
+                    "traits": {
+                        "Freedom": 3,
+                        "Adventure": 1
+                    }
+                },
+                {
+                    "text": "Su ve deniz manzaralari",
+                    "traits": {
+                        "Emotion": 2,
+                        "Wisdom": 2
+                    }
+                },
+                {
+                    "text": "Savvaslar veya yarismalar",
+                    "traits": {
+                        "Power": 3,
+                        "Adventure": 1
+                    }
+                },
+                {
+                    "text": "Gizemli yapilar ve labirentler",
+                    "traits": {
+                        "Wisdom": 2,
+                        "Order": 2
+                    }
+                }
+            ]
+        },
+        {
+            "id": 7,
+            "questionTR": "Hangi hayvan size en cok ilham verir?",
+            "options": [
+                {
+                    "text": "Kartal — keskin goruus, yukseklik",
+                    "traits": {
+                        "Wisdom": 2,
+                        "Freedom": 2
+                    }
+                },
+                {
+                    "text": "Kurt — sadakaat ve liderlik",
+                    "traits": {
+                        "Power": 2,
+                        "Order": 2
+                    }
+                },
+                {
+                    "text": "Yunus — zeka ve nese",
+                    "traits": {
+                        "Emotion": 2,
+                        "Adventure": 2
+                    }
+                },
+                {
+                    "text": "Panter — gizemilik ve guc",
+                    "traits": {
+                        "Power": 2,
+                        "Freedom": 2
+                    }
+                }
+            ]
+        },
+        {
+            "id": 8,
+            "questionTR": "Bir ceeliskiyle karsilastiginizda nasil tepki verirsiniz?",
+            "options": [
+                {
+                    "text": "Dogrudan yuzlesiir, cozum arariem",
+                    "traits": {
+                        "Power": 3,
+                        "Order": 1
+                    }
+                },
+                {
+                    "text": "Uzaklasiir, sogukkanli analiz ederim",
+                    "traits": {
+                        "Wisdom": 3,
+                        "Freedom": 1
+                    }
+                },
+                {
+                    "text": "Karsii tarafin duygularini anlamaya calisiirim",
+                    "traits": {
+                        "Emotion": 3,
+                        "Order": 1
+                    }
+                },
+                {
+                    "text": "Ortamdan ayriilir, kendi yoluma bakarim",
+                    "traits": {
+                        "Freedom": 3,
+                        "Adventure": 1
+                    }
+                }
+            ]
+        },
+        {
+            "id": 9,
+            "questionTR": "Hangi mevsim ruhunuza en yakin?",
+            "options": [
+                {
+                    "text": "Ilkbahar — yeni baslangiclar",
+                    "traits": {
+                        "Adventure": 2,
+                        "Emotion": 2
+                    }
+                },
+                {
+                    "text": "Yaz — enerji ve canlilik",
+                    "traits": {
+                        "Power": 2,
+                        "Freedom": 2
+                    }
+                },
+                {
+                    "text": "Sonbahar — olgunluk ve huzun",
+                    "traits": {
+                        "Wisdom": 2,
+                        "Emotion": 2
+                    }
+                },
+                {
+                    "text": "Kis — dinlenme ve icc yolculuk",
+                    "traits": {
+                        "Order": 2,
+                        "Wisdom": 2
+                    }
+                }
+            ]
+        },
+        {
+            "id": 10,
+            "questionTR": "Ideal yasamm alaniniz nasil oluurdu?",
+            "options": [
+                {
+                    "text": "Dag basiinda kucuk bir ev",
+                    "traits": {
+                        "Freedom": 3,
+                        "Wisdom": 1
+                    }
+                },
+                {
+                    "text": "Sehir merkezicnde modern bir daire",
+                    "traits": {
+                        "Power": 2,
+                        "Order": 2
+                    }
+                },
+                {
+                    "text": "Deniz kenariinda huzurlu bir koy",
+                    "traits": {
+                        "Emotion": 3,
+                        "Freedom": 1
+                    }
+                },
+                {
+                    "text": "Taarihi bir kasabada eski bir konak",
+                    "traits": {
+                        "Wisdom": 2,
+                        "Order": 2
+                    }
+                }
+            ]
+        },
+        {
+            "id": 11,
+            "questionTR": "Bir super gucunuz olsaydi hangisini secrdiniz?",
+            "options": [
+                {
+                    "text": "Zihin okuma",
+                    "traits": {
+                        "Wisdom": 3,
+                        "Emotion": 1
+                    }
+                },
+                {
+                    "text": "Issinlanma",
+                    "traits": {
+                        "Freedom": 3,
+                        "Adventure": 1
+                    }
+                },
+                {
+                    "text": "Zaman kontrolu",
+                    "traits": {
+                        "Power": 2,
+                        "Order": 2
+                    }
+                },
+                {
+                    "text": "Sifaa gucu",
+                    "traits": {
+                        "Emotion": 2,
+                        "Wisdom": 2
+                    }
+                }
+            ]
+        },
+        {
+            "id": 12,
+            "questionTR": "Hayattaa en cok neye deger verirsiniz?",
+            "options": [
+                {
+                    "text": "Ozgurluk ve bagimsizlik",
+                    "traits": {
+                        "Freedom": 3,
+                        "Adventure": 1
+                    }
+                },
+                {
+                    "text": "Bilgi ve gelisim",
+                    "traits": {
+                        "Wisdom": 3,
+                        "Order": 1
+                    }
+                },
+                {
+                    "text": "Ask ve baag kurmak",
+                    "traits": {
+                        "Emotion": 3,
+                        "Power": 1
+                    }
+                },
+                {
+                    "text": "Basari ve etki birakma",
+                    "traits": {
+                        "Power": 3,
+                        "Order": 1
+                    }
+                }
+            ]
+        }
+    ],
+    "deities": [
+        {
+            "id": "athena",
+            "nameTR": "Athena",
+            "titleTR": "Bilgelik ve Strateji Tanricasi",
+            "primaryTraits": [
+                "Wisdom",
+                "Order"
+            ],
+            "descriptionTR": "Mantik, strateji ve adaletin koruyucusu. Sogukkanllilik ve bilgelikle hareket edersiniz.",
+            "strengthsTR": [
+                "Analitik dusunce",
+                "Stratejik planlama",
+                "Adalet duygusu"
+            ],
+            "growthTR": [
+                "Duygusal ifade",
+                "Spontanlk"
+            ]
+        },
+        {
+            "id": "artemis",
+            "nameTR": "Artemis",
+            "titleTR": "Av ve Bagimsizlik Tanricasi",
+            "primaryTraits": [
+                "Freedom",
+                "Adventure"
+            ],
+            "descriptionTR": "Dogayla ic ice, bagimsiz ve cesur. Kendi yolunuzu cizen bir ruhsunuz.",
+            "strengthsTR": [
+                "Bagimsizilik",
+                "Dogayla uyum",
+                "Cesaret"
+            ],
+            "growthTR": [
+                "Takm calismasi",
+                "Uzlasma"
+            ]
+        },
+        {
+            "id": "hera",
+            "nameTR": "Hera",
+            "titleTR": "Evlilik ve Aile Tanricasi",
+            "primaryTraits": [
+                "Order",
+                "Emotion"
+            ],
+            "descriptionTR": "Sadakat, aile ve duzene deger veren guclu bir lider. Kuraallara ve baglara onem verirsiniz.",
+            "strengthsTR": [
+                "Sadakat",
+                "Organizasyon",
+                "Koruyuculuk"
+            ],
+            "growthTR": [
+                "Esneklik",
+                "Affedicilik"
+            ]
+        },
+        {
+            "id": "aphrodite",
+            "nameTR": "Afrodit",
+            "titleTR": "Ask ve Guzellik Tanricasi",
+            "primaryTraits": [
+                "Emotion",
+                "Freedom"
+            ],
+            "descriptionTR": "Aski, guzelligi ve tutukuyu benimsemis bir ruh. Duygulariniz derin ve ifadeniz guclu.",
+            "strengthsTR": [
+                "Empaati",
+                "Yaraticilik",
+                "Cazibe"
+            ],
+            "growthTR": [
+                "Kararlrilk",
+                "Disiplin"
+            ]
+        },
+        {
+            "id": "persephone",
+            "nameTR": "Persefone",
+            "titleTR": "Bahar ve Donusum Tanricasi",
+            "primaryTraits": [
+                "Emotion",
+                "Wisdom"
+            ],
+            "descriptionTR": "Karanllk ve isik arasinda gidip gelen, donusumun ustasi. Derinliklere inme cesaretiniz var.",
+            "strengthsTR": [
+                "Donusum gucu",
+                "Derinlik",
+                "Uyum"
+            ],
+            "growthTR": [
+                "Kendine guven",
+                "Sinir koyma"
+            ]
+        },
+        {
+            "id": "demeter",
+            "nameTR": "Demeter",
+            "titleTR": "Bereket ve Hasat Tanricasi",
+            "primaryTraits": [
+                "Emotion",
+                "Order"
+            ],
+            "descriptionTR": "Besleyici, sabirl ve koruyucu. Basklarina bakma icgudusuuz guclu.",
+            "strengthsTR": [
+                "Sefkaat",
+                "Sabr",
+                "Besleyicilik"
+            ],
+            "growthTR": [
+                "Kendi ihtiyaclarini onceleme",
+                "Bagimsizlik"
+            ]
+        },
+        {
+            "id": "zeus",
+            "nameTR": "Zeus",
+            "titleTR": "Tanrilarin Krali",
+            "primaryTraits": [
+                "Power",
+                "Order"
+            ],
+            "descriptionTR": "Liderlik, otorite ve guc sizin dogal haliniz. Buyuk vizyyonlar ve kararli adimlarla hareket edersiniz.",
+            "strengthsTR": [
+                "Liderlik",
+                "Vizyon",
+                "Kararlilik"
+            ],
+            "growthTR": [
+                "Alccakgonulluluk",
+                "Di̇nleme"
+            ]
+        },
+        {
+            "id": "apollo",
+            "nameTR": "Apollon",
+            "titleTR": "Isik ve Sanat Tanrisi",
+            "primaryTraits": [
+                "Wisdom",
+                "Freedom"
+            ],
+            "descriptionTR": "Sanaat, bilgi ve isigin temsilcisi. Hem yaratici hem mantikli bir yapiya sahipsiniz.",
+            "strengthsTR": [
+                "Yaraticilik",
+                "Bilgelik",
+                "Dengelilik"
+            ],
+            "growthTR": [
+                "Duygusal derinlik",
+                "Sabir"
+            ]
+        },
+        {
+            "id": "ares",
+            "nameTR": "Ares",
+            "titleTR": "Savas Tanrsi",
+            "primaryTraits": [
+                "Power",
+                "Adventure"
+            ],
+            "descriptionTR": "Cesaret, guc ve savascil ruh. Korkulara ragmen ileri atiilma gudusu sizi tanimlar.",
+            "strengthsTR": [
+                "Cesaret",
+                "Kararlilik",
+                "Eylem gucu"
+            ],
+            "growthTR": [
+                "Diplomasi",
+                "Sabir"
+            ]
+        },
+        {
+            "id": "poseidon",
+            "nameTR": "Poseidon",
+            "titleTR": "Denizlerin Tanrisi",
+            "primaryTraits": [
+                "Power",
+                "Emotion"
+            ],
+            "descriptionTR": "Derin duyguler ve guclu irade. Durgunken sakin ama firtinada kudretli bir ruhsunuz.",
+            "strengthsTR": [
+                "Duygusall guc",
+                "Sezgii",
+                "Uyum"
+            ],
+            "growthTR": [
+                "Afiete kontrol",
+                "Istikkrar"
+            ]
+        },
+        {
+            "id": "hermes",
+            "nameTR": "Hermes",
+            "titleTR": "Haberciler Tanrisi",
+            "primaryTraits": [
+                "Freedom",
+                "Wisdom"
+            ],
+            "descriptionTR": "Hizli dusunce, iletisim ve uyum yetenegi. Farkli dunyyalar arasi kopru kurarsuniz.",
+            "strengthsTR": [
+                "Iletisim",
+                "Zirhhinlik",
+                "Uyumluluk"
+            ],
+            "growthTR": [
+                "Derinlik",
+                "Sadik kalma"
+            ]
+        },
+        {
+            "id": "hades",
+            "nameTR": "Hades",
+            "titleTR": "Yerlati Tanrisi",
+            "primaryTraits": [
+                "Order",
+                "Wisdom"
+            ],
+            "descriptionTR": "Gizeml, derin ve duzenli. Gorunmeyen dunuyanin bilgeligi sizde sakli.",
+            "strengthsTR": [
+                "Derinlik",
+                "Sabir",
+                "Guc"
+            ],
+            "growthTR": [
+                "Aciklik",
+                "Sosuyal baglanti"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "Valeria",
+    "slug": "valeria",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "valeria",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A1A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.astrovaleria.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Kahve falı için fincan fotoğrafı çekmek amacıyla kameraya erişim gereklidir.",
+        "NSPhotoLibraryUsageDescription": "Kahve falı için fincan fotoğrafı seçmek amacıyla galeri erişimi gereklidir.",
+        "CFBundleLocalizations": [
+          "tr",
+          "tr"
+        ],
+        "CFBundleDevelopmentRegion": "tr",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A0A1A"
+      },
+      "package": "com.valeria.app",
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Kahve falı için fincan fotoğrafı seçmek amacıyla galeri erişimi gereklidir.",
+          "cameraPermission": "Kahve falı için fincan fotoğrafı çekmek amacıyla kameraya erişim gereklidir."
+        }
+      ],
+      "expo-apple-authentication"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2642eeb0-a157-44f9-a66d-e8a47dbe7b62"
+      },
+      "router": {}
+    },
+    "owner": "sumeyyedevtr"
+  }
+}

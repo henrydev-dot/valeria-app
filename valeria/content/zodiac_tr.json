@@ -1,0 +1,218 @@
+[
+    {
+        "id": 1,
+        "nameTR": "Koc",
+        "nameEN": "Aries",
+        "symbol": "ram",
+        "dateRange": "21 Mart - 19 Nisan",
+        "startMonth": 3,
+        "startDay": 21,
+        "endMonth": 4,
+        "endDay": 19,
+        "element": "Ates",
+        "rulingPlanet": "Mars",
+        "descriptionTR": "Cesaretli, enerjik ve lider ruhlu. Koclar her zaman ilk adimi atan ve yol acan kisiliklerdir.",
+        "compatibleSigns": [
+            5,
+            9
+        ]
+    },
+    {
+        "id": 2,
+        "nameTR": "Boga",
+        "nameEN": "Taurus",
+        "symbol": "bull",
+        "dateRange": "20 Nisan - 20 Mayis",
+        "startMonth": 4,
+        "startDay": 20,
+        "endMonth": 5,
+        "endDay": 20,
+        "element": "Toprak",
+        "rulingPlanet": "Venus",
+        "descriptionTR": "Karalli, sadik ve konfor seven. Bogalar guvenillir ve sabirlidirlar.",
+        "compatibleSigns": [
+            6,
+            10
+        ]
+    },
+    {
+        "id": 3,
+        "nameTR": "Ikizler",
+        "nameEN": "Gemini",
+        "symbol": "twins",
+        "dateRange": "21 Mayis - 20 Haziran",
+        "startMonth": 5,
+        "startDay": 21,
+        "endMonth": 6,
+        "endDay": 20,
+        "element": "Hava",
+        "rulingPlanet": "Merkur",
+        "descriptionTR": "Merakli, iletisim odakli ve cok yonlu. Ikizler hizli ogrenirler ve farkli alanlara ilgi duyarlar.",
+        "compatibleSigns": [
+            7,
+            11
+        ]
+    },
+    {
+        "id": 4,
+        "nameTR": "Yengec",
+        "nameEN": "Cancer",
+        "symbol": "crab",
+        "dateRange": "21 Haziran - 22 Temmuz",
+        "startMonth": 6,
+        "startDay": 21,
+        "endMonth": 7,
+        "endDay": 22,
+        "element": "Su",
+        "rulingPlanet": "Ay",
+        "descriptionTR": "Koruyucu, sezgisel ve duygusal. Yengecler ailelerine ve yakinlarina derin bir baglilik gosterirler.",
+        "compatibleSigns": [
+            8,
+            12
+        ]
+    },
+    {
+        "id": 5,
+        "nameTR": "Aslan",
+        "nameEN": "Leo",
+        "symbol": "lion",
+        "dateRange": "23 Temmuz - 22 Agustos",
+        "startMonth": 7,
+        "startDay": 23,
+        "endMonth": 8,
+        "endDay": 22,
+        "element": "Ates",
+        "rulingPlanet": "Gunes",
+        "descriptionTR": "Karizmatik, yaratici ve cesur. Aslanlar dogal liderlerdir ve sahne isiklari altinda parlarlar.",
+        "compatibleSigns": [
+            1,
+            9
+        ]
+    },
+    {
+        "id": 6,
+        "nameTR": "Basak",
+        "nameEN": "Virgo",
+        "symbol": "maiden",
+        "dateRange": "23 Agustos - 22 Eylul",
+        "startMonth": 8,
+        "startDay": 23,
+        "endMonth": 9,
+        "endDay": 22,
+        "element": "Toprak",
+        "rulingPlanet": "Merkur",
+        "descriptionTR": "Analitik, detayci ve caliskan. Basaklar mukemmeliyetci yapilariyla taniinirlar.",
+        "compatibleSigns": [
+            2,
+            10
+        ]
+    },
+    {
+        "id": 7,
+        "nameTR": "Terazi",
+        "nameEN": "Libra",
+        "symbol": "scales",
+        "dateRange": "23 Eylul - 22 Ekim",
+        "startMonth": 9,
+        "startDay": 23,
+        "endMonth": 10,
+        "endDay": 22,
+        "element": "Hava",
+        "rulingPlanet": "Venus",
+        "descriptionTR": "Dengeli, diplomatik ve estetik seven. Teraziler uyum ve adaleti on planda tutarlar.",
+        "compatibleSigns": [
+            3,
+            11
+        ]
+    },
+    {
+        "id": 8,
+        "nameTR": "Akrep",
+        "nameEN": "Scorpio",
+        "symbol": "scorpion",
+        "dateRange": "23 Ekim - 21 Kasim",
+        "startMonth": 10,
+        "startDay": 23,
+        "endMonth": 11,
+        "endDay": 21,
+        "element": "Su",
+        "rulingPlanet": "Pluton",
+        "descriptionTR": "Tutukulu, kararlk ve gizemli. Akrepler derin duyguulari ve guclu sezgileriyle bilinirler.",
+        "compatibleSigns": [
+            4,
+            12
+        ]
+    },
+    {
+        "id": 9,
+        "nameTR": "Yay",
+        "nameEN": "Sagittarius",
+        "symbol": "archer",
+        "dateRange": "22 Kasim - 21 Aralik",
+        "startMonth": 11,
+        "startDay": 22,
+        "endMonth": 12,
+        "endDay": 21,
+        "element": "Ates",
+        "rulingPlanet": "Jupiter",
+        "descriptionTR": "Maceraci, iyimser ve ozgur ruhlu. Yaylar yeni deneyimler ve bilgi pesindeir.",
+        "compatibleSigns": [
+            1,
+            5
+        ]
+    },
+    {
+        "id": 10,
+        "nameTR": "Oglak",
+        "nameEN": "Capricorn",
+        "symbol": "goat",
+        "dateRange": "22 Aralik - 19 Ocak",
+        "startMonth": 12,
+        "startDay": 22,
+        "endMonth": 1,
+        "endDay": 19,
+        "element": "Toprak",
+        "rulingPlanet": "Saturn",
+        "descriptionTR": "Disiplinli, hirslii ve stratejik. Oglaklar uzun vadeli hedeflere odaklanir ve sabrrla calisirlar.",
+        "compatibleSigns": [
+            2,
+            6
+        ]
+    },
+    {
+        "id": 11,
+        "nameTR": "Kova",
+        "nameEN": "Aquarius",
+        "symbol": "water-bearer",
+        "dateRange": "20 Ocak - 18 Subat",
+        "startMonth": 1,
+        "startDay": 20,
+        "endMonth": 2,
+        "endDay": 18,
+        "element": "Hava",
+        "rulingPlanet": "Uranus",
+        "descriptionTR": "Yenilikci, bagimsiz ve insancil. Kovalar toplumsal degisim icin calisan vizyoner kisiliklerdir.",
+        "compatibleSigns": [
+            3,
+            7
+        ]
+    },
+    {
+        "id": 12,
+        "nameTR": "Balik",
+        "nameEN": "Pisces",
+        "symbol": "fish",
+        "dateRange": "19 Subat - 20 Mart",
+        "startMonth": 2,
+        "startDay": 19,
+        "endMonth": 3,
+        "endDay": 20,
+        "element": "Su",
+        "rulingPlanet": "Neptun",
+        "descriptionTR": "Sezgisel, empatik ve yaratici. Baliklar derin duygusal zekalari ve hayal gucleriyle taniinirlar.",
+        "compatibleSigns": [
+            4,
+            8
+        ]
+    }
+]

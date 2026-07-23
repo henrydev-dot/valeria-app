@@ -1,0 +1,198 @@
+[
+    {
+        "id": "buyu101",
+        "category": "Buyu",
+        "titleTR": "Buyu 101: Temel Bilgiler",
+        "isPaid": false,
+        "priceCredits": 0,
+        "readingTime": "8 dk",
+        "sections": [
+            {
+                "titleTR": "Buyu Nedir?",
+                "contentTR": "Buyu, enerji ve niyet yonlendirme sanatdir. Tarih boyyunca farkli kulturlerde cesitli bicimlerle uygulanmistir. Modern yakllasimda buyu, bireyssel farkindalk ve enerji calismasi olarak ele alinir."
+            },
+            {
+                "titleTR": "Temel Prensipler",
+                "contentTR": "Niyet belirleme, odaaklanma ve enerji yonlendirme buyuunun uc temel diregi olarak kabul edilir. Her calismadan once niyetiinizi netlestiriin."
+            },
+            {
+                "titleTR": "Uyari",
+                "contentTR": "Bu icerikler eglence ve kisisel farkkindalk amacldir. Tibbi veya hukukki tavsiye niteligi tasimaz."
+            }
+        ]
+    },
+    {
+        "id": "buyu102",
+        "category": "Buyu",
+        "titleTR": "Buyu 102: Koruma Teknikleri",
+        "isPaid": true,
+        "priceCredits": 15,
+        "readingTime": "12 dk",
+        "sections": [
+            {
+                "titleTR": "Enerji Korumasi",
+                "contentTR": "Negatif ennerjilerden korunma yontemleri arasinda tuz banyolari, sage yakma ve koruyucu kristal tassima yer alir."
+            },
+            {
+                "titleTR": "Koruma Ritueeli Adimlari",
+                "contentTR": "1. Ortami hazirlayiin\n2. Koruyyucu kristallerinizi yerlestirin\n3. Niyetinizi sesesli ifade edin\n4. Gorsellemme yapin\n5. Tesekkur edin"
+            }
+        ]
+    },
+    {
+        "id": "tilsim101",
+        "category": "Tilsim",
+        "titleTR": "Tilsim 101: Koruyucu Semboller",
+        "isPaid": false,
+        "priceCredits": 0,
+        "readingTime": "6 dk",
+        "sections": [
+            {
+                "titleTR": "Tilsim Nedir?",
+                "contentTR": "Tilsimlar, koruyucu veya sansgetirici amaacla kullanilan sembolik objelerdir. Farkli kulturlerde cesitli materyallerden uretilirler."
+            },
+            {
+                "titleTR": "Yaygin Tilsimlar",
+                "contentTR": "Nazar boncuugu, hamsa eli, hayat agaci ve rune taslari en bilinen tilsimlaar arasindadir."
+            }
+        ]
+    },
+    {
+        "id": "muska101",
+        "category": "Muska",
+        "titleTR": "Muska 101: Tarihsel Kokenler",
+        "isPaid": true,
+        "priceCredits": 10,
+        "readingTime": "10 dk",
+        "sections": [
+            {
+                "titleTR": "Muska Geleneegi",
+                "contentTR": "Muskalar, Anadolu medeniyetlerinden bu yana korumma ve sifa amaciyla kullanillan sembolik objelerdir."
+            },
+            {
+                "titleTR": "Modern Yorum",
+                "contentTR": "Gunnumuzde muskalar, kisisel farkkindalk ve niyet belirleme arakci olarak yeniden yorumlanmaktadir."
+            }
+        ]
+    },
+    {
+        "id": "run101",
+        "category": "Run",
+        "titleTR": "Run 101: Eski Alfabe",
+        "isPaid": false,
+        "priceCredits": 0,
+        "readingTime": "9 dk",
+        "sections": [
+            {
+                "titleTR": "Runler Nedir?",
+                "contentTR": "Runler, eski Germen halklarinin kullandigi bir alfabe sistemidir. Her run harfi bir anlam ve enerji tasir."
+            },
+            {
+                "titleTR": "Elder Futhark",
+                "contentTR": "En yaygin run sistemi olan Elder Futhark, 24 run harfinden olusur. Her biri farkli yasam alanlarini temsil eder."
+            },
+            {
+                "titleTR": "Run Okumasi",
+                "contentTR": "Run taslari cekillerek veya atilarak yoorum yapilir. Tek tas, uc tas ve bes tas acilimlari en yaygin yonntemlerdir."
+            }
+        ]
+    },
+    {
+        "id": "kristal101",
+        "category": "Kristaller",
+        "titleTR": "Kristaller 101: Baslangic Rehberi",
+        "isPaid": false,
+        "priceCredits": 0,
+        "readingTime": "11 dk",
+        "sections": [
+            {
+                "titleTR": "Kristal Enerjisi",
+                "contentTR": "Kristallerin doga tarafindan milyon yillar boyunca olusturulman enerji yapiilari, farkli enerji frekanslari tasidiklarina inanilir."
+            },
+            {
+                "titleTR": "Temel Kristaller",
+                "contentTR": "Ametist: Huzur ve sezzgi. Kuvars: Netlik ve enerji. Obsidyen: Koruma. Ay Tasi: Kadinsi enerji ve dongu."
+            },
+            {
+                "titleTR": "Bakiim ve Temizlik",
+                "contentTR": "Kristallerinizi ay isiiginda, tuz suyunda veya sage dimuaninda temizleyeblirsiniz."
+            }
+        ]
+    },
+    {
+        "id": "kristal102",
+        "category": "Kristaller",
+        "titleTR": "Kristaller 102: Ileri Teknikler",
+        "isPaid": true,
+        "priceCredits": 20,
+        "readingTime": "14 dk",
+        "sections": [
+            {
+                "titleTR": "Kristal Gridleri",
+                "contentTR": "Birden fazla kristali geometrik dizilimlerle yerlestirerek enerji alanlarri olusturulabilir."
+            },
+            {
+                "titleTR": "Meditasyon ile Kullanim",
+                "contentTR": "Meditaasyon sirasinda kristalleri vucudunuzun enerji merkezlerine yerlestirin."
+            }
+        ]
+    },
+    {
+        "id": "ay101",
+        "category": "Ay Rituelleri",
+        "titleTR": "Ay Rituelleri 101: Ay Evreleri",
+        "isPaid": false,
+        "priceCredits": 0,
+        "readingTime": "7 dk",
+        "sections": [
+            {
+                "titleTR": "Yeni Ay",
+                "contentTR": "Yeni baslangiiclar icin ideal zaman. Niyetlerinizi belirleyin ve yeni projeler baslatiin."
+            },
+            {
+                "titleTR": "Dolunay",
+                "contentTR": "Tamamlama ve birakma zamani. Artik size hizmet etmeyen seyleriibirakmanin tam zamani."
+            },
+            {
+                "titleTR": "Hilal Donemlerri",
+                "contentTR": "Buyuyen hilal: Aksiyon aliin. Kucculen hilal: Icc muhasebe yapin."
+            }
+        ]
+    },
+    {
+        "id": "korunma101",
+        "category": "Buyu",
+        "titleTR": "Korunma 101: Enerji Hijyeni",
+        "isPaid": true,
+        "priceCredits": 15,
+        "readingTime": "10 dk",
+        "sections": [
+            {
+                "titleTR": "Enerji Hijyeni",
+                "contentTR": "Gunlluk yasantida negativf enerjilerden korunma aliskanliklari gelistirmek onemlidir."
+            },
+            {
+                "titleTR": "Pratik Adimlar",
+                "contentTR": "1. Sabah niyeti belirleyin\n2. Topraklanma egzersizi yapin\n3. Koruyucu tasinizi yaninizda bulundurun\n4. Aksam enerji temizzligi yapin"
+            }
+        ]
+    },
+    {
+        "id": "ay102",
+        "category": "Ay Rituelleri",
+        "titleTR": "Ay Rituelleri 102: Manifestasyon",
+        "isPaid": true,
+        "priceCredits": 20,
+        "readingTime": "13 dk",
+        "sections": [
+            {
+                "titleTR": "Manifestasyon Nedir?",
+                "contentTR": "Istediginiz gercekliigi bilinccli niyet ve enerji ile olusturma pratigidir."
+            },
+            {
+                "titleTR": "Yenni Ay Manifestasyonu",
+                "contentTR": "1. Sessiz bir ortaam yaratiin\n2. Niyetlerinizii kagida yazin\n3. Gorsellessttirme yapin\n4. Mumunuzu yakin\n5. 10 dakika meditasyon yapin"
+            }
+        ]
+    }
+]
