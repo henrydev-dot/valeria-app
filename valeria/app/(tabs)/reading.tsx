@@ -484,15 +484,15 @@ const styles = StyleSheet.create({
     advisorRow: { gap: Spacing.md, paddingVertical: Spacing.xs, paddingRight: Spacing.xl },
     advisorSkeleton: { marginRight: 0 },
     advisorCard: {
-        width: 132, paddingVertical: Spacing.lg, paddingHorizontal: Spacing.md,
-        alignItems: 'center', borderWidth: 1.5, gap: Spacing.xs,
+        width: 132, height: 156, paddingVertical: Spacing.lg, paddingHorizontal: Spacing.md,
+        alignItems: 'center', justifyContent: 'flex-start', borderWidth: 1.5, gap: Spacing.xs,
     },
     advisorAvatar: {
         width: 48, height: 48, borderRadius: 24,
         alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs,
     },
     advisorName: { width: '100%' },
-    advisorSubtitle: {},
+    advisorSubtitle: { minHeight: 36 },
     advisorCheck: { position: 'absolute', top: Spacing.sm, right: Spacing.sm },
     humansEmpty: { marginTop: Spacing.sm },
 
