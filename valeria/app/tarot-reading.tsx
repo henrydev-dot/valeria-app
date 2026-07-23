@@ -23,6 +23,7 @@ import { Colors } from '../src/theme/colors';
 import { Spacing, BorderRadius, Shadows } from '../src/theme/spacing';
 import * as api from '../src/api';
 import { API_HOST } from '../src/api';
+import { Features } from '../src/config';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_GAP = Spacing.sm;
@@ -138,14 +139,22 @@ export default function TarotReadingScreen() {
 
     const confirmDraw = () => {
         if (credits < TAROT_COST) {
-            Alert.alert(
-                'Yetersiz Kredi',
-                `Bu okuma için ${TAROT_COST} kredi gerekiyor. Mevcut bakiyeniz: ${credits} kredi.`,
-                [
-                    { text: 'Vazgeç', style: 'cancel' },
-                    { text: 'Kredi Al', onPress: () => router.push('/buy-credits') },
-                ]
-            );
+            if (Features.purchasesEnabled) {
+                Alert.alert(
+                    'Yetersiz Kredi',
+                    `Bu okuma için ${TAROT_COST} kredi gerekiyor. Mevcut bakiyeniz: ${credits} kredi.`,
+                    [
+                        { text: 'Vazgeç', style: 'cancel' },
+                        { text: 'Kredi Al', onPress: () => router.push('/buy-credits') },
+                    ]
+                );
+            } else {
+                // No purchases — guide the user to earn credits for free instead.
+                Alert.alert(
+                    'Yetersiz Kredi',
+                    `Bu okuma için ${TAROT_COST} kredi gerekiyor (mevcut: ${credits}). Krediler ücretsiz kazanılıyor: profildeki günlük ödülünü al, serini sürdür ve seviye atlayarak kredi topla.`
+                );
+            }
             return;
         }
         Alert.alert(

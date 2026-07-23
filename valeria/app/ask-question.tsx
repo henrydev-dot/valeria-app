@@ -8,6 +8,7 @@ import { useUserStore } from '../src/stores/useUserStore';
 import { Colors } from '../src/theme/colors';
 import { Spacing, BorderRadius } from '../src/theme/spacing';
 import * as api from '../src/api';
+import { Features } from '../src/config';
 
 const QUESTION_COST = 150;
 
@@ -41,14 +42,22 @@ export default function AskQuestionScreen() {
     const handleAsk = () => {
         if (!question.trim()) return;
         if (!isFree && credits < QUESTION_COST) {
-            Alert.alert(
-                'Yetersiz Kredi',
-                `Ek soru için ${QUESTION_COST} kredi gerekiyor. Mevcut bakiyeniz: ${credits} kredi.`,
-                [
-                    { text: 'Vazgeç', style: 'cancel' },
-                    { text: 'Kredi Al', onPress: () => router.push('/buy-credits') },
-                ]
-            );
+            if (Features.purchasesEnabled) {
+                Alert.alert(
+                    'Yetersiz Kredi',
+                    `Ek soru için ${QUESTION_COST} kredi gerekiyor. Mevcut bakiyeniz: ${credits} kredi.`,
+                    [
+                        { text: 'Vazgeç', style: 'cancel' },
+                        { text: 'Kredi Al', onPress: () => router.push('/buy-credits') },
+                    ]
+                );
+            } else {
+                // No purchases — guide the user to earn credits for free instead.
+                Alert.alert(
+                    'Yetersiz Kredi',
+                    `Ek soru için ${QUESTION_COST} kredi gerekiyor (mevcut: ${credits}). Yarın yeni ücretsiz soru hakkın açılır; ayrıca profildeki günlük ödülünü alarak, serini sürdürerek ve seviye atlayarak kredi kazanabilirsin.`
+                );
+            }
             return;
         }
         if (!isFree) {

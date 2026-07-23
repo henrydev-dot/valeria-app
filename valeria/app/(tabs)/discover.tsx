@@ -6,8 +6,15 @@ import { Screen, AppText, Button, Card } from '../../src/components';
 import { useEntitlementsStore } from '../../src/stores/useEntitlementsStore';
 import { Colors } from '../../src/theme/colors';
 import { Spacing, BorderRadius } from '../../src/theme/spacing';
+import { Features } from '../../src/config';
 
 const UNLOCK_COST = 5;
+
+// When purchases are disabled, tell users how to earn credits for free instead
+// of leaving them at a dead end (no "buy credits" path exists in this build).
+const EARN_HINT = Features.purchasesEnabled
+    ? ''
+    : ' Krediler ücretsiz kazanılıyor: profildeki günlük ödülünü al, serini sürdür ve seviye atlayarak kredi topla.';
 
 interface DiscoverItem {
     id: string;
@@ -140,7 +147,7 @@ export default function DiscoverScreen() {
             setDetailItem(item);
             await earnXP(10);
         } else {
-            Alert.alert('Yetersiz Kredi', `Bu içeriği açmak için ${UNLOCK_COST} kredi gerekiyor.`);
+            Alert.alert('Yetersiz Kredi', `Bu içeriği açmak için ${UNLOCK_COST} kredi gerekiyor.${EARN_HINT}`);
         }
     };
 
@@ -158,7 +165,7 @@ export default function DiscoverScreen() {
             setDetailItem(pick);
             await earnXP(10);
         } else {
-            Alert.alert('Yetersiz Kredi', `Rastgele run açmak için ${UNLOCK_COST} kredi gerekiyor.`);
+            Alert.alert('Yetersiz Kredi', `Rastgele run açmak için ${UNLOCK_COST} kredi gerekiyor.${EARN_HINT}`);
         }
     };
 

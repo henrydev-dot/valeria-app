@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Header, Card, Button, AppText } from '../src/components';
+import { Screen, Header, Card, Button, AppText, EmptyState } from '../src/components';
 import { useEntitlementsStore } from '../src/stores/useEntitlementsStore';
 import * as api from '../src/api';
 import { Colors } from '../src/theme/colors';
 import { Spacing, BorderRadius } from '../src/theme/spacing';
+import { Features } from '../src/config';
 
 interface CreditPackage {
     name: string;
@@ -56,6 +57,45 @@ export default function BuyCreditsScreen() {
             ]
         );
     };
+
+    // No in-app purchases in this build (App Store Guideline 3.1.1). If this
+    // screen is reached via a deep link, show a graceful "coming soon" state —
+    // credits are earned for free. Flip Features.purchasesEnabled to restore.
+    if (!Features.purchasesEnabled) {
+        return (
+            <Screen>
+                <Header
+                    title="Kredi"
+                    showBack={false}
+                    right={
+                        <Ionicons
+                            name="close"
+                            size={28}
+                            color={Colors.textPrimary}
+                            onPress={() => router.back()}
+                            accessibilityRole="button"
+                            accessibilityLabel="Kapat"
+                        />
+                    }
+                />
+
+                <Card glow style={styles.balanceCard}>
+                    <AppText variant="label" center>Mevcut Bakiye</AppText>
+                    <AppText variant="hero" center color={Colors.accentYellow} style={styles.balanceValue}>
+                        {credits} Kredi
+                    </AppText>
+                </Card>
+
+                <EmptyState
+                    icon={<Ionicons name="sparkles-outline" size={48} color={Colors.accentYellow} />}
+                    title="Kredi satın alma çok yakında"
+                    message="Şimdilik krediler tamamen ücretsiz kazanılıyor. Günlük ödülünü al, serini sürdür ve seviye atlayarak kredi topla."
+                    actionLabel="Anladım"
+                    onAction={() => router.back()}
+                />
+            </Screen>
+        );
+    }
 
     return (
         <Screen>

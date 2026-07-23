@@ -22,6 +22,7 @@ import { useEntitlementsStore } from '../src/stores/useEntitlementsStore';
 import { Colors } from '../src/theme/colors';
 import { Spacing, BorderRadius } from '../src/theme/spacing';
 import * as api from '../src/api';
+import { Features } from '../src/config';
 
 const COFFEE_COST = 20;
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024; // ~6MB guard
@@ -127,14 +128,22 @@ export default function CoffeeReadingScreen() {
             return;
         }
         if (!isAdvisor && credits < COFFEE_COST) {
-            Alert.alert(
-                'Yetersiz Kredi',
-                `Bu fal için ${COFFEE_COST} kredi gerekiyor. Mevcut bakiyeniz: ${credits} kredi.`,
-                [
-                    { text: 'Vazgeç', style: 'cancel' },
-                    { text: 'Kredi Al', onPress: () => router.push('/buy-credits') },
-                ]
-            );
+            if (Features.purchasesEnabled) {
+                Alert.alert(
+                    'Yetersiz Kredi',
+                    `Bu fal için ${COFFEE_COST} kredi gerekiyor. Mevcut bakiyeniz: ${credits} kredi.`,
+                    [
+                        { text: 'Vazgeç', style: 'cancel' },
+                        { text: 'Kredi Al', onPress: () => router.push('/buy-credits') },
+                    ]
+                );
+            } else {
+                // No purchases — guide the user to earn credits for free instead.
+                Alert.alert(
+                    'Yetersiz Kredi',
+                    `Bu fal için ${COFFEE_COST} kredi gerekiyor (mevcut: ${credits}). Krediler ücretsiz kazanılıyor: profildeki günlük ödülünü al, serini sürdür ve seviye atlayarak kredi topla.`
+                );
+            }
             return;
         }
 

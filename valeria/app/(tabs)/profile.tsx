@@ -14,7 +14,7 @@ import { useEntitlementsStore } from '../../src/stores/useEntitlementsStore';
 import { Colors } from '../../src/theme/colors';
 import { Spacing, BorderRadius } from '../../src/theme/spacing';
 import { getTimeUntilReset } from '../../src/utils/dailyReset';
-import { Config } from '../../src/config';
+import { Config, Features } from '../../src/config';
 import * as api from '../../src/api';
 import { registerForPushNotificationsAsync } from '../_layout';
 
@@ -256,7 +256,7 @@ export default function ProfileScreen() {
                 <ProgressBar progress={xpInLevel / 100} />
             </Card>
 
-            {/* Reklam İzle, Kredi Kazan */}
+            {/* Günlük Ücretsiz Kredi (ads disabled → honest free daily reward; no ad plays) */}
             <Card
                 onPress={async () => {
                     try {
@@ -264,20 +264,34 @@ export default function ProfileScreen() {
                         const success = await watchAd();
                         Alert.alert(
                             success ? 'Tebrikler!' : 'Hata',
-                            success ? '10 kredi kazandınız!' : 'Reklam izlenemedi, tekrar deneyin.'
+                            success
+                                ? '10 kredi kazandınız!'
+                                : Features.adsEnabled
+                                    ? 'Reklam izlenemedi, tekrar deneyin.'
+                                    : 'Günlük ödül alınamadı, tekrar deneyin.'
                         );
                     } catch (e: any) {
-                        Alert.alert('Hata', e.message || 'Reklam izlenemedi');
+                        Alert.alert('Hata', e.message || (Features.adsEnabled ? 'Reklam izlenemedi' : 'Günlük ödül alınamadı'));
                     }
                 }}
-                accessibilityLabel="Reklam izle, 10 kredi kazan"
+                accessibilityLabel={Features.adsEnabled ? 'Reklam izle, 10 kredi kazan' : 'Günlük ücretsiz kredini al, 10 kredi kazan'}
                 style={styles.adWatchCard}
             >
                 <View style={styles.adWatchLeft}>
-                    <Ionicons name="play-circle-outline" size={28} color={Colors.accentYellow} />
+                    <Ionicons
+                        name={Features.adsEnabled ? 'play-circle-outline' : 'gift-outline'}
+                        size={28}
+                        color={Colors.accentYellow}
+                    />
                     <View style={styles.adWatchTexts}>
-                        <AppText variant="bodyStrong">Reklam İzle, Kredi Kazan</AppText>
-                        <AppText variant="caption">Kısa bir reklam izleyerek 10 kredi kazanın</AppText>
+                        <AppText variant="bodyStrong">
+                            {Features.adsEnabled ? 'Reklam İzle, Kredi Kazan' : 'Günlük Ücretsiz Kredi'}
+                        </AppText>
+                        <AppText variant="caption">
+                            {Features.adsEnabled
+                                ? 'Kısa bir reklam izleyerek 10 kredi kazanın'
+                                : 'Günlük ödülünü alarak 10 kredi kazan'}
+                        </AppText>
                     </View>
                 </View>
                 <View style={styles.adWatchBadge}>
@@ -285,8 +299,11 @@ export default function ProfileScreen() {
                 </View>
             </Card>
 
-            {/* Premium Upgrade / Active */}
+            {/* Premium Upgrade / Active
+                Upgrade CTA is a purchase flow → hidden when purchases are disabled.
+                The "Premium aktif" status card still shows for existing members. */}
             {!isPremium ? (
+                Features.purchasesEnabled ? (
                 <Card
                     onPress={() => setPremiumVisible(true)}
                     accessibilityLabel="Valeria Premium'a yükselt"
@@ -303,6 +320,7 @@ export default function ProfileScreen() {
                         <AppText variant="bodyStrong" color={Colors.textOnAccent}>Yükselt</AppText>
                     </View>
                 </Card>
+                ) : null
             ) : (
                 <Card style={styles.premiumActiveCard}>
                     <View style={styles.premiumActiveRow}>
@@ -348,13 +366,18 @@ export default function ProfileScreen() {
             {/* Ayarlar */}
             <AppText variant="label" style={styles.sectionLabel}>Ayarlar</AppText>
             <Card padded={false} style={styles.groupCard}>
-                <Row
-                    icon="wallet-outline"
-                    title="Kredi Yükle"
-                    onPress={() => router.push('/buy-credits')}
-                    accessibilityLabel="Kredi yükle"
-                />
-                <View style={styles.divider} />
+                {/* Kredi satın alma (IAP) devre dışı — App Store Guideline 3.1.1 */}
+                {Features.purchasesEnabled && (
+                    <>
+                        <Row
+                            icon="wallet-outline"
+                            title="Kredi Yükle"
+                            onPress={() => router.push('/buy-credits')}
+                            accessibilityLabel="Kredi yükle"
+                        />
+                        <View style={styles.divider} />
+                    </>
+                )}
                 <Row
                     icon="notifications-outline"
                     title="Bildirimler"
@@ -489,15 +512,20 @@ export default function ProfileScreen() {
                             </TouchableOpacity>
                         </View>
 
-                        <Button
-                            title={purchasing ? 'İşleniyor...' : "Premium'a Yükselt"}
-                            loading={purchasing}
-                            onPress={handlePurchasePremium}
-                        />
+                        {/* Purchase CTA hidden when in-app purchases are disabled */}
+                        {Features.purchasesEnabled && (
+                            <>
+                                <Button
+                                    title={purchasing ? 'İşleniyor...' : "Premium'a Yükselt"}
+                                    loading={purchasing}
+                                    onPress={handlePurchasePremium}
+                                />
 
-                        <AppText variant="caption" center style={styles.modalDisclaimer}>
-                            Abonelik, dönem sonunda otomatik yenilenir. İstediğiniz zaman iptal edebilirsiniz.
-                        </AppText>
+                                <AppText variant="caption" center style={styles.modalDisclaimer}>
+                                    Abonelik, dönem sonunda otomatik yenilenir. İstediğiniz zaman iptal edebilirsiniz.
+                                </AppText>
+                            </>
+                        )}
                     </View>
                 </View>
             </Modal>
