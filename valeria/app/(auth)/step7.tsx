@@ -1,127 +1,96 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { StyleSheet, View, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
-import { GradientBackground } from '../../src/components';
+import { Ionicons } from '@expo/vector-icons';
+import { GradientBackground, AppText, Button } from '../../src/components';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useUserStore } from '../../src/stores/useUserStore';
 import { Colors } from '../../src/theme/colors';
-import { FontSize, Spacing } from '../../src/theme/spacing';
-import { ContentRepository } from '../../src/repositories/ContentRepository';
-import { getSunSign, getMoonSign, getRisingSign } from '../../src/utils/zodiacCalc';
-import type { Deity } from '../../src/types';
+import { Spacing } from '../../src/theme/spacing';
 
-// Sun sign → deity ID mapping (same as backend ZODIAC_DATA mythology.greek)
-const SUN_SIGN_DEITY_MAP: Record<string, { id: string; nameTR: string }> = {
-    'Koç': { id: 'ares', nameTR: 'Ares' },
-    'Boğa': { id: 'aphrodite', nameTR: 'Afrodit' },
-    'İkizler': { id: 'hermes', nameTR: 'Hermes' },
-    'Yengeç': { id: 'demeter', nameTR: 'Demeter' },
-    'Aslan': { id: 'apollo', nameTR: 'Apollon' },
-    'Başak': { id: 'athena', nameTR: 'Athena' },
-    'Terazi': { id: 'hera', nameTR: 'Hera' },
-    'Akrep': { id: 'hades', nameTR: 'Hades' },
-    'Yay': { id: 'zeus', nameTR: 'Zeus' },
-    'Oğlak': { id: 'athena', nameTR: 'Kronos' },
-    'Kova': { id: 'poseidon', nameTR: 'Prometheus' },
-    'Balık': { id: 'poseidon', nameTR: 'Poseidon' },
-};
+const STAGES = [
+    'Doğum bilgilerin işleniyor...',
+    'Güneş, Ay ve Yükselen burcun hesaplanıyor...',
+    'Sana en uygun tanrı arketipi belirleniyor...',
+    'Kozmik profilin hazırlanıyor...',
+];
 
 export default function Step7() {
-    const { profile, setProfile } = useUserStore();
-    const [status, setStatus] = useState('Kozmik profiliniz hesaplanıyor...');
+    const profile = useUserStore((s) => s.profile);
+    const onboarding = useUserStore((s) => s.onboarding);
+    const [stage, setStage] = useState(0);
+    const [error, setError] = useState<string | null>(null);
+
+    const run = useCallback(async () => {
+        setError(null);
+        setStage(0);
+        // Advance status text for perceived progress.
+        const timers = STAGES.map((_, i) =>
+            setTimeout(() => setStage(i), i * 700)
+        );
+        try {
+            // Backend is the single source of truth for signs/deity/energy.
+            await onboarding({
+                name: profile.name,
+                gender: profile.gender,
+                birthDate: profile.birthDate,
+                birthTime: profile.birthTime,
+                birthCity: profile.birthCity,
+                birthCountry: profile.birthCountry || 'Türkiye',
+                relationshipStatus: profile.relationshipStatus,
+                workStatus: profile.workStatus,
+            });
+            timers.forEach(clearTimeout);
+            router.replace('/(auth)/step8');
+        } catch (e: any) {
+            timers.forEach(clearTimeout);
+            setError(e?.message || 'Profilin oluşturulurken bir sorun oluştu. İnternet bağlantını kontrol edip tekrar dene.');
+        }
+    }, [profile, onboarding]);
 
     useEffect(() => {
-        async function calculate() {
-            // 1. Calculate zodiac signs
-            const sunSign = getSunSign(profile.birthDate);
-            const moonSign = getMoonSign(profile.birthDate);
-            const risingSign = getRisingSign(profile.birthDate, profile.birthTime);
-
-            const sunSignName = sunSign?.nameTR || 'Bilinmiyor';
-            const moonSignName = moonSign?.nameTR || 'Bilinmiyor';
-            const risingSignName = risingSign?.nameTR || 'Bilinmiyor';
-
-            setStatus('Burçlarınız belirlendi, tanrı arketipi atanıyor...');
-
-            // 2. Map sun sign to deity
-            const deityMapping = SUN_SIGN_DEITY_MAP[sunSignName] || { id: 'athena', nameTR: 'Athena' };
-
-            // 3. Try to find full deity data from onboarding JSON
-            let deityName = deityMapping.nameTR;
-            try {
-                const data = await ContentRepository.getOnboardingTest();
-                const found = (data.deities as Deity[]).find((d) => d.id === deityMapping.id);
-                if (found) {
-                    deityName = found.nameTR;
-                }
-            } catch (e) {
-                console.log('Deity data fetch error:', e);
-            }
-
-            // 4. Calculate energy score (60-90 range based on zodiac)
-            const energyScore = Math.floor(Math.random() * 30) + 60;
-
-            // 5. Set profile and navigate
-            setProfile({
-                deityResult: deityMapping.id,
-                deityName: deityName,
-                sunSign: sunSignName,
-                moonSign: moonSignName,
-                risingSign: risingSignName,
-                energyScore,
-            });
-
-            setStatus('Hazır! Kozmik özetinize yönlendiriliyorsunuz...');
-
-            // Small delay so user sees the transition
-            setTimeout(() => {
-                router.push('/(auth)/step8');
-            }, 800);
-        }
-
-        calculate();
+        run();
     }, []);
+
+    if (error) {
+        return (
+            <GradientBackground>
+                <SafeAreaView style={styles.center} edges={['top', 'bottom']}>
+                    <Ionicons name="cloud-offline-outline" size={48} color={Colors.warning} />
+                    <AppText variant="h1" center style={styles.errTitle}>Bir sorun oluştu</AppText>
+                    <AppText variant="body" center color={Colors.textSecondary} style={styles.errMsg}>{error}</AppText>
+                    <View style={styles.actions}>
+                        <Button title="Tekrar Dene" onPress={run} />
+                        <Button title="Geri Dön" variant="ghost" onPress={() => router.back()} style={styles.backBtn} />
+                    </View>
+                </SafeAreaView>
+            </GradientBackground>
+        );
+    }
 
     return (
         <GradientBackground>
-            <View style={styles.container}>
+            <SafeAreaView style={styles.center} edges={['top', 'bottom']}>
                 <ActivityIndicator size="large" color={Colors.accentYellow} style={styles.spinner} />
-                <Text style={styles.title}>Kozmik Profiliniz Hesaplanıyor</Text>
-                <Text style={styles.status}>{status}</Text>
-                <Text style={styles.subtitle}>
-                    Doğum bilgilerinize göre güneş, ay ve yükselen burcunuz belirleniyor ve size en uygun mitolojik arketip atanıyor.
-                </Text>
-            </View>
+                <AppText variant="title" center>Kozmik profilin hazırlanıyor</AppText>
+                <AppText variant="body" center color={Colors.accentYellow} style={styles.status}>
+                    {STAGES[stage]}
+                </AppText>
+                <AppText variant="caption" center style={styles.hint}>
+                    Doğum bilgilerine göre haritan çıkarılıyor ve sana özel arketipin belirleniyor.
+                </AppText>
+            </SafeAreaView>
         </GradientBackground>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: Spacing.xxl,
-    },
-    spinner: {
-        marginBottom: Spacing.xl,
-    },
-    title: {
-        fontSize: FontSize.xxl,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-        textAlign: 'center',
-        marginBottom: Spacing.md,
-    },
-    status: {
-        fontSize: FontSize.md,
-        color: Colors.accentYellow,
-        textAlign: 'center',
-        marginBottom: Spacing.lg,
-    },
-    subtitle: {
-        fontSize: FontSize.sm,
-        color: Colors.textSecondary,
-        textAlign: 'center',
-        lineHeight: 20,
-    },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.xxl },
+    spinner: { marginBottom: Spacing.xl },
+    status: { marginTop: Spacing.md },
+    hint: { marginTop: Spacing.lg, paddingHorizontal: Spacing.md },
+    errTitle: { marginTop: Spacing.lg },
+    errMsg: { marginTop: Spacing.md, paddingHorizontal: Spacing.md },
+    actions: { alignSelf: 'stretch', marginTop: Spacing.xxl, paddingHorizontal: Spacing.md },
+    backBtn: { marginTop: Spacing.md },
 });

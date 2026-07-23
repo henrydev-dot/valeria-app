@@ -1,332 +1,162 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
-import { GradientBackground, KismetCard, PrimaryButton, ProgressRing } from '../../src/components';
+import { Ionicons } from '@expo/vector-icons';
+import { Screen, AppText, Button, Card, ProgressRing, LoadingView } from '../../src/components';
 import { useUserStore } from '../../src/stores/useUserStore';
 import { Colors } from '../../src/theme/colors';
-import { FontSize, Spacing, BorderRadius } from '../../src/theme/spacing';
-import { Ionicons } from '@expo/vector-icons';
+import { Spacing, BorderRadius } from '../../src/theme/spacing';
 import { ContentRepository } from '../../src/repositories/ContentRepository';
 import type { Deity } from '../../src/types';
 
-export default function Step8() {
-    const { profile, setProfile, saveProfile } = useUserStore();
-    const [deity, setDeity] = useState<Deity | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [dataReady, setDataReady] = useState(false);
+const ELEMENT_CRYSTALS: Record<string, string[]> = {
+    'Ateş': ['Karnelyan', 'Sitrin', 'Kaplan Gözü'],
+    'Su': ['Ay Taşı', 'Akuamarin', 'Ametist'],
+    'Hava': ['Sitrin', 'Akik', 'Kuvars'],
+    'Toprak': ['Yeşim', 'Oniks', 'Hematit'],
+};
 
-    // On mount: call onboarding API immediately to get real data, then show
+export default function Step8() {
+    const profile = useUserStore((s) => s.profile);
+    const [deity, setDeity] = useState<Deity | null>(null);
+    const [ready, setReady] = useState(false);
+    const [finishing, setFinishing] = useState(false);
+
     useEffect(() => {
         (async () => {
             try {
-                // 1. Send onboarding data to backend → calculates sun/moon/rising
-                await useUserStore.getState().onboarding({
-                    name: profile.name,
-                    gender: profile.gender,
-                    birthDate: profile.birthDate,
-                    birthTime: profile.birthTime,
-                    birthCity: profile.birthCity,
-                    birthCountry: profile.birthCountry || 'Türkiye',
-                    relationshipStatus: profile.relationshipStatus,
-                    workStatus: profile.workStatus,
-                });
-
-                // 2. Reload profile from backend so we get real calculated signs
-                await useUserStore.getState().loadProfile();
-
-                // 3. Load deity data
                 const data = await ContentRepository.getOnboardingTest();
-                const updatedProfile = useUserStore.getState().profile;
-                const found = (data.deities as Deity[]).find(
-                    (d) => d.id === updatedProfile.deityResult
-                );
+                const found = (data.deities as Deity[]).find((d) => d.id === profile.deityResult);
                 setDeity(found || null);
-            } catch (e: any) {
-                console.error('Step8 data load error:', e?.message);
+            } catch {
+                setDeity(null);
             } finally {
-                setDataReady(true);
+                setReady(true);
             }
         })();
-    }, []);
+    }, [profile.deityResult]);
 
-    // Loading screen until backend data is ready
-    if (!dataReady) {
+    const handleFinish = () => {
+        setFinishing(true);
+        router.replace('/(tabs)');
+    };
+
+    if (!ready) {
         return (
-            <GradientBackground>
-                <View style={styles.loadingOverlay}>
-                    <ActivityIndicator size="large" color={Colors.accentYellow} />
-                    <Text style={styles.loadingText}>Kozmik profiliniz hazırlanıyor...</Text>
-                    <Text style={styles.loadingSubtext}>Yıldız haritanız hesaplanıyor</Text>
-                </View>
-            </GradientBackground>
+            <Screen scroll={false}>
+                <LoadingView text="Kozmik özetin hazırlanıyor..." />
+            </Screen>
         );
     }
 
-    const handleFinish = async () => {
-        setLoading(true);
-        try {
-            // Profile already saved via onboarding call above, just navigate
-            router.replace('/(tabs)');
-        } catch (e: any) {
-            Alert.alert('Hata', e?.message || 'Bir sorun oluştu');
-        } finally {
-            setLoading(false);
-        }
-    };
+    const crystals = ELEMENT_CRYSTALS[profile.element || ''] || ['Ametist', 'Ay Taşı', 'Kuvars'];
+    const energy = profile.energyScore || 0;
 
     return (
-        <GradientBackground>
-            <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-                <Text style={styles.step}>8 / 8</Text>
-                <Text style={styles.title}>Kozmik Özetiniz</Text>
-                <Text style={styles.subtitle}>
-                    Tebrikler, {profile.name}! İşte size özel kozmik profiliniz.
-                </Text>
+        <Screen>
+            <AppText variant="label" color={Colors.textMuted}>SON ADIM</AppText>
+            <AppText variant="title" style={styles.title}>Kozmik özetin hazır</AppText>
+            <AppText variant="body" color={Colors.textSecondary} style={styles.subtitle}>
+                Tebrikler {profile.name}! İşte sana özel kozmik profilin.
+            </AppText>
 
-                {/* Energy Score */}
-                <KismetCard glow style={styles.energyCard}>
+            {energy > 0 ? (
+                <Card glow style={styles.card}>
                     <View style={styles.energyRow}>
-                        <ProgressRing
-                            progress={profile.energyScore}
-                            size={100}
-                            strokeWidth={8}
-                            color={Colors.accentYellow}
-                        >
-                            <Text style={styles.energyScore}>{profile.energyScore}</Text>
+                        <ProgressRing progress={energy} size={96} strokeWidth={8} color={Colors.accentYellow}>
+                            <AppText variant="h1" color={Colors.accentYellow}>{energy}</AppText>
                         </ProgressRing>
                         <View style={styles.energyInfo}>
-                            <Text style={styles.energyLabel}>Enerji Skoru</Text>
-                            <Text style={styles.energyDesc}>
-                                Seçimlerinize ve kozmik profilinize dayalı kişisel enerji puanınız.
-                            </Text>
+                            <AppText variant="h3">Kozmik Enerji</AppText>
+                            <AppText variant="caption" style={styles.energyDesc}>
+                                Doğum haritandaki gezegen yerleşimlerinden türetilen genel enerji dengen.
+                            </AppText>
                         </View>
                     </View>
-                </KismetCard>
+                </Card>
+            ) : null}
 
-                {/* Zodiac Summary */}
-                <KismetCard style={styles.card}>
-                    <View style={styles.zodiacRow}>
-                        <View style={styles.zodiacItem}>
-                            <Ionicons name="sunny-outline" size={24} color={Colors.accentYellow} />
-                            <Text style={styles.zodiacLabel}>Güneş</Text>
-                            <Text style={styles.zodiacValue}>{profile.sunSign || '—'}</Text>
-                        </View>
-                        <View style={styles.zodiacItem}>
-                            <Ionicons name="moon-outline" size={24} color={Colors.purpleLight} />
-                            <Text style={styles.zodiacLabel}>Ay</Text>
-                            <Text style={styles.zodiacValue}>{profile.moonSign || '—'}</Text>
-                        </View>
-                        <View style={styles.zodiacItem}>
-                            <Ionicons name="arrow-up-outline" size={24} color={Colors.info} />
-                            <Text style={styles.zodiacLabel}>Yükselen</Text>
-                            <Text style={styles.zodiacValue}>{profile.risingSign || '—'}</Text>
-                        </View>
-                    </View>
-                </KismetCard>
+            <Card style={styles.card}>
+                <View style={styles.zodiacRow}>
+                    <ZodiacItem icon="sunny-outline" color={Colors.accentYellow} label="Güneş" value={profile.sunSign} />
+                    <ZodiacItem icon="moon-outline" color={Colors.purpleLight} label="Ay" value={profile.moonSign} />
+                    <ZodiacItem icon="arrow-up-outline" color={Colors.info} label="Yükselen" value={profile.risingSign} />
+                </View>
+            </Card>
 
-                {/* Deity Result */}
-                {deity && (
-                    <KismetCard glow style={styles.card}>
-                        <Text style={styles.deityTitle}>Mitolojik Ruh İkiziniz</Text>
-                        <Text style={styles.deityName}>{deity.nameTR}</Text>
-                        <Text style={styles.deitySubtitle}>{deity.titleTR}</Text>
-                        <Text style={styles.deityDesc}>{deity.descriptionTR}</Text>
-                        <View style={styles.traitSection}>
-                            <Text style={styles.traitLabel}>Güçlü Yönler</Text>
-                            {deity.strengthsTR.map((s, i) => (
-                                <Text key={i} style={styles.traitItem}>
-                                    <Ionicons name="checkmark" size={14} color={Colors.success} /> {s}
-                                </Text>
-                            ))}
-                        </View>
-                        <View style={styles.traitSection}>
-                            <Text style={styles.traitLabel}>Gelişim Alanları</Text>
-                            {deity.growthTR.map((s, i) => (
-                                <Text key={i} style={styles.traitItem}>
-                                    <Ionicons name="arrow-up" size={14} color={Colors.warning} /> {s}
-                                </Text>
-                            ))}
-                        </View>
-                    </KismetCard>
-                )}
+            {deity ? (
+                <Card glow style={styles.card}>
+                    <AppText variant="label" color={Colors.textMuted}>MİTOLOJİK ARKETİPİN</AppText>
+                    <AppText variant="title" color={Colors.accentYellow} style={styles.deityName}>{deity.nameTR}</AppText>
+                    <AppText variant="callout" color={Colors.purpleLight}>{deity.titleTR}</AppText>
+                    <AppText variant="body" style={styles.deityDesc}>{deity.descriptionTR}</AppText>
+                    <TraitList label="Güçlü Yönler" icon="checkmark-circle" color={Colors.success} items={deity.strengthsTR} />
+                    <TraitList label="Gelişim Alanları" icon="trending-up" color={Colors.warning} items={deity.growthTR} />
+                </Card>
+            ) : null}
 
-                {/* Crystal */}
-                <KismetCard style={styles.card}>
-                    <Text style={styles.sectionTitle}>Favori Kristalleriniz</Text>
-                    <View style={styles.crystalsRow}>
-                        {(['Ametist', 'Ay Taşı', 'Kuvars']).map((c: string) => (
-                            <View key={c} style={styles.crystalChip}>
-                                <Ionicons name="diamond-outline" size={14} color={Colors.purpleLight} />
-                                <Text style={styles.crystalText}>{c}</Text>
-                            </View>
-                        ))}
-                    </View>
-                </KismetCard>
+            <Card style={styles.card}>
+                <AppText variant="h3" style={styles.crystalTitle}>Önerilen Kristallerin</AppText>
+                <View style={styles.crystalsRow}>
+                    {crystals.map((c) => (
+                        <View key={c} style={styles.crystalChip}>
+                            <Ionicons name="diamond-outline" size={14} color={Colors.purpleLight} />
+                            <AppText variant="caption" color={Colors.purpleLight}>{c}</AppText>
+                        </View>
+                    ))}
+                </View>
+            </Card>
 
-                <PrimaryButton
-                    title={loading ? 'Yükleniyor...' : 'Devam Et'}
-                    onPress={handleFinish}
-                    style={styles.cta}
-                    disabled={loading}
-                />
-            </ScrollView>
-        </GradientBackground>
+            <Button title="Valeria'ya Başla" onPress={handleFinish} loading={finishing} style={styles.cta} />
+        </Screen>
+    );
+}
+
+function ZodiacItem({ icon, color, label, value }: { icon: any; color: string; label: string; value: string }) {
+    return (
+        <View style={styles.zodiacItem}>
+            <Ionicons name={icon} size={24} color={color} />
+            <AppText variant="caption" color={Colors.textMuted}>{label}</AppText>
+            <AppText variant="bodyStrong">{value || '—'}</AppText>
+        </View>
+    );
+}
+
+function TraitList({ label, icon, color, items }: { label: string; icon: any; color: string; items: string[] }) {
+    return (
+        <View style={styles.traitSection}>
+            <AppText variant="label" color={Colors.textMuted} style={styles.traitLabel}>{label}</AppText>
+            {items.map((s, i) => (
+                <View key={i} style={styles.traitRow}>
+                    <Ionicons name={icon} size={15} color={color} />
+                    <AppText variant="body" color={Colors.textSecondary}>{s}</AppText>
+                </View>
+            ))}
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        paddingHorizontal: Spacing.xl,
-    },
-    scrollContent: {
-        paddingTop: 60,
-        paddingBottom: 60,
-    },
-    step: {
-        fontSize: FontSize.sm,
-        color: Colors.textMuted,
-        marginBottom: Spacing.xs,
-    },
-    title: {
-        fontSize: FontSize.hero,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-        marginBottom: Spacing.sm,
-    },
-    subtitle: {
-        fontSize: FontSize.md,
-        color: Colors.textSecondary,
-        lineHeight: 22,
-        marginBottom: Spacing.xxl,
-    },
-    energyCard: {
-        marginBottom: Spacing.lg,
-    },
-    energyRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.xl,
-    },
-    energyScore: {
-        fontSize: FontSize.xxl,
-        fontWeight: '700',
-        color: Colors.accentYellow,
-    },
-    energyInfo: {
-        flex: 1,
-    },
-    energyLabel: {
-        fontSize: FontSize.lg,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-        marginBottom: Spacing.xs,
-    },
-    energyDesc: {
-        fontSize: FontSize.sm,
-        color: Colors.textSecondary,
-        lineHeight: 20,
-    },
-    card: {
-        marginBottom: Spacing.lg,
-    },
-    zodiacRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-    },
-    zodiacItem: {
-        alignItems: 'center',
-        gap: Spacing.xs,
-    },
-    zodiacLabel: {
-        fontSize: FontSize.xs,
-        color: Colors.textMuted,
-    },
-    zodiacValue: {
-        fontSize: FontSize.md,
-        fontWeight: '600',
-        color: Colors.textPrimary,
-    },
-    deityTitle: {
-        fontSize: FontSize.sm,
-        color: Colors.textMuted,
-        marginBottom: Spacing.xs,
-    },
-    deityName: {
-        fontSize: FontSize.title,
-        fontWeight: '700',
-        color: Colors.accentYellow,
-        marginBottom: Spacing.xs,
-    },
-    deitySubtitle: {
-        fontSize: FontSize.md,
-        color: Colors.purpleLight,
-        marginBottom: Spacing.md,
-    },
-    deityDesc: {
-        fontSize: FontSize.md,
-        color: Colors.textSecondary,
-        lineHeight: 22,
-        marginBottom: Spacing.lg,
-    },
-    traitSection: {
-        marginBottom: Spacing.md,
-    },
-    traitLabel: {
-        fontSize: FontSize.sm,
-        color: Colors.textMuted,
-        fontWeight: '600',
-        marginBottom: Spacing.xs,
-    },
-    traitItem: {
-        fontSize: FontSize.md,
-        color: Colors.textSecondary,
-        marginBottom: 4,
-    },
-    sectionTitle: {
-        fontSize: FontSize.lg,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-        marginBottom: Spacing.md,
-    },
-    crystalsRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: Spacing.sm,
-    },
+    title: { marginTop: Spacing.xs },
+    subtitle: { marginTop: Spacing.sm, marginBottom: Spacing.xl },
+    card: { marginBottom: Spacing.lg },
+    energyRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xl },
+    energyInfo: { flex: 1 },
+    energyDesc: { marginTop: 2 },
+    zodiacRow: { flexDirection: 'row', justifyContent: 'space-around' },
+    zodiacItem: { alignItems: 'center', gap: Spacing.xs },
+    deityName: { marginTop: Spacing.xs },
+    deityDesc: { marginTop: Spacing.md, marginBottom: Spacing.lg },
+    traitSection: { marginTop: Spacing.md },
+    traitLabel: { marginBottom: Spacing.sm },
+    traitRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs },
+    crystalTitle: { marginBottom: Spacing.md },
+    crystalsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
     crystalChip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: Spacing.md,
-        paddingVertical: Spacing.xs,
-        borderRadius: BorderRadius.full,
-        backgroundColor: Colors.purple + '20',
-        borderWidth: 1,
-        borderColor: Colors.purple + '40',
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+        borderRadius: BorderRadius.pill, backgroundColor: Colors.purpleA15,
+        borderWidth: 1, borderColor: Colors.purpleA25,
     },
-    crystalText: {
-        fontSize: FontSize.sm,
-        color: Colors.purpleLight,
-        fontWeight: '500',
-    },
-    cta: {
-        marginTop: Spacing.xl,
-    },
-    loadingOverlay: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    loadingText: {
-        fontSize: FontSize.lg,
-        color: Colors.textSecondary,
-        marginTop: Spacing.lg,
-        fontWeight: '600',
-    },
-    loadingSubtext: {
-        fontSize: FontSize.sm,
-        color: Colors.textMuted,
-        marginTop: Spacing.sm,
-    },
+    cta: { marginTop: Spacing.md },
 });

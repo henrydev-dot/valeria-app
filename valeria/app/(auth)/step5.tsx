@@ -1,184 +1,105 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, FlatList, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
-import { GradientBackground, PrimaryButton } from '../../src/components';
+import { Ionicons } from '@expo/vector-icons';
+import { OnboardingScaffold, AppText, Field } from '../../src/components';
 import { useUserStore } from '../../src/stores/useUserStore';
 import { Colors } from '../../src/theme/colors';
-import { FontSize, Spacing, BorderRadius } from '../../src/theme/spacing';
-
-const CITIES = [
-    'İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Adana', 'Gaziantep',
-    'Konya', 'Mersin', 'Diyarbakır', 'Kayseri', 'Eskişehir', 'Samsun',
-    'Denizli', 'Trabzon', 'Malatya', 'Erzurum', 'Van', 'Batman',
-    'Elazığ', 'Manisa', 'Balıkesir', 'Kahramanmaraş', 'Sakarya',
-    'Hatay', 'Muğla', 'Aydın', 'Afyonkarahisar', 'Kütahya',
-    'Tekirdağ', 'Edirne', 'Çanakkale', 'Kırklareli', 'Zonguldak',
-    'Bartın', 'Karabük', 'Bolu', 'Düzce', 'Yalova', 'Kocaeli',
-    'Isparta', 'Burdur', 'Uşak', 'Şanlıurfa', 'Mardin', 'Siirt',
-    'Şırnak', 'Hakkari', 'Muş', 'Bitlis', 'Tunceli', 'Bingöl',
-    'Artvin', 'Rize', 'Giresun', 'Ordu', 'Amasya', 'Tokat',
-    'Sivas', 'Yozgat', 'Kırşehir', 'Nevşehir', 'Aksaray', 'Niğde',
-    'Kars', 'Iğdır', 'Ağrı', 'Ardahan', 'Osmaniye', 'Adalet',
-    'Kırıkkale', 'Çankırı', 'Kastamonu', 'Sinop', 'Çorum',
-];
+import { Spacing, BorderRadius } from '../../src/theme/spacing';
+import { TURKISH_CITIES, TOTAL_ONBOARDING_STEPS } from '../../src/data/onboardingOptions';
 
 export default function Step5() {
-    const [city, setCity] = useState('');
-    const [country, setCountry] = useState('Türkiye');
-    const [showSuggestions, setShowSuggestions] = useState(false);
+    const profile = useUserStore((s) => s.profile);
     const setProfile = useUserStore((s) => s.setProfile);
+    const [city, setCity] = useState(profile.birthCity || '');
+    const [country, setCountry] = useState(profile.birthCountry || 'Türkiye');
+    const [focused, setFocused] = useState(false);
 
-    const filteredCities = city.length > 0
-        ? CITIES.filter((c) => c.toLowerCase().includes(city.toLowerCase()))
-        : CITIES;
+    const suggestions =
+        focused && city.trim().length > 0
+            ? TURKISH_CITIES.filter((c) => c.toLocaleLowerCase('tr').includes(city.toLocaleLowerCase('tr'))).slice(0, 6)
+            : [];
 
     const handleNext = () => {
         if (city.trim().length < 2) return;
-        setProfile({ birthCity: city.trim(), birthCountry: country.trim() });
+        setProfile({ birthCity: city.trim(), birthCountry: country.trim() || 'Türkiye' });
         router.push('/(auth)/step6');
     };
 
     return (
-        <GradientBackground>
-            <KeyboardAvoidingView
-                style={styles.container}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            >
-                <View style={styles.content}>
-                    <Text style={styles.step}>5 / 8</Text>
-                    <Text style={styles.title}>Doğum Yeriniz</Text>
-                    <Text style={styles.subtitle}>
-                        Natal haritanızı hazırlamak için doğum yerinizi belirtin.
-                    </Text>
-
-                    <Text style={styles.label}>Şehir</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Örneğin: İstanbul"
-                        placeholderTextColor={Colors.textMuted}
-                        value={city}
-                        onChangeText={(t) => {
-                            setCity(t);
-                            setShowSuggestions(true);
-                        }}
-                    />
-                    {showSuggestions && filteredCities.length > 0 && (
-                        <View style={styles.suggestions}>
-                            {filteredCities.slice(0, 8).map((c) => (
-                                <TouchableOpacity
-                                    key={c}
-                                    style={styles.suggestionItem}
-                                    onPress={() => {
-                                        setCity(c);
-                                        setShowSuggestions(false);
-                                    }}
-                                >
-                                    <Text style={styles.suggestionText}>{c}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    )}
-
-                    <Text style={[styles.label, { marginTop: Spacing.xl }]}>Ülke</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Türkiye"
-                        placeholderTextColor={Colors.textMuted}
-                        value={country}
-                        onChangeText={setCountry}
-                    />
-                </View>
-                <View style={styles.footer}>
-                    <View style={styles.buttonRow}>
-                        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-                            <Text style={styles.backText}>← Geri</Text>
-                        </TouchableOpacity>
-                        <PrimaryButton
-                            title="Devam Et"
-                            onPress={handleNext}
-                            disabled={city.trim().length < 2}
-                            style={{ flex: 1 }}
-                        />
+        <OnboardingScaffold
+            step={5}
+            totalSteps={TOTAL_ONBOARDING_STEPS}
+            title="Doğum yerin"
+            subtitle="Doğum haritanı doğru hesaplamak için nerede doğduğunu öğrenelim."
+            onNext={handleNext}
+            nextDisabled={city.trim().length < 2}
+            scroll={false}
+        >
+            <View style={styles.cityWrap}>
+                <Field
+                    label="Şehir"
+                    placeholder="Örneğin: İstanbul"
+                    value={city}
+                    onChangeText={(t) => { setCity(t); setFocused(true); }}
+                    onFocus={() => setFocused(true)}
+                    autoCapitalize="words"
+                    icon={<Ionicons name="location-outline" size={18} color={Colors.textMuted} />}
+                    containerStyle={styles.noMargin}
+                />
+                {suggestions.length > 0 ? (
+                    <View style={styles.suggestions}>
+                        {suggestions.map((c) => (
+                            <TouchableOpacity
+                                key={c}
+                                style={styles.suggestionItem}
+                                onPress={() => { setCity(c); setFocused(false); }}
+                            >
+                                <Ionicons name="location" size={16} color={Colors.purpleLight} />
+                                <AppText variant="body" color={Colors.textPrimary}>{c}</AppText>
+                            </TouchableOpacity>
+                        ))}
                     </View>
-                </View>
-            </KeyboardAvoidingView>
-        </GradientBackground>
+                ) : null}
+            </View>
+
+            <Field
+                label="Ülke"
+                placeholder="Türkiye"
+                value={country}
+                onChangeText={setCountry}
+                autoCapitalize="words"
+                icon={<Ionicons name="earth-outline" size={18} color={Colors.textMuted} />}
+                containerStyle={styles.countryField}
+            />
+        </OnboardingScaffold>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        paddingHorizontal: Spacing.xxl,
-        justifyContent: 'space-between',
-    },
-    content: {
-        flex: 1,
-        paddingTop: 100,
-    },
-    step: {
-        fontSize: FontSize.sm,
-        color: Colors.textMuted,
-        marginBottom: Spacing.sm,
-    },
-    title: {
-        fontSize: FontSize.hero,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-        marginBottom: Spacing.md,
-    },
-    subtitle: {
-        fontSize: FontSize.md,
-        color: Colors.textSecondary,
-        marginBottom: Spacing.xxl,
-        lineHeight: 22,
-    },
-    label: {
-        fontSize: FontSize.sm,
-        color: Colors.textMuted,
-        marginBottom: Spacing.xs,
-    },
-    input: {
-        backgroundColor: Colors.backgroundCard,
-        borderRadius: BorderRadius.lg,
-        padding: Spacing.lg,
-        fontSize: FontSize.lg,
-        color: Colors.textPrimary,
-        borderWidth: 1,
-        borderColor: Colors.border,
-    },
+    cityWrap: { position: 'relative', zIndex: 10, marginBottom: Spacing.lg },
+    noMargin: { marginBottom: 0 },
+    countryField: { marginTop: Spacing.sm },
     suggestions: {
-        backgroundColor: Colors.backgroundCard,
+        position: 'absolute',
+        top: '100%',
+        left: 0,
+        right: 0,
+        marginTop: Spacing.xs,
+        backgroundColor: Colors.surface2,
         borderRadius: BorderRadius.md,
         borderWidth: 1,
-        borderColor: Colors.border,
-        marginTop: Spacing.xs,
+        borderColor: Colors.borderLight,
+        overflow: 'hidden',
+        zIndex: 20,
     },
     suggestionItem: {
-        padding: Spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
-    },
-    suggestionText: {
-        fontSize: FontSize.md,
-        color: Colors.textPrimary,
-    },
-    footer: {
-        paddingBottom: Spacing.huge,
-    },
-    buttonRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: Spacing.md,
-    },
-    backBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
         paddingVertical: Spacing.md,
-        paddingHorizontal: Spacing.md,
-    },
-    backText: {
-        fontSize: FontSize.md,
-        color: Colors.textSecondary,
+        paddingHorizontal: Spacing.lg,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: Colors.border,
     },
 });

@@ -7,6 +7,7 @@ export { Header } from './Header';
 export { GradientBackground } from './GradientBackground';
 export { Field, Chip, SegmentedControl, OptionWheel } from './FormControls';
 export { ProgressBar, EmptyState, LoadingView, Skeleton } from './Feedback';
+export { OnboardingScaffold } from './OnboardingScaffold';
 
 // Existing/feature components
 export { KismetCard } from './KismetCard';
