@@ -1,21 +1,33 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Modal, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { GradientBackground, KismetCard, PrimaryButton } from '../../src/components';
+import { Screen, AppText, Button, Card } from '../../src/components';
 import { useEntitlementsStore } from '../../src/stores/useEntitlementsStore';
 import { Colors } from '../../src/theme/colors';
-import { FontSize, Spacing, BorderRadius } from '../../src/theme/spacing';
+import { Spacing, BorderRadius } from '../../src/theme/spacing';
+
+const UNLOCK_COST = 5;
+
+interface DiscoverItem {
+    id: string;
+    title: string;
+    desc: string;
+    free: boolean;
+    gradient: [string, string];
+    detail: string;
+    tip?: string;
+}
 
 // --- Data ---
-const KRISTAL_ITEMS = [
+const KRISTAL_ITEMS: DiscoverItem[] = [
     {
         id: 'k1', title: 'Ametist', desc: 'Huzur ve ruhsal koruma taşı', free: true, gradient: ['#7C3AED', '#4C1D95'],
         detail: 'Ametist, en güçlü koruyucu taşlardan biridir. Stresi azaltır, sezgiyi güçlendirir ve uyku kalitesini artırır. Meditasyon sırasında kullanıldığında üst çakraları açar. Yastık altına koyarak huzurlu bir uyku için kullanabilirsiniz.'
     },
     {
         id: 'k2', title: 'Pembe Kuvars', desc: 'Aşk ve şefkat enerjisi', free: false, gradient: ['#EC4899', '#831843'],
-        detail: 'Pembe Kuvars, koşulsuz aşk taşıdır. Kalp çakrasını açar, özsevgiyi ve başkalarına duyulan şefkati güçlendirir. İlişkilerde uyumu destekler ve duygusal yaraları iyileştirmeye yardımcı olur.'
+        detail: 'Pembe Kuvars, koşulsuz aşk taşıdır. Kalp çakrasını açar, öz sevgiyi ve başkalarına duyulan şefkati güçlendirir. İlişkilerde uyumu destekler ve duygusal yaraları iyileştirmeye yardımcı olur.'
     },
     {
         id: 'k3', title: 'Obsidyen', desc: 'Negatif enerji kalkanı', free: false, gradient: ['#374151', '#111827'],
@@ -35,7 +47,7 @@ const KRISTAL_ITEMS = [
     },
 ];
 
-const RUN_ITEMS = [
+const RUN_ITEMS: DiscoverItem[] = [
     {
         id: 'r1', title: 'Fehu ᚠ', desc: 'Refah ve bolluk runu', free: true, gradient: ['#F59E0B', '#92400E'],
         detail: 'Fehu, maddi bolluk ve refahın sembolüdür. Cüzdanınıza veya iş yerinize çizerek finansal bereket çağırabilirsiniz. Yeni başlangıçlar ve yatırımlar için ideal bir rundur.', tip: 'Cüzdanınıza çizin, maddi bereket için'
@@ -45,7 +57,7 @@ const RUN_ITEMS = [
         detail: 'Algiz, en güçlü koruma runudur. Kötü enerjilere, nazara ve olumsuz etkilere karşı kalkan oluşturur. Kapılarınıza veya pencerelere çizerek evinizi koruyabilirsiniz.', tip: 'Kapınıza çizin, kötü enerjilere karşı'
     },
     {
-        id: 'r3', title: 'Ansuz ᚨ', desc: 'Bilgelik ve iletisim', free: false, gradient: ['#3B82F6', '#1E3A5F'],
+        id: 'r3', title: 'Ansuz ᚨ', desc: 'Bilgelik ve iletişim', free: false, gradient: ['#3B82F6', '#1E3A5F'],
         detail: 'Ansuz, ilahi bilgelik ve iletişim runudur. Doğru kararlara ulaşmanızı sağlar. Önemli görüşmeler öncesi bileğinize çizebilirsiniz.', tip: 'Bileğinize çizin, doğru kararlar için'
     },
     {
@@ -58,11 +70,11 @@ const RUN_ITEMS = [
     },
     {
         id: 'r6', title: 'Wunjo ᚹ', desc: 'Mutluluk ve harmoni', free: false, gradient: ['#EC4899', '#831843'],
-        detail: 'Wunjo, mutluluk, şefa ve iç huzur runudur. İlişkilerde uyumu ve hayattan zevk almayı destekler. Yastık altına çizerek huzurlu uyku için kullanın.', tip: 'Yastık altına çizin, huzurlu uyku için'
+        detail: 'Wunjo, mutluluk, şifa ve iç huzur runudur. İlişkilerde uyumu ve hayattan zevk almayı destekler. Yastık altına çizerek huzurlu uyku için kullanın.', tip: 'Yastık altına çizin, huzurlu uyku için'
     },
 ];
 
-const RITUAL_ITEMS = [
+const RITUAL_ITEMS: DiscoverItem[] = [
     {
         id: 'rt1', title: 'Yeni Ay Ritüeli', desc: 'Yeni başlangıçlar ve niyet belirleme', free: true, gradient: ['#6366F1', '#312E81'],
         detail: 'Yeni ay, niyet koyma ve yeni başlangıçlar için en güçlü zamandır. Sessiz bir ortamda oturun, niyetlerinizi kağıda yazın, bir mum yakın ve evrenle paylaşın. 3 gün boyunca niyetlerinizi tekrarlayın.'
@@ -80,7 +92,7 @@ const RITUAL_ITEMS = [
         detail: 'Banyo suyuna bir avuç deniz tuzu ve birkaç damla lavanta yağı ekleyin. 20 dakika bekleyin ve negatif enerjilerin suda eridiğini hayal edin. Haftada bir uygulayın.'
     },
     {
-        id: 'rt5', title: 'Mum Ritueli', desc: 'Niyet gucunu artirma', free: false, gradient: ['#EF4444', '#7F1D1D'],
+        id: 'rt5', title: 'Mum Ritüeli', desc: 'Niyet gücünü artırma', free: false, gradient: ['#EF4444', '#7F1D1D'],
         detail: 'Niyetinize uygun renkte bir mum seçin (yeşil: bereket, kırmızı: aşk, beyaz: arındırma). Mumu yakarken niyetinizi tekrarlayın. Mum kendi kendine sönene kadar yakın.'
     },
     {
@@ -93,203 +105,232 @@ type TabKey = 'kristal' | 'run' | 'ritual';
 
 export default function DiscoverScreen() {
     const [activeTab, setActiveTab] = useState<TabKey>('kristal');
-    const [detailItem, setDetailItem] = useState<any>(null);
-    const { spendCredits, earnXP } = useEntitlementsStore();
-    const credits = useEntitlementsStore((s) => s.credits);
-    const [unlockedIds, setUnlockedIds] = useState<Set<string>>(new Set());
+    const [detailItem, setDetailItem] = useState<DiscoverItem | null>(null);
+    const [unlocking, setUnlocking] = useState<string | null>(null);
+    const spendCredits = useEntitlementsStore((s) => s.spendCredits);
+    const earnXP = useEntitlementsStore((s) => s.earnXP);
+    // Persisted, DB-backed unlocks survive restarts (aligned with home screen)
+    const unlockedContentIds = useEntitlementsStore((s) => s.unlockedContentIds);
 
     const tabs: { key: TabKey; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
         { key: 'kristal', label: 'Kristaller', icon: 'diamond-outline' },
         { key: 'run', label: 'Runler', icon: 'grid-outline' },
-        { key: 'ritual', label: 'Ritueller', icon: 'moon-outline' },
+        { key: 'ritual', label: 'Ritüeller', icon: 'moon-outline' },
     ];
 
-    const getItems = () => {
+    const getItems = (): DiscoverItem[] => {
         if (activeTab === 'kristal') return KRISTAL_ITEMS;
         if (activeTab === 'run') return RUN_ITEMS;
         return RITUAL_ITEMS;
     };
 
-    const isUnlocked = (item: any) => item.free || unlockedIds.has(item.id);
+    const isUnlocked = (item: DiscoverItem) => item.free || unlockedContentIds.includes(item.id);
 
-    const handlePress = (item: any) => {
+    const handlePress = async (item: DiscoverItem) => {
         if (isUnlocked(item)) {
             setDetailItem(item);
-            earnXP(5);
+            await earnXP(5);
+            return;
+        }
+        // Unlock with credits (spendCredits is async → MUST be awaited)
+        setUnlocking(item.id);
+        const ok = await spendCredits(UNLOCK_COST, 'discover_unlock', item.id);
+        setUnlocking(null);
+        if (ok) {
+            setDetailItem(item);
+            await earnXP(10);
         } else {
-            // Unlock with 5 credits
-            if (spendCredits(5)) {
-                setUnlockedIds((prev) => new Set(prev).add(item.id));
-                setDetailItem(item);
-                earnXP(10);
-            } else {
-                Alert.alert('Yetersiz Kredi', 'Bu içeriği açmak için 5 kredi gerekiyor.');
-            }
+            Alert.alert('Yetersiz Kredi', `Bu içeriği açmak için ${UNLOCK_COST} kredi gerekiyor.`);
         }
     };
 
-    const handleRandomRune = () => {
-        const locked = RUN_ITEMS.filter((r) => !r.free && !unlockedIds.has(r.id));
+    const handleRandomRune = async () => {
+        const locked = RUN_ITEMS.filter((r) => !r.free && !unlockedContentIds.includes(r.id));
         if (locked.length === 0) {
             Alert.alert('Tüm Runler Açık', 'Tüm runleri zaten açtınız!');
             return;
         }
-        if (spendCredits(5)) {
-            const pick = locked[Math.floor(Math.random() * locked.length)];
-            setUnlockedIds((prev) => new Set(prev).add(pick.id));
+        const pick = locked[Math.floor(Math.random() * locked.length)];
+        setUnlocking('random');
+        const ok = await spendCredits(UNLOCK_COST, 'discover_unlock', pick.id);
+        setUnlocking(null);
+        if (ok) {
             setDetailItem(pick);
-            earnXP(10);
+            await earnXP(10);
         } else {
-            Alert.alert('Yetersiz Kredi', 'Rastgele run açmak için 5 kredi gerekiyor.');
+            Alert.alert('Yetersiz Kredi', `Rastgele run açmak için ${UNLOCK_COST} kredi gerekiyor.`);
         }
     };
 
     return (
-        <GradientBackground>
-            <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-                <Text style={styles.title}>Keşfet</Text>
+        <Screen>
+            <AppText variant="hero" style={styles.title}>Keşfet</AppText>
 
-                {/* Disclaimer */}
-                <View style={styles.disclaimer}>
-                    <Ionicons name="information-circle-outline" size={14} color={Colors.textMuted} />
-                    <Text style={styles.disclaimerText}>
-                        Bu içerikler derleme araştırmalardan toplanmış verilerdir, eğlence amaçlıdır. İçeriklerle etkileşime geçmek size arma kazandırabilir.
-                    </Text>
-                </View>
+            {/* Disclaimer */}
+            <View style={styles.disclaimer}>
+                <Ionicons name="information-circle-outline" size={16} color={Colors.textMuted} />
+                <AppText variant="caption" style={styles.disclaimerText}>
+                    Bu içerikler derleme araştırmalardan toplanmış verilerdir, eğlence amaçlıdır. İçeriklerle etkileşime geçmek size arma kazandırabilir.
+                </AppText>
+            </View>
 
-                {/* Tabs */}
-                <View style={styles.segmented}>
-                    {tabs.map((tab) => (
+            {/* Tabs */}
+            <View style={styles.segmented}>
+                {tabs.map((tab) => {
+                    const active = activeTab === tab.key;
+                    return (
                         <TouchableOpacity
                             key={tab.key}
-                            style={[styles.segment, activeTab === tab.key && styles.segmentActive]}
+                            style={[styles.segment, active && styles.segmentActive]}
                             onPress={() => setActiveTab(tab.key)}
+                            accessibilityRole="tab"
+                            accessibilityState={{ selected: active }}
+                            accessibilityLabel={tab.label}
                         >
                             <Ionicons name={tab.icon} size={18}
-                                color={activeTab === tab.key ? Colors.accentYellow : Colors.textMuted} />
-                            <Text style={[styles.segmentText, activeTab === tab.key && styles.segmentTextActive]}>
+                                color={active ? Colors.accentYellow : Colors.textMuted} />
+                            <AppText variant="callout" color={active ? Colors.accentYellow : Colors.textMuted}>
                                 {tab.label}
-                            </Text>
+                            </AppText>
                         </TouchableOpacity>
-                    ))}
-                </View>
+                    );
+                })}
+            </View>
 
-                {/* Section description */}
-                {activeTab === 'kristal' && (
-                    <Text style={styles.sectionDesc}>
-                        Her kristalin kendine özgü bir enerjisi vardır. Detayları görmek için dokunun.
-                    </Text>
-                )}
-                {activeTab === 'run' && (
-                    <Text style={styles.sectionDesc}>
-                        Runleri çizip üzerinizde taşıyarak enerji verebilirsiniz. İlk 2 run ücretsiz.
-                    </Text>
-                )}
-                {activeTab === 'ritual' && (
-                    <Text style={styles.sectionDesc}>
-                        Ritüeller niyetinizi güçlendirir. İlk ritüel ücretsiz, diğerlerini kredi ile açınız.
-                    </Text>
-                )}
+            {/* Section description */}
+            {activeTab === 'kristal' && (
+                <AppText variant="body" style={styles.sectionDesc}>
+                    Her kristalin kendine özgü bir enerjisi vardır. Detayları görmek için dokunun.
+                </AppText>
+            )}
+            {activeTab === 'run' && (
+                <AppText variant="body" style={styles.sectionDesc}>
+                    Runleri çizip üzerinizde taşıyarak enerji verebilirsiniz. İlk 2 run ücretsiz.
+                </AppText>
+            )}
+            {activeTab === 'ritual' && (
+                <AppText variant="body" style={styles.sectionDesc}>
+                    Ritüeller niyetinizi güçlendirir. İlk ritüel ücretsiz, diğerlerini kredi ile açınız.
+                </AppText>
+            )}
 
-                {/* Content Grid */}
-                <View style={styles.grid}>
-                    {getItems().map((item) => {
-                        const unlocked = isUnlocked(item);
-                        return (
-                            <TouchableOpacity
-                                key={item.id}
-                                style={styles.cardWrap}
-                                activeOpacity={0.8}
-                                onPress={() => handlePress(item)}
+            {/* Content Grid */}
+            <View style={styles.grid}>
+                {getItems().map((item) => {
+                    const unlocked = isUnlocked(item);
+                    const busy = unlocking === item.id;
+                    return (
+                        <TouchableOpacity
+                            key={item.id}
+                            style={styles.cardWrap}
+                            activeOpacity={0.8}
+                            disabled={busy}
+                            onPress={() => handlePress(item)}
+                            accessibilityRole="button"
+                            accessibilityLabel={
+                                unlocked
+                                    ? `${item.title} — detayları gör`
+                                    : `${item.title} — ${UNLOCK_COST} kredi ile aç`
+                            }
+                        >
+                            <LinearGradient
+                                colors={item.gradient}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={[styles.card, !unlocked && styles.cardLocked]}
                             >
-                                <LinearGradient
-                                    colors={item.gradient as [string, string]}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 1 }}
-                                    style={[styles.card, !unlocked && styles.cardLocked]}
-                                >
-                                    <Text style={styles.cardTitle}>{item.title}</Text>
-                                    <Text style={styles.cardDesc}>{item.desc}</Text>
-                                    {!unlocked && (
-                                        <View style={styles.lockBadge}>
-                                            <Ionicons name="lock-closed" size={10} color="#fff" />
-                                            <Text style={styles.lockText}>5 kredi</Text>
-                                        </View>
-                                    )}
-                                    {unlocked && !item.free && (
-                                        <View style={styles.unlockedBadge}>
-                                            <Ionicons name="checkmark-circle" size={10} color="#34D399" />
-                                        </View>
-                                    )}
-                                    {item.free && (
-                                        <View style={styles.freeBadge}>
-                                            <Text style={styles.freeText}>ÜCRETSİZ</Text>
-                                        </View>
-                                    )}
-                                </LinearGradient>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </View>
+                                <AppText variant="h3" color={Colors.textPrimary} style={styles.cardTitle}>
+                                    {item.title}
+                                </AppText>
+                                <AppText variant="caption" color={Colors.textPrimary} style={styles.cardDesc}>
+                                    {item.desc}
+                                </AppText>
+                                {!unlocked && (
+                                    <View style={styles.lockBadge}>
+                                        <Ionicons name="lock-closed" size={10} color={Colors.textPrimary} />
+                                        <AppText variant="label" color={Colors.textPrimary} style={styles.lockText}>
+                                            {UNLOCK_COST} kredi
+                                        </AppText>
+                                    </View>
+                                )}
+                                {unlocked && !item.free && (
+                                    <View style={styles.unlockedBadge}>
+                                        <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+                                    </View>
+                                )}
+                                {item.free && (
+                                    <View style={styles.freeBadge}>
+                                        <AppText variant="label" color={Colors.textOnAccent} style={styles.freeText}>
+                                            ÜCRETSİZ
+                                        </AppText>
+                                    </View>
+                                )}
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
 
-                {/* Random Rune Button */}
-                {activeTab === 'run' && (
-                    <TouchableOpacity style={styles.randomBtn} activeOpacity={0.8} onPress={handleRandomRune}>
-                        <Ionicons name="shuffle-outline" size={18} color={Colors.accentYellow} />
-                        <Text style={styles.randomText}>Rastgele Run Aç</Text>
-                        <Text style={styles.randomCost}>5 kredi</Text>
-                    </TouchableOpacity>
-                )}
-            </ScrollView>
+            {/* Random Rune Button */}
+            {activeTab === 'run' && (
+                <Button
+                    title="Rastgele Run Aç"
+                    variant="secondary"
+                    onPress={handleRandomRune}
+                    loading={unlocking === 'random'}
+                    icon={<Ionicons name="shuffle-outline" size={18} color={Colors.textPrimary} />}
+                    style={styles.randomBtn}
+                />
+            )}
 
             {/* Detail Modal */}
             <Modal visible={!!detailItem} transparent animationType="fade" onRequestClose={() => setDetailItem(null)}>
                 <View style={styles.overlay}>
-                    <KismetCard glow style={styles.modal}>
-                        <Text style={styles.modalTitle}>{detailItem?.title}</Text>
-                        <Text style={styles.modalSubtitle}>{detailItem?.desc}</Text>
+                    <Card glow style={styles.modal}>
+                        <AppText variant="title" center>{detailItem?.title}</AppText>
+                        <AppText variant="callout" center color={Colors.purpleLight} style={styles.modalSubtitle}>
+                            {detailItem?.desc}
+                        </AppText>
                         <View style={styles.modalDivider} />
-                        <Text style={styles.modalDetail}>{detailItem?.detail}</Text>
+                        <AppText variant="body" center style={styles.modalDetail}>
+                            {detailItem?.detail}
+                        </AppText>
                         {detailItem?.tip && (
                             <View style={styles.tipRow}>
-                                <Ionicons name="bulb-outline" size={14} color={Colors.accentYellow} />
-                                <Text style={styles.tipText}>{detailItem.tip}</Text>
+                                <Ionicons name="bulb-outline" size={16} color={Colors.accentYellow} />
+                                <AppText variant="callout" color={Colors.accentYellow} style={styles.tipText}>
+                                    {detailItem.tip}
+                                </AppText>
                             </View>
                         )}
-                        <TouchableOpacity style={styles.modalClose} onPress={() => setDetailItem(null)}>
-                            <Text style={styles.modalCloseText}>Kapat</Text>
-                        </TouchableOpacity>
-                    </KismetCard>
+                        <Button title="Kapat" variant="ghost" onPress={() => setDetailItem(null)} style={styles.modalClose} />
+                    </Card>
                 </View>
             </Modal>
-        </GradientBackground>
+        </Screen>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    scrollContent: { paddingHorizontal: Spacing.xl, paddingTop: 60, paddingBottom: 40 },
-    title: { fontSize: FontSize.hero, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.md },
+    title: { marginBottom: Spacing.md },
     disclaimer: {
         flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm,
-        backgroundColor: Colors.purple + '15', borderRadius: BorderRadius.md,
+        backgroundColor: Colors.purpleA15, borderRadius: BorderRadius.md,
         padding: Spacing.md, marginBottom: Spacing.xl,
-        borderLeftWidth: 3, borderLeftColor: Colors.accentYellow + '60',
+        borderLeftWidth: 3, borderLeftColor: Colors.borderAccent,
     },
-    disclaimerText: { flex: 1, fontSize: 11, color: Colors.textMuted, lineHeight: 16 },
+    disclaimerText: { flex: 1 },
     segmented: {
-        flexDirection: 'row', backgroundColor: Colors.backgroundCard,
+        flexDirection: 'row', backgroundColor: Colors.surface1,
         borderRadius: BorderRadius.lg, padding: 4, marginBottom: Spacing.lg,
         borderWidth: 1, borderColor: Colors.border,
     },
     segment: {
         flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        paddingVertical: Spacing.md, borderRadius: BorderRadius.md, gap: 6,
+        paddingVertical: Spacing.md, borderRadius: BorderRadius.md, gap: 6, minHeight: 44,
     },
-    segmentActive: { backgroundColor: Colors.backgroundCardLight },
-    segmentText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.textMuted },
-    segmentTextActive: { color: Colors.accentYellow },
-    sectionDesc: { fontSize: FontSize.sm, color: Colors.textSecondary, lineHeight: 20, marginBottom: Spacing.lg },
+    segmentActive: { backgroundColor: Colors.surface3 },
+    sectionDesc: { marginBottom: Spacing.lg },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
     cardWrap: { width: '47%', borderRadius: BorderRadius.lg, overflow: 'hidden' },
     card: {
@@ -297,46 +338,37 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end', position: 'relative',
     },
     cardLocked: { opacity: 0.7 },
-    cardTitle: { fontSize: FontSize.md, fontWeight: '700', color: '#fff', marginBottom: 4 },
-    cardDesc: { fontSize: 11, color: 'rgba(255,255,255,0.75)', lineHeight: 15 },
+    cardTitle: { marginBottom: 4 },
+    cardDesc: { opacity: 0.85 },
     lockBadge: {
         position: 'absolute', top: 8, right: 8,
         flexDirection: 'row', alignItems: 'center', gap: 3,
-        backgroundColor: 'rgba(0,0,0,0.4)', paddingHorizontal: 6, paddingVertical: 2,
+        backgroundColor: Colors.overlay, paddingHorizontal: 6, paddingVertical: 2,
         borderRadius: BorderRadius.full,
     },
-    lockText: { fontSize: 9, color: '#fff', fontWeight: '600' },
+    lockText: { letterSpacing: 0 },
     unlockedBadge: { position: 'absolute', top: 8, right: 8 },
     freeBadge: {
         position: 'absolute', top: 8, right: 8,
-        backgroundColor: '#34D399', paddingHorizontal: 6, paddingVertical: 2,
+        backgroundColor: Colors.success, paddingHorizontal: 6, paddingVertical: 2,
         borderRadius: BorderRadius.full,
     },
-    freeText: { fontSize: 8, fontWeight: '700', color: '#000' },
-    randomBtn: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        gap: Spacing.sm, marginTop: Spacing.xl,
-        backgroundColor: Colors.purple + '25', borderWidth: 1, borderColor: Colors.accentYellow + '30',
-        borderRadius: BorderRadius.full, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xl,
-    },
-    randomText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.accentYellow },
-    randomCost: { fontSize: 11, color: Colors.textMuted },
+    freeText: { letterSpacing: 0 },
+    randomBtn: { marginTop: Spacing.xl },
     // Modal
     overlay: {
         flex: 1, backgroundColor: Colors.overlay,
         justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.xl,
     },
     modal: { width: '100%', alignItems: 'center' },
-    modalTitle: { fontSize: FontSize.xxl, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
-    modalSubtitle: { fontSize: FontSize.sm, color: Colors.purpleLight, marginBottom: Spacing.md },
+    modalSubtitle: { marginTop: 4, marginBottom: Spacing.md },
     modalDivider: { width: '100%', height: 1, backgroundColor: Colors.border, marginBottom: Spacing.md },
-    modalDetail: { fontSize: FontSize.md, color: Colors.textSecondary, lineHeight: 24, textAlign: 'center' },
+    modalDetail: {},
     tipRow: {
         flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm,
         marginTop: Spacing.lg, paddingTop: Spacing.md,
         borderTopWidth: 1, borderTopColor: Colors.border,
     },
-    tipText: { flex: 1, fontSize: FontSize.sm, color: Colors.accentYellow, fontStyle: 'italic', lineHeight: 20 },
+    tipText: { flex: 1, fontStyle: 'italic' },
     modalClose: { marginTop: Spacing.xl },
-    modalCloseText: { fontSize: FontSize.md, color: Colors.textMuted, fontWeight: '500' },
 });
