@@ -22,7 +22,9 @@ function safeChildren(children: React.ReactNode): React.ReactNode {
         !Array.isArray(children) &&
         !(children as any).$$typeof
     ) {
-        if (__DEV__) console.warn('AppText received a non-renderable object child; ignoring.');
+        const values = Object.values(children as object)
+            .filter((val): val is string => typeof val === 'string' && val.trim().length > 0);
+        if (values.length) return values.join('\n\n');
         return null;
     }
     return children;

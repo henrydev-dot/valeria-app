@@ -245,10 +245,15 @@ export default function AstrologyScreen() {
     // object ({ mistakes, idealPartner, attractionDynamics }); flatten it.
     const asText = (v: unknown): string | undefined => {
         if (typeof v === 'string') return v.trim() || undefined;
+        if (Array.isArray(v)) {
+            const items = v.map((item) => asText(item)).filter(Boolean);
+            return items.length ? items.join('\n\n') : undefined;
+        }
         if (v && typeof v === 'object') {
             const o = v as Record<string, unknown>;
-            const parts = [o.idealPartner, o.attractionDynamics, o.mistakes]
-                .filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
+            const parts = Object.values(o)
+                .map((val) => asText(val))
+                .filter((val): val is string => typeof val === 'string' && val.trim().length > 0);
             return parts.length ? parts.join('\n\n') : undefined;
         }
         return undefined;
