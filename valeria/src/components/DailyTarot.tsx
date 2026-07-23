@@ -15,6 +15,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
 import { FontSize, Spacing, BorderRadius } from '../theme/spacing';
+import { AppText } from './AppText';
+import { Card } from './Card';
+import { Button } from './Button';
 import TAROT_DATA from '../../content/tarot_major_arcana_tr.json';
 import { useEntitlementsStore } from '../stores/useEntitlementsStore';
 import { useUserStore } from '../stores/useUserStore';
@@ -205,7 +208,6 @@ export function DailyTarot() {
                     });
                     setAiReading(resp.reading || resp.interpretation || null);
                 } catch (e) {
-                    console.log('AI reading error:', e);
                     setAiReading(null);
                 } finally {
                     setAiLoading(false);
@@ -217,19 +219,17 @@ export function DailyTarot() {
     if (tarotCards.length === 0 || todayCards.length < 3) return null;
 
     return (
-        <View style={styles.container}>
+        <Card>
             {/* Header */}
             <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                    <Ionicons name="layers" size={20} color={Colors.accentYellow} />
-                    <Text style={styles.title}>Günlük Tarot</Text>
-                </View>
-                <View style={styles.headerRight}>
-                    <Text style={styles.subtitle}>{revealedCount}/3 açıldı</Text>
-                    <View style={styles.timerRow}>
-                        <Ionicons name="time-outline" size={12} color={Colors.textMuted} />
-                        <Text style={styles.timerText}>Yenileme: {resetTimer}</Text>
-                    </View>
+                <AppText variant="caption" color={Colors.textMuted}>
+                    {revealedCount}/3 kart açıldı
+                </AppText>
+                <View style={styles.timerRow}>
+                    <Ionicons name="time-outline" size={12} color={Colors.textMuted} />
+                    <AppText variant="caption" color={Colors.textMuted}>
+                        Yenileme: {resetTimer}
+                    </AppText>
                 </View>
             </View>
 
@@ -264,6 +264,12 @@ export function DailyTarot() {
                             activeOpacity={0.85}
                             onPress={() => handleCardPress(index)}
                             style={styles.cardWrapper}
+                            accessibilityRole="button"
+                            accessibilityLabel={
+                                revealed
+                                    ? `${card?.nameTR ?? 'Kart'} — detayları gör`
+                                    : `${index + 1}. kartı aç (${costLabel})`
+                            }
                         >
                             {/* Back of card */}
                             <Animated.View
@@ -285,7 +291,7 @@ export function DailyTarot() {
                                             <Text style={styles.badgeFree}>{costLabel}</Text>
                                         ) : (
                                             <View style={styles.badgeCredit}>
-                                                <Ionicons name="wallet-outline" size={10} color={Colors.backgroundDark} />
+                                                <Ionicons name="wallet-outline" size={10} color={Colors.textOnAccent} />
                                                 <Text style={styles.badgeCreditText}>{costLabel}</Text>
                                             </View>
                                         )}
@@ -318,9 +324,15 @@ export function DailyTarot() {
                                             resizeMode="cover"
                                         />
                                         <View style={styles.cardLabel}>
-                                            <Text style={styles.cardName} numberOfLines={1}>
+                                            <AppText
+                                                variant="caption"
+                                                color={Colors.textPrimary}
+                                                center
+                                                numberOfLines={1}
+                                                style={styles.cardName}
+                                            >
                                                 {card.nameTR}
-                                            </Text>
+                                            </AppText>
                                         </View>
                                     </>
                                 )}
@@ -347,6 +359,8 @@ export function DailyTarot() {
                             <TouchableOpacity
                                 style={styles.closeBtn}
                                 onPress={() => setShowModal(false)}
+                                accessibilityRole="button"
+                                accessibilityLabel="Kapat"
                             >
                                 <Ionicons name="close" size={24} color={Colors.textPrimary} />
                             </TouchableOpacity>
@@ -366,33 +380,37 @@ export function DailyTarot() {
                                     </View>
 
                                     {/* Card Name + Orientation */}
-                                    <Text style={styles.modalName}>{selectedCard.card.nameTR}</Text>
-                                    <Text style={styles.modalNameEN}>{selectedCard.card.nameEN}</Text>
+                                    <AppText variant="title" color={Colors.accentYellow} center>
+                                        {selectedCard.card.nameTR}
+                                    </AppText>
+                                    <AppText variant="callout" color={Colors.textMuted} center style={styles.modalNameEN}>
+                                        {selectedCard.card.nameEN}
+                                    </AppText>
                                     <View style={[
                                         styles.orientationBadge,
                                         { backgroundColor: selectedCard.isReversed ? Colors.warning + '20' : Colors.success + '20' }
                                     ]}>
-                                        <Text style={[
-                                            styles.orientationText,
-                                            { color: selectedCard.isReversed ? Colors.warning : Colors.success }
-                                        ]}>
+                                        <AppText
+                                            variant="callout"
+                                            color={selectedCard.isReversed ? Colors.warning : Colors.success}
+                                        >
                                             {selectedCard.isReversed ? 'Ters Pozisyon' : 'Düz Pozisyon'}
-                                        </Text>
+                                        </AppText>
                                     </View>
 
                                     {/* Archetype */}
                                     <View style={styles.archetypeRow}>
                                         <Ionicons name="shield-outline" size={16} color={Colors.purpleLight} />
-                                        <Text style={styles.archetypeText}>
+                                        <AppText variant="callout" color={Colors.purpleLight}>
                                             {selectedCard.card.archetypeTR}
-                                        </Text>
+                                        </AppText>
                                     </View>
 
                                     {/* Keywords */}
                                     <View style={styles.keywords}>
                                         {selectedCard.card.keywordsTR.map((kw, i) => (
                                             <View key={i} style={styles.keyword}>
-                                                <Text style={styles.keywordText}>{kw}</Text>
+                                                <AppText variant="caption" color={Colors.purpleLight}>{kw}</AppText>
                                             </View>
                                         ))}
                                     </View>
@@ -401,89 +419,77 @@ export function DailyTarot() {
                                     <View style={styles.divider} />
 
                                     {/* Meaning / Story */}
-                                    <Text style={styles.sectionTitle}>
+                                    <View style={styles.sectionTitleRow}>
                                         <Ionicons name="book-outline" size={16} color={Colors.accentYellow} />
-                                        {'  '}Kart Hikayesi ve Anlamı
-                                    </Text>
-                                    <Text style={styles.meaningText}>
+                                        <AppText variant="h3">Kart Hikayesi ve Anlamı</AppText>
+                                    </View>
+                                    <AppText variant="body" style={styles.meaningText}>
                                         {selectedCard.isReversed
                                             ? selectedCard.card.reversedTR
                                             : selectedCard.card.uprightTR}
-                                    </Text>
+                                    </AppText>
 
                                     {/* Divider */}
                                     <View style={styles.divider} />
 
                                     {/* Advice */}
-                                    <Text style={styles.sectionTitle}>
+                                    <View style={styles.sectionTitleRow}>
                                         <Ionicons name="sparkles-outline" size={16} color={Colors.accentYellow} />
-                                        {'  '}Günlük Yorum
-                                    </Text>
-                                    <Text style={styles.adviceText}>
+                                        <AppText variant="h3">Günlük Yorum</AppText>
+                                    </View>
+                                    <AppText variant="body" style={styles.adviceText}>
                                         {selectedCard.card.adviceTR}
-                                    </Text>
+                                    </AppText>
 
                                     {/* AI Gemini Kişiye Özel Yorum */}
                                     <View style={styles.divider} />
-                                    <Text style={styles.sectionTitle}>
+                                    <View style={styles.sectionTitleRow}>
                                         <Ionicons name="sparkles" size={16} color={Colors.accentYellow} />
-                                        {'  '}Valeria'nın Yorumu
-                                    </Text>
+                                        <AppText variant="h3">Valeria'nın Yorumu</AppText>
+                                    </View>
                                     {aiLoading ? (
                                         <View style={styles.aiLoadingContainer}>
                                             <ActivityIndicator size="small" color={Colors.accentYellow} />
-                                            <Text style={styles.aiLoadingText}>Valeria yorumluyor...</Text>
+                                            <AppText variant="caption" color={Colors.textMuted} style={styles.aiLoadingText}>
+                                                Valeria yorumluyor...
+                                            </AppText>
                                         </View>
                                     ) : aiReading ? (
-                                        <Text style={styles.adviceText}>{aiReading}</Text>
+                                        <AppText variant="body" style={styles.adviceText}>{aiReading}</AppText>
                                     ) : (
-                                        <Text style={styles.adviceText}>Valeria'nın yorumu yüklenemedi.</Text>
+                                        <AppText variant="body" style={styles.adviceText}>
+                                            Valeria'nın yorumu yüklenemedi.
+                                        </AppText>
                                     )}
 
                                     {/* Close CTA */}
-                                    <TouchableOpacity
-                                        style={styles.closeCta}
+                                    <Button
+                                        title="Kapat"
                                         onPress={() => setShowModal(false)}
-                                    >
-                                        <Text style={styles.closeCtaText}>Kapat</Text>
-                                    </TouchableOpacity>
+                                        style={styles.closeCta}
+                                    />
                                 </>
                             )}
                         </ScrollView>
                     </View>
                 </View>
             </Modal>
-        </View>
+        </Card>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        marginBottom: Spacing.xxl,
-    },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: Spacing.lg,
     },
-    headerLeft: {
+    sectionTitleRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: Spacing.sm,
-    },
-    title: {
-        fontSize: FontSize.xl,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-    },
-    subtitle: {
-        fontSize: FontSize.sm,
-        color: Colors.textMuted,
-        fontWeight: '500',
-    },
-    headerRight: {
-        alignItems: 'flex-end',
+        marginBottom: Spacing.md,
     },
     timerRow: {
         flexDirection: 'row',
