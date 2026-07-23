@@ -1,0 +1,10 @@
+{
+  "name": "valeria-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "./start-dev.sh",
+    "backend": "cd backend && npm run dev",
+    "app": "cd valeria && npx expo start"
+  }
+}
