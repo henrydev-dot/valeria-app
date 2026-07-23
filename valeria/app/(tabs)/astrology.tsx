@@ -17,11 +17,57 @@ import { API_HOST } from '../../src/api';
 const { width } = Dimensions.get('window');
 const CHART_SIZE = Math.max(260, Math.min(width - 48, 340));
 const CENTER = CHART_SIZE / 2;
-const R_OUTER = CHART_SIZE / 2 - 16;   // leaves room for degree ticks
-const R_MIDDLE = R_OUTER - 40;
-const R_INNER = R_MIDDLE - 34;
-const R_CORE = R_INNER - 32;
+const S = CHART_SIZE / 340;                 // scale factor (shrinks glyphs on small phones)
+
+// Glyph sizes + backing radius scale gently with the wheel.
+const SIGN_GLYPH = Math.round(24 * S);
+const PLANET_GLYPH = Math.round(22 * S);
+const PLANET_R = Math.round(PLANET_GLYPH / 2 + 4);   // subtle backing circle behind a planet
+
+// Concentric bands — each element (zodiac, house numbers, planets) gets its own clear ring.
+const R_OUTER = CENTER - 12;                          // main outer ring (ticks sit just outside)
+const R_ZODIAC = R_OUTER - Math.round(28 * S);       // inner edge of the zodiac-glyph band
+const R_SIGN = (R_OUTER + R_ZODIAC) / 2;             // zodiac glyph centres
+const R_HOUSE = R_ZODIAC - Math.round(13 * S);       // house-number ring
+const R_PLANET = R_ZODIAC - Math.round(36 * S);      // planet glyph centres (de-clustered along this arc)
+const R_CORE = R_PLANET - PLANET_R - Math.round(8 * S); // clean centre disk that masks the aspect web
 const MOON_CY = CHART_SIZE + 34;
+
+// Minimum angular gap between neighbouring planet glyphs so their backings never touch.
+const PLANET_MIN_SEP = Math.min(
+    34,
+    (2 * Math.asin(Math.min(1, (PLANET_R + 2) / R_PLANET)) * 180) / Math.PI,
+);
+
+// Only the five Ptolemaic aspects are drawn, thin and faint, behind the planets.
+const ASPECT_OPACITY = 0.42;
+
+// Spread a cluster of planets apart along the arc without letting them drift too far
+// from their true longitude. Returns display angles (deg) keyed by array index.
+function declusterAngles(trueAngles: number[]): number[] {
+    const n = trueAngles.length;
+    if (n <= 1) return trueAngles.slice();
+    const order = trueAngles.map((a, i) => ({ a, i })).sort((x, y) => x.a - y.a);
+    const pos = order.map((o) => o.a);
+    for (let iter = 0; iter < 40; iter++) {
+        let moved = false;
+        for (let k = 0; k < n; k++) {
+            const j = (k + 1) % n;
+            let gap = pos[j] - pos[k];
+            if (j === 0) gap += 360;              // wrap-around neighbour
+            if (gap < PLANET_MIN_SEP) {
+                const push = (PLANET_MIN_SEP - gap) / 2;
+                pos[k] -= push;
+                pos[j] += push;
+                moved = true;
+            }
+        }
+        if (!moved) break;
+    }
+    const out = new Array<number>(n);
+    order.forEach((o, idx) => { out[o.i] = pos[idx]; });
+    return out;
+}
 
 // ─── Zodiac data ────────────────────────────────────────────────────
 const ZODIAC_SIGNS = [
@@ -305,49 +351,47 @@ export default function AstrologyScreen() {
             {/* Natal Chart Wheel */}
             <View style={styles.chartContainer}>
                 <Svg width={CHART_SIZE} height={MOON_CY + 40}>
-                    {/* Concentric rings */}
-                    <Circle cx={CENTER} cy={CENTER} r={R_OUTER + 6} stroke={Colors.purple + '30'} strokeWidth={1} strokeDasharray="4,4" fill="none" />
+                    {/* Concentric bands — one clear ring per element */}
+                    <Circle cx={CENTER} cy={CENTER} r={R_OUTER + 5} stroke={Colors.purple + '28'} strokeWidth={1} strokeDasharray="3,4" fill="none" />
                     <Circle cx={CENTER} cy={CENTER} r={R_OUTER} stroke={Colors.purple} strokeWidth={1.5} fill="none" />
-                    <Circle cx={CENTER} cy={CENTER} r={R_MIDDLE} stroke={Colors.purple + '60'} strokeWidth={1} fill="none" />
-                    <Circle cx={CENTER} cy={CENTER} r={R_INNER} stroke={Colors.purple + '50'} strokeWidth={1} fill="none" />
-                    <Circle cx={CENTER} cy={CENTER} r={R_CORE} stroke={Colors.purple + '30'} strokeWidth={0.5} fill="none" />
+                    <Circle cx={CENTER} cy={CENTER} r={R_ZODIAC} stroke={Colors.purple + '55'} strokeWidth={1} fill="none" />
+                    <Circle cx={CENTER} cy={CENTER} r={R_HOUSE} stroke={Colors.purple + '30'} strokeWidth={0.75} fill="none" />
 
-                    {/* Degree ticks */}
+                    {/* Degree ticks (just outside the outer ring) */}
                     {Array.from({ length: 72 }, (_, i) => {
                         const deg = i * 5;
                         const angle = (deg - 90) * (Math.PI / 180);
                         const isMajor = deg % 30 === 0;
                         const isMid = deg % 10 === 0;
-                        const tickLen = isMajor ? 7 : isMid ? 4 : 2;
+                        const tickLen = isMajor ? 6 : isMid ? 4 : 2;
                         const x1 = CENTER + R_OUTER * Math.cos(angle);
                         const y1 = CENTER + R_OUTER * Math.sin(angle);
                         const x2 = CENTER + (R_OUTER + tickLen) * Math.cos(angle);
                         const y2 = CENTER + (R_OUTER + tickLen) * Math.sin(angle);
                         return (
                             <Line key={`tick-${deg}`} x1={x1} y1={y1} x2={x2} y2={y2}
-                                stroke={Colors.purple + (isMajor ? '70' : '35')} strokeWidth={isMajor ? 1 : 0.5} />
+                                stroke={Colors.purple + (isMajor ? '70' : '30')} strokeWidth={isMajor ? 1 : 0.5} />
                         );
                     })}
 
-                    {/* House division lines */}
+                    {/* Sign-boundary spokes (only across the zodiac + house band, kept faint) */}
                     {ZODIAC_SIGNS.map((_, i) => {
                         const angle = (i * 30 - 90) * (Math.PI / 180);
                         return (
                             <Line key={`div-${i}`}
-                                x1={CENTER + R_INNER * Math.cos(angle)} y1={CENTER + R_INNER * Math.sin(angle)}
+                                x1={CENTER + R_HOUSE * Math.cos(angle)} y1={CENTER + R_HOUSE * Math.sin(angle)}
                                 x2={CENTER + R_OUTER * Math.cos(angle)} y2={CENTER + R_OUTER * Math.sin(angle)}
-                                stroke={Colors.purple + '50'} strokeWidth={0.75} />
+                                stroke={Colors.purple + '3A'} strokeWidth={0.75} />
                         );
                     })}
 
-                    {/* House numbers */}
+                    {/* House numbers (their own ring, between zodiac and planets) */}
                     {ZODIAC_SIGNS.map((_, i) => {
                         const angle = ((i * 30) + 15 - 90) * (Math.PI / 180);
-                        const r = R_INNER - 15;
                         return (
                             <SvgText key={`house-${i}`}
-                                x={CENTER + r * Math.cos(angle)} y={CENTER + r * Math.sin(angle) + 5}
-                                textAnchor="middle" fontSize={13} fill={Colors.purpleLight} fontWeight="600">
+                                x={CENTER + R_HOUSE * Math.cos(angle)} y={CENTER + R_HOUSE * Math.sin(angle) + 4}
+                                textAnchor="middle" fontSize={Math.round(11 * S)} fill={Colors.textMuted} fontWeight="600">
                                 {i + 1}
                             </SvgText>
                         );
@@ -356,92 +400,109 @@ export default function AstrologyScreen() {
                     {/* Zodiac sign icons (natural color, no tint) */}
                     {ZODIAC_SIGNS.map((sign, i) => {
                         const angle = ((i * 30) + 15 - 90) * (Math.PI / 180);
-                        const symbolR = (R_OUTER + R_MIDDLE) / 2;
-                        const size = 26;
                         const isActive = i === sunIndex;
                         return (
                             <SvgImage key={`sign-${i}`}
-                                x={CENTER + symbolR * Math.cos(angle) - size / 2}
-                                y={CENTER + symbolR * Math.sin(angle) - size / 2}
-                                width={size} height={size}
+                                x={CENTER + R_SIGN * Math.cos(angle) - SIGN_GLYPH / 2}
+                                y={CENTER + R_SIGN * Math.sin(angle) - SIGN_GLYPH / 2}
+                                width={SIGN_GLYPH} height={SIGN_GLYPH}
                                 href={getZodiacImage(sign.name)}
-                                opacity={isActive ? 1 : 0.65} />
+                                opacity={isActive ? 1 : 0.6} />
                         );
                     })}
 
-                    {/* Aspect lines + planets */}
+                    {/* Aspect web (behind planets) + de-clustered planet glyphs */}
                     {(() => {
-                        if (!chartData?.planets) return null;
+                        if (!Array.isArray(chartData?.planets) || chartData.planets.length === 0) return null;
+
+                        // Absolute longitude → true angle for every placed planet.
+                        const placed = chartData.planets
+                            .map((p: any) => {
+                                const signIdx = ZODIAC_SIGNS.findIndex((z) => normalize(z.name) === normalize(p.sign));
+                                if (signIdx === -1) return null;
+                                const deg = Math.max(0, Math.min(30, typeof p.degree === 'number' ? p.degree : 15));
+                                return { planet: p, trueAng: signIdx * 30 + deg - 90 };
+                            })
+                            .filter(Boolean) as { planet: any; trueAng: number }[];
+
+                        // Fan overlapping planets apart along the arc (spread clusters, no pile-ups).
+                        const drawAng = declusterAngles(placed.map((x) => x.trueAng));
+
                         const positions: Record<string, { x: number; y: number }> = {};
-                        const bySign: Record<string, any[]> = {};
-                        chartData.planets.forEach((p: any) => {
-                            const s = normalize(p.sign);
-                            if (!s) return;
-                            (bySign[s] = bySign[s] || []).push(p);
-                        });
-
+                        const spokeNodes: React.ReactNode[] = [];
                         const planetNodes: React.ReactNode[] = [];
-                        Object.entries(bySign).forEach(([signName, group]) => {
-                            const signIdx = ZODIAC_SIGNS.findIndex((z) => normalize(z.name) === signName);
-                            if (signIdx === -1) return;
-                            const signStart = signIdx * 30 - 90;
-                            group.forEach((planet: any, idx: number) => {
-                                let exact = signStart + (planet.degree || 15);
-                                const radius = idx % 2 === 0 ? R_INNER + 14 : R_MIDDLE - 14;
-                                if (group.length > 1) {
-                                    const spread = 18;
-                                    const step = spread / group.length;
-                                    exact += idx * step - spread / 2 + step / 2;
-                                }
-                                const rad = exact * (Math.PI / 180);
-                                const size = 24;
-                                const px = CENTER + radius * Math.cos(rad);
-                                const py = CENTER + radius * Math.sin(rad);
-                                const aspectR = R_CORE + 12;
-                                positions[planet.name] = {
-                                    x: CENTER + aspectR * Math.cos(rad),
-                                    y: CENTER + aspectR * Math.sin(rad),
-                                };
-                                planetNodes.push(
-                                    <G key={`planet-${signName}-${idx}`} onPress={() => openPlanet(planet)}>
-                                        {/* larger transparent hit area */}
-                                        <Circle cx={px} cy={py} r={18} fill={Colors.backgroundDark} opacity={0.01} />
-                                        <SvgImage
-                                            x={px - size / 2} y={py - size / 2}
-                                            width={size} height={size}
-                                            href={getPlanetImage(planet.name)} opacity={1} />
-                                    </G>
-                                );
-                            });
+
+                        placed.forEach(({ planet, trueAng }, idx) => {
+                            const ang = drawAng[idx];
+                            const rad = ang * (Math.PI / 180);
+                            const px = CENTER + R_PLANET * Math.cos(rad);
+                            const py = CENTER + R_PLANET * Math.sin(rad);
+                            positions[planet.name] = { x: px, y: py };
+
+                            // Thin pointer from the true degree on the zodiac ring to the (possibly nudged) glyph.
+                            const trueRad = trueAng * (Math.PI / 180);
+                            spokeNodes.push(
+                                <Line key={`spoke-${idx}`}
+                                    x1={CENTER + (R_ZODIAC - 2) * Math.cos(trueRad)}
+                                    y1={CENTER + (R_ZODIAC - 2) * Math.sin(trueRad)}
+                                    x2={CENTER + (R_PLANET + PLANET_R) * Math.cos(rad)}
+                                    y2={CENTER + (R_PLANET + PLANET_R) * Math.sin(rad)}
+                                    stroke={Colors.purpleLight + '40'} strokeWidth={0.75} />
+                            );
+
+                            const isSun = planet.name === 'Güneş';
+                            const isMoon = planet.name === 'Ay';
+                            const ring = isSun ? Colors.accentYellow + 'AA'
+                                : isMoon ? Colors.purpleLight + 'AA'
+                                    : Colors.purple + '66';
+                            planetNodes.push(
+                                <G key={`planet-${idx}`} onPress={() => openPlanet(planet)}>
+                                    {/* transparent hit area (keeps the touch target generous) */}
+                                    <Circle cx={px} cy={py} r={PLANET_R + 8} fill={Colors.backgroundDark} opacity={0.01} />
+                                    {/* subtle backing so the glyph reads against rings + aspect lines */}
+                                    <Circle cx={px} cy={py} r={PLANET_R} fill={Colors.surface2} opacity={0.96} />
+                                    <Circle cx={px} cy={py} r={PLANET_R} stroke={ring} strokeWidth={1} fill="none" />
+                                    <SvgImage
+                                        x={px - PLANET_GLYPH / 2} y={py - PLANET_GLYPH / 2}
+                                        width={PLANET_GLYPH} height={PLANET_GLYPH}
+                                        href={getPlanetImage(planet.name)} opacity={1} />
+                                </G>
+                            );
                         });
 
+                        // Aspect lines: thin, faint, drawn first so the core disk + planets sit on top.
                         const aspectNodes: React.ReactNode[] = [];
                         if (Array.isArray(chartData.aspects)) {
                             chartData.aspects.forEach((aspect: any, idx: number) => {
+                                const style = ASPECT_STYLE[aspect.type];
+                                if (!style) return;                       // majors only
                                 const p1 = positions[aspect.planet1];
                                 const p2 = positions[aspect.planet2];
                                 if (!p1 || !p2) return;
-                                const style = ASPECT_STYLE[aspect.type];
                                 aspectNodes.push(
                                     <Line key={`aspect-${idx}`}
                                         x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-                                        stroke={style?.color || Colors.purpleLight}
-                                        strokeWidth={1.5}
-                                        strokeDasharray={style?.dash}
-                                        opacity={0.75} />
+                                        stroke={style.color}
+                                        strokeWidth={1}
+                                        strokeDasharray={style.dash}
+                                        opacity={ASPECT_OPACITY} />
                                 );
                             });
                         }
-                        return [...aspectNodes, ...planetNodes];
+
+                        // Paint order inside this layer: aspects (bottom) → pointers → planets (top).
+                        return [...aspectNodes, ...spokeNodes, ...planetNodes];
                     })()}
 
-                    {/* Center */}
-                    <Circle cx={CENTER} cy={CENTER} r={R_CORE - 4} fill={Colors.backgroundDark} opacity={0.92} />
-                    <Circle cx={CENTER} cy={CENTER} r={R_CORE - 4} stroke={Colors.purple + '40'} strokeWidth={0.5} fill="none" />
-                    <SvgText x={CENTER} y={CENTER - 2} textAnchor="middle" fontSize={15} fontWeight="700" fill={Colors.accentYellow}>
+                    {/* Core disk masks the central crossing of the aspect web (name stays clean) */}
+                    <Circle cx={CENTER} cy={CENTER} r={R_CORE} fill={Colors.backgroundCard} />
+                    <Circle cx={CENTER} cy={CENTER} r={R_CORE} stroke={Colors.purple + '4D'} strokeWidth={1} fill="none" />
+
+                    {/* Centre label (sits on the solid core disk) */}
+                    <SvgText x={CENTER} y={CENTER - 1} textAnchor="middle" fontSize={Math.round(15 * S)} fontWeight="700" fill={Colors.accentYellow}>
                         {profile.name}
                     </SvgText>
-                    <SvgText x={CENTER} y={CENTER + 15} textAnchor="middle" fontSize={11} fill={Colors.purpleLight}>
+                    <SvgText x={CENTER} y={CENTER + Math.round(15 * S)} textAnchor="middle" fontSize={Math.round(10 * S)} fill={Colors.purpleLight}>
                         Natal Haritası
                     </SvgText>
 
