@@ -44,7 +44,7 @@ const ELEMENT_IMAGE: Record<string, string> = {
     'Ateş': `${API_HOST}/images/elementler/icons8-fire-100.png`,
     'Hava': `${API_HOST}/images/elementler/icons8-air-100.png`,
     'Su': `${API_HOST}/images/elementler/icons8-water-element-100.png`,
-    'Toprak': `${API_HOST}/images/gezegenler/icons8-earth-symbol-100.png`,
+    'Toprak': `${API_HOST}/images/elementler/icons8-europe-100.png`,
 };
 const elementUri = (el?: string) => ELEMENT_IMAGE[el || ''] || ELEMENT_IMAGE['Su'];
 
