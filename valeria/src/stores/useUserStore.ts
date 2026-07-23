@@ -37,6 +37,7 @@ interface UserState {
     register: (email: string, password: string, name: string) => Promise<void>;
     onboarding: (data: Record<string, any>) => Promise<void>;
     logout: () => Promise<void>;
+    deleteAccount: () => Promise<void>;
     resetProfile: () => void;
 }
 
@@ -155,6 +156,14 @@ export const useUserStore = create<UserState>((set, get) => ({
     },
 
     logout: async () => {
+        await api.clearTokens();
+        await UserRepository.clearAll();
+        set({ profile: { ...defaultProfile }, isAuthenticated: false });
+    },
+
+    deleteAccount: async () => {
+        // Delete server-side account + data, then clear all local state.
+        await api.profile.deleteAccount();
         await api.clearTokens();
         await UserRepository.clearAll();
         set({ profile: { ...defaultProfile }, isAuthenticated: false });

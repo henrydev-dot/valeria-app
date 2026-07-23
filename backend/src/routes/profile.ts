@@ -1,9 +1,14 @@
 import { Router, Response } from 'express';
 import { User } from '../models/User';
+import { Reading } from '../models/Reading';
+import { FalReading } from '../models/FalReading';
+import { DailyTarot } from '../models/DailyTarot';
+import { ReadingRequest } from '../models/ReadingRequest';
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware';
 import { performCalculations, getCurrentMoonPhase } from '../utils/calculations';
 import { ZODIAC_DATA, TURKISH_CITIES } from '../constants';
 import { UserInput } from '../types';
+import { revokeAppleToken } from '../utils/appleAuth';
 
 const router = Router();
 
@@ -206,6 +211,35 @@ router.post('/avatar', authMiddleware, async (req: AuthRequest, res: Response) =
         return res.json({ avatarUrl: user.avatarUrl, success: true });
     } catch (error: any) {
         return res.status(500).json({ error: 'Sunucu hatası', code: 'SERVER_ERROR' });
+    }
+});
+
+// DELETE /profile 🔐 — permanent account + data deletion (App Store 5.1.1(v))
+router.delete('/', authMiddleware, async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!._id;
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ error: 'Kullanıcı bulunamadı', code: 'NOT_FOUND' });
+
+        // If the account used Sign in with Apple, revoke Apple tokens (best-effort;
+        // no-op unless Apple keys + stored refresh token are configured).
+        if (user.appleId) {
+            await revokeAppleToken((user as any).appleRefreshToken);
+        }
+
+        // Remove all user-associated data.
+        await Promise.all([
+            Reading.deleteMany({ userId }),
+            FalReading.deleteMany({ userId }),
+            DailyTarot.deleteMany({ userId }),
+            ReadingRequest.deleteMany({ userId }),
+        ]);
+        await User.findByIdAndDelete(userId);
+
+        return res.json({ success: true, message: 'Hesabınız ve tüm verileriniz kalıcı olarak silindi.' });
+    } catch (error: any) {
+        console.error('Account deletion error:', error);
+        return res.status(500).json({ error: 'Hesap silme hatası', code: 'SERVER_ERROR' });
     }
 });
 

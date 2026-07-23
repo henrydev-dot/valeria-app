@@ -3,16 +3,12 @@ import { User } from '../models/User';
 import { Reading } from '../models/Reading';
 import { ReadingRequest } from '../models/ReadingRequest';
 import { Expo } from 'expo-server-sdk';
+import { adminMiddleware } from '../middleware/authMiddleware';
 
 const router = Router();
 
-// Middleware yetkilendirme (Basit bir secret key koruması eklenebilir, şimdilik public)
-// const adminMiddleware = (req: Request, res: Response, next: any) => {
-//     if (req.headers['x-admin-key'] !== 'gizli_admin_anahtari') {
-//         return res.status(401).json({ error: 'Unauthorized' });
-//     }
-//     next();
-// };
+// All admin routes require the x-admin-key header (see authMiddleware.adminMiddleware).
+router.use(adminMiddleware);
 
 // GET /admin/stats - Sistem istatistikleri
 router.get('/stats', async (req: Request, res: Response) => {

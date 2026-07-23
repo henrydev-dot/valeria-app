@@ -109,7 +109,6 @@ export default function RootLayout() {
                     <Stack.Screen name="buy-credits" options={{ presentation: 'modal' }} />
                     <Stack.Screen name="ask-question" options={{ presentation: 'modal' }} />
                     <Stack.Screen name="pendulum" options={{ presentation: 'modal' }} />
-                    <Stack.Screen name="settings" />
                     <Stack.Screen name="delete-account" />
                 </Stack>
             </SafeAreaProvider>

@@ -111,6 +111,9 @@ export const profile = {
         }
         return res.json();
     },
+
+    // Permanent account + data deletion (App Store 5.1.1(v)).
+    deleteAccount: () => apiFetch<any>('/profile', { method: 'DELETE' }),
 };
 
 // ─── ENTITLEMENTS ─────────────────────────────────
