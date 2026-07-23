@@ -1,16 +1,32 @@
 #!/bin/bash
 
-# Free port 3000 and 8081 if occupied
+# Trap Ctrl+C (SIGINT) and exit signals to clean up background processes
+cleanup() {
+    echo ""
+    echo "🛑 Süreçler kapatılıyor..."
+    if [ -n "$BACKEND_PID" ]; then
+        kill -9 $BACKEND_PID 2>/dev/null || true
+    fi
+    lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+    lsof -ti:8081 | xargs kill -9 2>/dev/null || true
+    exit 0
+}
+trap cleanup SIGINT SIGTERM EXIT
+
 echo "🧹 Eski süreçler ve portlar temizleniyor (Port 3000 & 8081)..."
 lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 lsof -ti:8081 | xargs kill -9 2>/dev/null || true
 
 # Detect local IP
-LOCAL_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "127.0.0.1")
+LOCAL_IP=$(ipconfig getifaddr en0 2>/dev/null)
+if [ -z "$LOCAL_IP" ]; then
+    LOCAL_IP=$(ipconfig getifaddr en1 2>/dev/null)
+fi
+if [ -z "$LOCAL_IP" ]; then
+    LOCAL_IP="127.0.0.1"
+fi
 
 echo "🌐 Algılanan Yerel IP: $LOCAL_IP"
-
-# Update valeria/.env with local IP
 echo "EXPO_PUBLIC_API_URL=http://${LOCAL_IP}:3000/api" > ./valeria/.env
 
 echo "🚀 Yerel Backend (Port 3000) başlatılıyor..."
@@ -20,7 +36,5 @@ BACKEND_PID=$!
 sleep 3
 
 echo "📲 Expo Dev Server (Port 8081) başlatılıyor..."
+echo "📱 Telefonunuzdaki Expo Go uygulaması ile QR kodu okutabilirsiniz!"
 cd valeria && npx expo start --clear
-
-# Cleanup backend on exit
-kill -9 $BACKEND_PID 2>/dev/null || true
