@@ -7,7 +7,8 @@
         "dev": "./node_modules/.bin/ts-node src/index.ts",
         "build": "tsc",
         "start": "node dist/index.js",
-        "seed": "./node_modules/.bin/ts-node src/scripts/seed.ts"
+        "seed": "./node_modules/.bin/ts-node src/scripts/seed.ts",
+        "seed:demo": "./node_modules/.bin/ts-node src/scripts/seedDemoUser.ts"
     },
     "dependencies": {
         "@google/genai": "^1.42.0",
