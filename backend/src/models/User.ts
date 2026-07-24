@@ -86,7 +86,7 @@ const UserSchema = new Schema<IUser>({
     pushToken: { type: String, default: '' },
 
     // Entitlements
-    credits: { type: Number, default: 50 },
+    credits: { type: Number, default: 999 },
     xp: { type: Number, default: 0 },
     level: { type: Number, default: 1 },
     streakDays: { type: Number, default: 0 },
