@@ -95,9 +95,18 @@ export const useUserStore = create<UserState>((set, get) => ({
             };
             set({ profile: p, isAuthenticated: true, isLoading: false });
             await UserRepository.saveProfile(p as any);
-        } catch (e) {
-            console.error('Failed to load profile:', e);
-            // Fallback to local
+        } catch (e: any) {
+            // A valid-looking token whose session is invalid (user deleted / DB
+            // reset): server answers 401 or 404. Drop the stale session and go to
+            // a clean logged-out state instead of resurrecting a dead cache.
+            if (e?.status === 401 || e?.status === 404) {
+                await api.clearTokens();
+                await UserRepository.clearAll();
+                set({ profile: { ...defaultProfile }, isAuthenticated: false, isLoading: false });
+                return;
+            }
+            // Otherwise assume it's a transient/offline error → use local cache.
+            console.warn('Profil yüklenemedi (çevrimdışı olabilir):', e?.message);
             const saved = await UserRepository.getProfile();
             if (saved) set({ profile: saved as any, isLoading: false });
             else set({ isLoading: false });

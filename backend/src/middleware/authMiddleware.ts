@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { User } from '../models/User';
 
 export interface AuthRequest extends Request {
     user?: { _id: string; email: string };
@@ -18,7 +19,7 @@ function resolveSecret(name: 'JWT_SECRET' | 'JWT_REFRESH_SECRET'): string {
     return name === 'JWT_SECRET' ? 'dev_only_access_secret_change_me' : 'dev_only_refresh_secret_change_me';
 }
 
-export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -27,6 +28,14 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
 
         const token = authHeader.split(' ')[1];
         const decoded = jwt.verify(token, resolveSecret('JWT_SECRET')) as { _id: string; email: string };
+
+        // The token is validly signed, but the user may have been deleted (or the
+        // DB reset). Treat a missing user as an invalid session (401) so the client
+        // clears the stale token and returns to login, rather than 404-ing forever.
+        const exists = await User.exists({ _id: decoded._id });
+        if (!exists) {
+            return res.status(401).json({ error: 'Oturum geçersiz', code: 'SESSION_INVALID' });
+        }
 
         req.user = { _id: decoded._id, email: decoded.email };
         next();

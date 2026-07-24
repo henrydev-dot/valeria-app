@@ -57,11 +57,20 @@ export async function apiFetch<T = any>(path: string, options: RequestInit = {})
             headers['Authorization'] = `Bearer ${newToken}`;
             res = await fetch(`${API_BASE}${path}`, { ...options, headers });
         }
+        // Still unauthorized (expired/invalid session, e.g. the user no longer
+        // exists) → drop the stale tokens so the app returns to a clean logged-out
+        // state instead of throwing on every launch.
+        if (res.status === 401) {
+            await clearTokens();
+        }
     }
 
     if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Network error' }));
-        throw new Error(err.error || `HTTP ${res.status}`);
+        const error = new Error(err.error || `HTTP ${res.status}`) as Error & { status?: number; code?: string };
+        error.status = res.status;
+        error.code = err.code;
+        throw error;
     }
 
     return res.json();
