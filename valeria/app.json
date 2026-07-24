@@ -14,7 +14,7 @@
       "backgroundColor": "#0A0A1A"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.astrovaleria.app",
       "buildNumber": "1",
       "infoPlist": {
