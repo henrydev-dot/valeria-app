@@ -26,14 +26,19 @@ if [ -z "$LOCAL_IP" ]; then
     LOCAL_IP="127.0.0.1"
 fi
 
-echo "🌐 Algılanan Yerel IP: $LOCAL_IP"
-echo "EXPO_PUBLIC_API_URL=http://${LOCAL_IP}:3000/api" > ./valeria/.env
+# Set API URL (default to live production domain https://api.valeria.today/api)
+API_URL=${1:-"https://api.valeria.today/api"}
+if [ "$1" = "local" ]; then
+    API_URL="http://${LOCAL_IP}:3000/api"
+    echo "🚀 Yerel Backend (Port 3000) başlatılıyor..."
+    (cd backend && npm run dev) &
+    BACKEND_PID=$!
+    sleep 3
+else
+    echo "🌍 Canlı API kullanılacak: $API_URL"
+fi
 
-echo "🚀 Yerel Backend (Port 3000) başlatılıyor..."
-(cd backend && npm run dev) &
-BACKEND_PID=$!
-
-sleep 3
+echo "EXPO_PUBLIC_API_URL=${API_URL}" > ./valeria/.env
 
 echo "📲 Expo Dev Server (Port 8081) başlatılıyor..."
 echo "📱 Telefonunuzdaki Expo Go uygulaması ile QR kodu okutabilirsiniz!"
