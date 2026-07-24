@@ -291,6 +291,20 @@ export default function AstrologyScreen() {
 
     const sunIndex = ZODIAC_SIGNS.findIndex((z) => normalize(z.name) === normalize(profile.sunSign));
 
+    // ─── Ascendant-relative wheel geometry ──────────────────────────
+    // The whole wheel is rotated so the Ascendant (1st-house cusp) sits at
+    // screen-LEFT (9 o'clock) and signs/houses run COUNTERCLOCKWISE — the
+    // astrological standard. Whole-sign houses: house N === wedge (ascIdx+N-1).
+    const ascIdx = ZODIAC_SIGNS.findIndex(
+        (z) => normalize(z.name) === normalize(chartData?.risingSign || profile.risingSign),
+    );
+    const ascIdxSafe = ascIdx >= 0 ? ascIdx : 0;
+    const ascLon = ascIdxSafe * 30;                         // 1st-house cusp longitude
+    // absolute ecliptic longitude (0..360, 0 = 0° Aries) → SVG radians.
+    // lon = ascLon → 180° (left); increasing lon moves counterclockwise (down first, IC at bottom).
+    const radForLon = (lon: number) => ((180 - (lon - ascLon)) * Math.PI) / 180;
+    const screenDegForLon = (lon: number) => 180 - (lon - ascLon);
+
     const openLuminary = (label: string, sign: string, key: 'Güneş' | 'Ay' | 'Yükselen') => {
         setSelected({
             title: `${label}${sign ? ` — ${sign}` : ''}`,
@@ -355,33 +369,33 @@ export default function AstrologyScreen() {
 
             {/* Natal Chart Wheel */}
             <View style={styles.chartContainer}>
-                <Svg width={CHART_SIZE} height={MOON_CY + 40}>
+                <Svg width={CHART_SIZE} height={MOON_CY + 64}>
                     {/* Concentric bands — one clear ring per element */}
                     <Circle cx={CENTER} cy={CENTER} r={R_OUTER + 5} stroke={Colors.purple + '28'} strokeWidth={1} strokeDasharray="3,4" fill="none" />
                     <Circle cx={CENTER} cy={CENTER} r={R_OUTER} stroke={Colors.purple} strokeWidth={1.5} fill="none" />
                     <Circle cx={CENTER} cy={CENTER} r={R_ZODIAC} stroke={Colors.purple + '55'} strokeWidth={1} fill="none" />
                     <Circle cx={CENTER} cy={CENTER} r={R_HOUSE} stroke={Colors.purple + '30'} strokeWidth={0.75} fill="none" />
 
-                    {/* Degree ticks (just outside the outer ring) */}
-                    {Array.from({ length: 72 }, (_, i) => {
-                        const deg = i * 5;
-                        const angle = (deg - 90) * (Math.PI / 180);
-                        const isMajor = deg % 30 === 0;
-                        const isMid = deg % 10 === 0;
+                    {/* Degree ticks (just outside the outer ring), rotated to the Ascendant */}
+                    {Array.from({ length: 72 }, (_, k) => {
+                        const lon = k * 5;
+                        const angle = radForLon(lon);
+                        const isMajor = lon % 30 === 0;       // majors land on the rotated sign boundaries
+                        const isMid = lon % 10 === 0;
                         const tickLen = isMajor ? 6 : isMid ? 4 : 2;
                         const x1 = CENTER + R_OUTER * Math.cos(angle);
                         const y1 = CENTER + R_OUTER * Math.sin(angle);
                         const x2 = CENTER + (R_OUTER + tickLen) * Math.cos(angle);
                         const y2 = CENTER + (R_OUTER + tickLen) * Math.sin(angle);
                         return (
-                            <Line key={`tick-${deg}`} x1={x1} y1={y1} x2={x2} y2={y2}
+                            <Line key={`tick-${lon}`} x1={x1} y1={y1} x2={x2} y2={y2}
                                 stroke={Colors.purple + (isMajor ? '70' : '30')} strokeWidth={isMajor ? 1 : 0.5} />
                         );
                     })}
 
                     {/* Sign-boundary spokes (only across the zodiac + house band, kept faint) */}
                     {ZODIAC_SIGNS.map((_, i) => {
-                        const angle = (i * 30 - 90) * (Math.PI / 180);
+                        const angle = radForLon(i * 30);
                         return (
                             <Line key={`div-${i}`}
                                 x1={CENTER + R_HOUSE * Math.cos(angle)} y1={CENTER + R_HOUSE * Math.sin(angle)}
@@ -390,21 +404,23 @@ export default function AstrologyScreen() {
                         );
                     })}
 
-                    {/* House numbers (their own ring, between zodiac and planets) */}
+                    {/* House numbers (their own ring). Whole-sign: wedge i holds house
+                        ((i - ascIdx + 12) % 12) + 1, so House 1 sits in the Ascendant wedge (left). */}
                     {ZODIAC_SIGNS.map((_, i) => {
-                        const angle = ((i * 30) + 15 - 90) * (Math.PI / 180);
+                        const angle = radForLon(i * 30 + 15);
+                        const houseNo = ((i - ascIdxSafe + 12) % 12) + 1;
                         return (
                             <SvgText key={`house-${i}`}
                                 x={CENTER + R_HOUSE * Math.cos(angle)} y={CENTER + R_HOUSE * Math.sin(angle) + 4}
                                 textAnchor="middle" fontSize={Math.round(11 * S)} fill={Colors.textMuted} fontWeight="600">
-                                {i + 1}
+                                {houseNo}
                             </SvgText>
                         );
                     })}
 
                     {/* Zodiac sign icons (natural color, no tint) */}
                     {ZODIAC_SIGNS.map((sign, i) => {
-                        const angle = ((i * 30) + 15 - 90) * (Math.PI / 180);
+                        const angle = radForLon(i * 30 + 15);
                         const isActive = i === sunIndex;
                         return (
                             <SvgImage key={`sign-${i}`}
@@ -420,32 +436,33 @@ export default function AstrologyScreen() {
                     {(() => {
                         if (!Array.isArray(chartData?.planets) || chartData.planets.length === 0) return null;
 
-                        // Absolute longitude → true angle for every placed planet.
+                        // Absolute longitude → ascendant-relative screen angle for every planet.
                         const placed = chartData.planets
                             .map((p: any) => {
                                 const signIdx = ZODIAC_SIGNS.findIndex((z) => normalize(z.name) === normalize(p.sign));
                                 if (signIdx === -1) return null;
                                 const deg = Math.max(0, Math.min(30, typeof p.degree === 'number' ? p.degree : 15));
-                                return { planet: p, trueAng: signIdx * 30 + deg - 90 };
+                                const trueLon = signIdx * 30 + deg;
+                                return { planet: p, trueLon, trueScreenDeg: screenDegForLon(trueLon) };
                             })
-                            .filter(Boolean) as { planet: any; trueAng: number }[];
+                            .filter(Boolean) as { planet: any; trueLon: number; trueScreenDeg: number }[];
 
-                        // Fan overlapping planets apart along the arc (spread clusters, no pile-ups).
-                        const drawAng = declusterAngles(placed.map((x) => x.trueAng));
+                        // Fan overlapping planets apart in the rotated screen-angle space.
+                        const drawAng = declusterAngles(placed.map((x) => x.trueScreenDeg));
 
                         const positions: Record<string, { x: number; y: number }> = {};
                         const spokeNodes: React.ReactNode[] = [];
                         const planetNodes: React.ReactNode[] = [];
 
-                        placed.forEach(({ planet, trueAng }, idx) => {
+                        placed.forEach(({ planet, trueLon }, idx) => {
                             const ang = drawAng[idx];
                             const rad = ang * (Math.PI / 180);
                             const px = CENTER + R_PLANET * Math.cos(rad);
                             const py = CENTER + R_PLANET * Math.sin(rad);
                             positions[planet.name] = { x: px, y: py };
 
-                            // Thin pointer from the true degree on the zodiac ring to the (possibly nudged) glyph.
-                            const trueRad = trueAng * (Math.PI / 180);
+                            // Thin pointer from the true longitude on the zodiac ring to the (possibly nudged) glyph.
+                            const trueRad = radForLon(trueLon);
                             spokeNodes.push(
                                 <Line key={`spoke-${idx}`}
                                     x1={CENTER + (R_ZODIAC - 2) * Math.cos(trueRad)}
