@@ -2,7 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { AnalysisResult, NumerologyData, PlanetPosition, TransitData, UserInput } from '../types';
 import { aiGenerate } from './aiClient';
 import { buildNatalBlock, buildHistoryBlock } from './promptContext';
-import { IMA_KURALLARI, KAHVE_SYSTEM, TAROT_SYSTEM, HORARY_SYSTEM, kahveSembolNotlari } from './falBilgisi';
+import { IMA_KURALLARI, KAHVE_SYSTEM, TAROT_SYSTEM, HORARY_SYSTEM, kahveSembolNotlari, KAHVE_SEMBOLLER } from './falBilgisi';
 import { TAROT_CARDS } from '../data/seedData';
 import { ZODIAC_DATA } from '../constants';
 import {
@@ -371,21 +371,28 @@ const extractCupSymbols = async (imagesBase64: string[]): Promise<CupExtraction>
     if (!imagesBase64?.length) return { kind: 'invalid' };
     if (!process.env.GEMINI_API_KEY) return { kind: 'unavailable' };
 
+    // Vision serbest sembol uydurmasın: bilinen sözlükten seçim yapar.
+    const sembolListesi = Object.keys(KAHVE_SEMBOLLER).join(', ');
     const visionPrompt = `
     Sen bir Türk kahvesi falı için görüntü analiz asistanısın. Sana içilmiş kahve fincanı/tabağı fotoğrafları verilecek.
 
     GÖREV 1 — Doğrulama: Fotoğrafların TÜMÜ içilmiş kahve fincanı veya kahve tabağı mı? Alakasız bir görüntü (kedi, selfie, araba vb.) varsa isCoffeeCup=false döndür.
-    GÖREV 2 — Sembol çıkarımı: Fincan geçerliyse telvedeki şekilleri fal geleneğindeki gibi tespit et: kuş, yol, kalp, dağ, harf, sayı, insan silüeti, ağaç, yılan, balık, kapı, göz, yüzük, merdiven, köprü vb. Her sembol için fincandaki konumu ŞU SEÇENEKLERDEN biriyle ver: "ağız kenarı", "orta", "dip", "kulp tarafı", "kulpun karşısı", "tabak". Ayrıca telvenin genel aydınlık/karanlık dengesini not et.
+    GÖREV 2 — Sembol seçimi: Fincan geçerliyse telvede EN BELİRGİN gördüğün şekilleri AŞAĞIDAKİ LİSTEDEN seç (liste dışı sembol adı KULLANMA; ek olarak tek harf — ör. "A" — ve tek rakam — ör. "3" — verebilirsin):
+    ${sembolListesi}
+
+    - EN AZ 3, EN FAZLA 7 sembol seç; ideali 5-6. Desen çok yoğunsa bile en net 7 taneyi geç.
+    - Her sembol için fincandaki konumu ŞU SEÇENEKLERDEN biriyle ver: "ağız kenarı", "orta", "dip", "kulp tarafı", "kulpun karşısı", "tabak".
+    - Ayrıca telvenin genel aydınlık/karanlık dengesini not et.
 
     SADECE geçerli JSON döndür:
     {
       "isCoffeeCup": true,
       "symbols": [
-        { "sembol": "kuş", "konum": "ağız kenarı", "cagrisim": "yakında gelecek haber" }
+        { "sembol": "kuş", "konum": "ağız kenarı", "cagrisim": "gördüğün şeklin kısa tasviri (ör. kanatları açık, içeri doğru uçuyor)" }
       ],
       "genelIzlenim": "Telvenin genel dağılımı, aydınlık/karanlık dengesi hakkında 1-2 cümle."
     }
-    En az 5, en fazla 12 sembol çıkar. Türkçe yaz.`;
+    Türkçe yaz.`;
 
     const parts: any[] = [visionPrompt];
     imagesBase64.forEach(b64 => {
