@@ -105,7 +105,7 @@ async function deepseekGenerate(prompt: string, opts: AIGenerateOptions): Promis
 }
 
 async function geminiGenerate(prompt: string, opts: AIGenerateOptions): Promise<string> {
-    const model = process.env.AI_MODEL || 'gemini-2.0-flash';
+    const model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
     const response = await getGemini().models.generateContent({
         model,
         contents: `${opts.system || VALERIA_SYSTEM_PROMPT}\n\n${prompt}`,

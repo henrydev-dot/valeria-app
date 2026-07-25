@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Screen, Header, AppText, Button, Card, Skeleton } from '../src/components';
 import { useUserStore } from '../src/stores/useUserStore';
@@ -94,7 +94,7 @@ export default function NumerologyScreen() {
                 end={{ x: 1, y: 1 }}
                 style={styles.hero}
             >
-                <Ionicons name="calculator-outline" size={26} color={Colors.accentYellow} />
+                <MaterialCommunityIcons name="star-four-points-outline" size={26} color={Colors.accentYellow} />
                 <AppText variant="h2" style={styles.heroTitle}>Sayıların Haritası</AppText>
                 <AppText variant="callout" color={Colors.textSecondary} center>
                     İsmin ve doğum tarihin, Pisagor sistemine göre dört ana sayına dönüştü.

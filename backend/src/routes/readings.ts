@@ -226,7 +226,7 @@ router.post('/question', authMiddleware, async (req: AuthRequest, res: Response)
         // Geçmiş fallar (tarot kartları dahil) horary yorumuna bağlam olarak gider.
         const historyBlock = await buildHistoryBlock(user._id.toString());
 
-        const answer = await askHoraryQuestion(
+        const horary = await askHoraryQuestion(
             question,
             calcData.astrology.transits,
             calcData.astrology.planets,
@@ -238,6 +238,8 @@ router.post('/question', authMiddleware, async (req: AuthRequest, res: Response)
             },
             historyBlock
         );
+        // Geçmiş kayıtları için birleşik metin; UI ayrı alanları kullanır.
+        const answer = horary.comment ? `${horary.verdict}\n\n${horary.comment}` : horary.verdict;
 
         // Ücretsiz hak varsa düş, yoksa kredi düş
         if (isFirstFreeQuestion) {
@@ -262,7 +264,9 @@ router.post('/question', authMiddleware, async (req: AuthRequest, res: Response)
             id: reading._id,
             date: reading.date,
             question,
-            answer
+            answer,
+            verdict: horary.verdict,
+            comment: horary.comment
         });
     } catch (error: any) {
         console.error('Question error:', error);
