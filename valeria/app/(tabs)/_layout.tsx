@@ -34,8 +34,8 @@ export default function TabsLayout() {
                 name="index"
                 options={{
                     title: 'Ana Sayfa',
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="home-outline" size={size} color={color} />
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <Ionicons name={focused ? 'home' : 'home-outline'} size={size} color={color} />
                     ),
                 }}
             />
@@ -43,8 +43,8 @@ export default function TabsLayout() {
                 name="astrology"
                 options={{
                     title: 'Astroloji',
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="planet-outline" size={size} color={color} />
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <Ionicons name={focused ? 'planet' : 'planet-outline'} size={size} color={color} />
                     ),
                 }}
             />
@@ -52,8 +52,8 @@ export default function TabsLayout() {
                 name="reading"
                 options={{
                     title: 'Fal',
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="eye-outline" size={size} color={color} />
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <Ionicons name={focused ? 'eye' : 'eye-outline'} size={size} color={color} />
                     ),
                 }}
             />
@@ -61,8 +61,8 @@ export default function TabsLayout() {
                 name="discover"
                 options={{
                     title: 'Keşfet',
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="compass-outline" size={size} color={color} />
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <Ionicons name={focused ? 'compass' : 'compass-outline'} size={size} color={color} />
                     ),
                 }}
             />
@@ -70,8 +70,8 @@ export default function TabsLayout() {
                 name="profile"
                 options={{
                     title: 'Profil',
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="person-outline" size={size} color={color} />
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />
                     ),
                 }}
             />
