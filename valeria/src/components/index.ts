@@ -9,6 +9,7 @@ export { Field, Chip, SegmentedControl, OptionWheel } from './FormControls';
 export { WheelPicker } from './WheelPicker';
 export { ProgressBar, EmptyState, LoadingView, Skeleton } from './Feedback';
 export { OnboardingScaffold } from './OnboardingScaffold';
+export { SelectModal, SelectField } from './SelectModal';
 
 // Existing/feature components
 export { KismetCard } from './KismetCard';

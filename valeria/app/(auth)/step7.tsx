@@ -36,6 +36,7 @@ export default function Step7() {
                 birthDate: profile.birthDate,
                 birthTime: profile.birthTime,
                 birthCity: profile.birthCity,
+                birthDistrict: profile.birthDistrict || '',
                 birthCountry: profile.birthCountry || 'Türkiye',
                 relationshipStatus: profile.relationshipStatus,
                 workStatus: profile.workStatus,

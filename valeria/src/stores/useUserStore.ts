@@ -10,6 +10,7 @@ interface UserProfile {
     birthDate: string;
     birthTime: string;
     birthCity: string;
+    birthDistrict: string;
     birthCountry: string;
     relationshipStatus: string;
     workStatus: string;
@@ -43,7 +44,7 @@ interface UserState {
 
 const defaultProfile: UserProfile = {
     name: '', gender: '', birthDate: '', birthTime: '',
-    birthCity: '', birthCountry: '', relationshipStatus: '',
+    birthCity: '', birthDistrict: '', birthCountry: '', relationshipStatus: '',
     workStatus: '', deityResult: '', deityName: '',
     sunSign: '', moonSign: '', risingSign: '',
     energyScore: 0, onboardingComplete: false,
@@ -79,6 +80,7 @@ export const useUserStore = create<UserState>((set, get) => ({
                 birthDate: user.birthDate || '',
                 birthTime: user.birthTime || '',
                 birthCity: user.birthCity || '',
+                birthDistrict: user.birthDistrict || '',
                 birthCountry: user.birthCountry || '',
                 relationshipStatus: user.relationshipStatus || '',
                 workStatus: user.workStatus || '',

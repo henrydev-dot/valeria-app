@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, ScrollView, Keyboard, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -82,16 +82,20 @@ export function OnboardingScaffold({
                     contentContainerStyle={scroll ? styles.scrollContent : undefined}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
+                    {...(scroll ? { keyboardDismissMode: 'on-drag' as const } : {})}
                 >
-                    <View style={styles.titleBlock}>
-                        <AppText variant="title">{title}</AppText>
-                        {subtitle ? (
-                            <AppText variant="body" style={styles.subtitle}>
-                                {subtitle}
-                            </AppText>
-                        ) : null}
-                    </View>
-                    {children}
+                    {/* Boşluğa dokununca klavye kapansın */}
+                    <Pressable onPress={Keyboard.dismiss} accessible={false} style={styles.dismissArea}>
+                        <View style={styles.titleBlock}>
+                            <AppText variant="title">{title}</AppText>
+                            {subtitle ? (
+                                <AppText variant="body" style={styles.subtitle}>
+                                    {subtitle}
+                                </AppText>
+                            ) : null}
+                        </View>
+                        {children}
+                    </Pressable>
                 </Body>
 
                 <View style={styles.footer}>
@@ -121,7 +125,8 @@ const styles = StyleSheet.create({
     backBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
     progressWrap: { flex: 1 },
     stepText: { width: 34, textAlign: 'right' },
-    scrollContent: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xl },
+    scrollContent: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xl, flexGrow: 1 },
+    dismissArea: { flex: 1 },
     bodyPad: { paddingHorizontal: Spacing.xl },
     titleBlock: { marginTop: Spacing.xl, marginBottom: Spacing.xl },
     subtitle: { marginTop: Spacing.sm },
