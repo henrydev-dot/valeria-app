@@ -13,6 +13,7 @@ export interface IUser extends Document {
     birthDate: string;
     birthTime: string;
     birthCity: string;
+    birthDistrict: string;
     birthCountry: string;
     latitude: string;
     longitude: string;
@@ -63,6 +64,7 @@ const UserSchema = new Schema<IUser>({
     birthDate: { type: String, default: '' },
     birthTime: { type: String, default: '' },
     birthCity: { type: String, default: '' },
+    birthDistrict: { type: String, default: '' },
     birthCountry: { type: String, default: 'Türkiye' },
     latitude: { type: String, default: '' },
     longitude: { type: String, default: '' },
@@ -86,7 +88,7 @@ const UserSchema = new Schema<IUser>({
     pushToken: { type: String, default: '' },
 
     // Entitlements
-    credits: { type: Number, default: 50 },
+    credits: { type: Number, default: 999 },
     xp: { type: Number, default: 0 },
     level: { type: Number, default: 1 },
     streakDays: { type: Number, default: 0 },

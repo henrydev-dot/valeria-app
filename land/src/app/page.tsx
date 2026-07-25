@@ -505,7 +505,8 @@ export default function LandingPage() {
               <ul className="space-y-2 text-purple-400 text-sm">
                 <li><a href="/privacy" className="hover:text-[#f5c842] transition-colors">Gizlilik Politikası</a></li>
                 <li><a href="/terms" className="hover:text-[#f5c842] transition-colors">Kullanım Koşulları</a></li>
-                <li><a href="mailto:support@valeria.today" className="hover:text-[#f5c842] transition-colors">İletişim</a></li>
+                <li><a href="/account-deletion" className="hover:text-[#f5c842] transition-colors">Hesap Silme</a></li>
+                <li><a href="/support" className="hover:text-[#f5c842] transition-colors">Destek</a></li>
               </ul>
             </div>
           </div>

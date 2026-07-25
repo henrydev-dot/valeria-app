@@ -1,18 +1,64 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
-    StyleSheet, View, Text, ScrollView, Alert, TouchableOpacity,
-    Image, Modal, Switch, Linking
+    StyleSheet, View, Image, Modal, Switch, Linking,
+    TouchableOpacity, Alert, ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { GradientBackground, KismetCard, SectionHeader, StatBar, ListItemRow } from '../../src/components';
+import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Screen, Card, AppText, Button, ProgressBar } from '../../src/components';
 import { useUserStore } from '../../src/stores/useUserStore';
 import { useEntitlementsStore } from '../../src/stores/useEntitlementsStore';
 import { Colors } from '../../src/theme/colors';
-import { FontSize, Spacing, BorderRadius } from '../../src/theme/spacing';
+import { Spacing, BorderRadius } from '../../src/theme/spacing';
 import { getTimeUntilReset } from '../../src/utils/dailyReset';
+import { Config, Features } from '../../src/config';
 import * as api from '../../src/api';
+import { registerForPushNotificationsAsync } from '../_layout';
+
+const NOTIF_PREF_KEY = '@valeria_notif_enabled';
+
+/* ---------------- Generic list row ---------------- */
+function Row({
+    icon, iconColor, title, subtitle, onPress, right, danger, disabled, accessibilityLabel,
+}: {
+    icon: keyof typeof Ionicons.glyphMap;
+    iconColor?: string;
+    title: string;
+    subtitle?: string;
+    onPress?: () => void;
+    right?: React.ReactNode;
+    danger?: boolean;
+    disabled?: boolean;
+    accessibilityLabel?: string;
+}) {
+    const titleColor = danger ? Colors.error : Colors.textPrimary;
+    return (
+        <TouchableOpacity
+            style={styles.row}
+            activeOpacity={onPress && !disabled ? 0.7 : 1}
+            onPress={onPress}
+            disabled={!onPress || disabled}
+            accessibilityRole="button"
+            accessibilityLabel={accessibilityLabel || title}
+        >
+            <View style={styles.rowLeft}>
+                <Ionicons name={icon} size={20} color={iconColor || (danger ? Colors.error : Colors.purpleLight)} />
+                <View style={styles.rowTexts}>
+                    <AppText variant="bodyStrong" color={titleColor}>{title}</AppText>
+                    {subtitle ? <AppText variant="caption">{subtitle}</AppText> : null}
+                </View>
+            </View>
+            {right !== undefined
+                ? right
+                : onPress
+                    ? <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+                    : null}
+        </TouchableOpacity>
+    );
+}
 
 export default function ProfileScreen() {
     const { profile, logout, loadProfile } = useUserStore();
@@ -30,12 +76,58 @@ export default function ProfileScreen() {
     const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
     const [purchasing, setPurchasing] = useState(false);
 
-    // Settings toggles
-    const [notifEnabled, setNotifEnabled] = useState(true);
-    const [dailyReminder, setDailyReminder] = useState(true);
-    const [shareData, setShareData] = useState(false);
+    // Notifications — backed by real OS permission + persisted preference
+    const [notifEnabled, setNotifEnabled] = useState(false);
+    const [notifBusy, setNotifBusy] = useState(false);
 
     const isPremium = (profile as any).membershipType === 'premium';
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const [pref, perm] = await Promise.all([
+                    AsyncStorage.getItem(NOTIF_PREF_KEY),
+                    Notifications.getPermissionsAsync(),
+                ]);
+                setNotifEnabled(perm.status === 'granted' && pref !== 'false');
+            } catch {
+                setNotifEnabled(false);
+            }
+        })();
+    }, []);
+
+    const handleToggleNotif = useCallback(async (value: boolean) => {
+        if (!value) {
+            setNotifEnabled(false);
+            await AsyncStorage.setItem(NOTIF_PREF_KEY, 'false');
+            return;
+        }
+        setNotifBusy(true);
+        try {
+            await registerForPushNotificationsAsync();
+            const perm = await Notifications.getPermissionsAsync();
+            if (perm.status === 'granted') {
+                setNotifEnabled(true);
+                await AsyncStorage.setItem(NOTIF_PREF_KEY, 'true');
+            } else {
+                setNotifEnabled(false);
+                await AsyncStorage.setItem(NOTIF_PREF_KEY, 'false');
+                Alert.alert(
+                    'Bildirim İzni Gerekli',
+                    'Bildirimleri açmak için cihaz ayarlarından Valeria için bildirim izni vermelisiniz.',
+                    [
+                        { text: 'Vazgeç', style: 'cancel' },
+                        { text: 'Ayarları Aç', onPress: () => Linking.openSettings() },
+                    ]
+                );
+            }
+        } catch {
+            setNotifEnabled(false);
+            Alert.alert('Hata', 'Bildirimler etkinleştirilemedi. Lütfen tekrar deneyin.');
+        } finally {
+            setNotifBusy(false);
+        }
+    }, []);
 
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -45,11 +137,10 @@ export default function ProfileScreen() {
             quality: 0.7,
         });
         if (!result.canceled && result.assets[0]) {
-            setAvatarUri(result.assets[0].uri);
-            // Upload to backend
+            const uri = result.assets[0].uri;
+            setAvatarUri(uri); // local preview kept regardless of upload result
             try {
                 const formData = new FormData();
-                const uri = result.assets[0].uri;
                 const ext = uri.split('.').pop() || 'jpg';
                 formData.append('avatar', {
                     uri,
@@ -57,8 +148,11 @@ export default function ProfileScreen() {
                     type: `image/${ext}`,
                 } as any);
                 await api.profile.uploadAvatar(formData);
-            } catch (e: any) {
-                console.log('Avatar upload failed (demo):', e.message);
+            } catch {
+                Alert.alert(
+                    'Yükleme Başarısız',
+                    'Profil fotoğrafın sunucuya yüklenemedi. Önizleme gösteriliyor; bağlantını kontrol edip tekrar dene.'
+                );
             }
         }
     };
@@ -72,7 +166,7 @@ export default function ProfileScreen() {
             await loadProfile();
             setPremiumVisible(false);
             Alert.alert(
-                '🎉 Tebrikler!',
+                'Tebrikler!',
                 `Valeria Premium aktif edildi! ${result.credits} krediniz var.`
             );
         } catch (e: any) {
@@ -80,286 +174,302 @@ export default function ProfileScreen() {
         } finally {
             setPurchasing(false);
         }
-    }, [selectedPlan]);
+    }, [selectedPlan, refreshEnt, loadProfile]);
+
+    // Achievements computed from real entitlement signals — no fake badges
+    const achievements: { icon: keyof typeof Ionicons.glyphMap; label: string; unlocked: boolean }[] = [
+        { icon: 'sparkles', label: 'İlk Adım', unlocked: xp > 0 },
+        { icon: 'trophy', label: 'Seviye 5', unlocked: level >= 5 },
+        { icon: 'flame', label: '7 Gün Seri', unlocked: streakDays >= 7 },
+        { icon: 'ribbon', label: '30 Gün Seri', unlocked: streakDays >= 30 },
+    ];
 
     return (
-        <GradientBackground>
-            <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-                {/* Profile Header with Photo */}
-                <View style={styles.headerTop}>
-                    <TouchableOpacity style={styles.avatarWrap} onPress={pickImage} activeOpacity={0.8}>
-                        {avatarUri ? (
-                            <Image source={{ uri: avatarUri }} style={styles.avatar} />
-                        ) : (
-                            <View style={styles.avatarPlaceholder}>
-                                <Text style={styles.avatarInitial}>
-                                    {profile.name ? profile.name.charAt(0).toUpperCase() : '?'}
-                                </Text>
-                            </View>
-                        )}
-                        <View style={styles.cameraIcon}>
-                            <Ionicons name="camera" size={14} color="#fff" />
-                        </View>
-                    </TouchableOpacity>
-
-                    <Text style={styles.name}>{profile.name}</Text>
-                    <View style={styles.signRow}>
-                        <Text style={styles.signLabel}>{profile.sunSign} · Seviye {level}</Text>
-                        {isPremium && (
-                            <View style={styles.premiumInlineBadge}>
-                                <Ionicons name="diamond" size={10} color="#000" />
-                                <Text style={styles.premiumInlineText}>Premium</Text>
-                            </View>
-                        )}
-                    </View>
-                </View>
-
-                {/* Membership + Stats */}
-                <KismetCard glow style={styles.memberCard}>
-                    <View style={styles.memberRow}>
-                        <View style={styles.memberInfo}>
-                            <View style={[styles.memberBadge, isPremium ? styles.memberBadgePremium : styles.memberBadgeFree]}>
-                                <Ionicons name={isPremium ? 'diamond' : 'person'} size={14} color={isPremium ? '#000' : Colors.textMuted} />
-                                <Text style={[styles.memberBadgeText, isPremium && { color: '#000' }]}>
-                                    {isPremium ? 'Premium' : 'Ücretsiz'}
-                                </Text>
-                            </View>
-                            <Text style={styles.memberLabel}>Üyelik</Text>
-                        </View>
-                        <View style={styles.memberDivider} />
-                        <View style={styles.memberInfo}>
-                            <Text style={styles.statValue}>{credits}</Text>
-                            <Text style={styles.memberLabel}>Kredi</Text>
-                        </View>
-                        <View style={styles.memberDivider} />
-                        <View style={styles.memberInfo}>
-                            <Text style={styles.statValue}>{level}</Text>
-                            <Text style={styles.memberLabel}>Seviye</Text>
-                        </View>
-                        <View style={styles.memberDivider} />
-                        <View style={styles.memberInfo}>
-                            <Text style={[styles.statValue, { color: Colors.warning }]}>{streakDays}</Text>
-                            <Text style={styles.memberLabel}>Seri</Text>
-                        </View>
-                    </View>
-                    <StatBar label="XP" value={xpInLevel} maxValue={100} color={Colors.accentYellow} style={{ marginTop: Spacing.md }} />
-                </KismetCard>
-
-                {/* Reklam İzle Kredi Kazan */}
+        <Screen edges={['top']}>
+            {/* Profile Header */}
+            <View style={styles.headerTop}>
                 <TouchableOpacity
-                    style={styles.adWatchCard}
+                    style={styles.avatarWrap}
+                    onPress={pickImage}
                     activeOpacity={0.8}
-                    onPress={async () => {
-                        try {
-                            const watchAd = useEntitlementsStore.getState().watchAd;
-                            const success = await watchAd();
-                            if (success) {
-                                Alert.alert('Tebrikler!', '10 kredi kazandınız!');
-                            } else {
-                                Alert.alert('Hata', 'Reklam izlenemedi, tekrar deneyin.');
-                            }
-                        } catch (e: any) {
-                            Alert.alert('Hata', e.message || 'Reklam izlenemedi');
-                        }
-                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Profil fotoğrafını değiştir"
                 >
-                    <View style={styles.adWatchLeft}>
-                        <Ionicons name="play-circle-outline" size={28} color={Colors.accentYellow} />
-                        <View style={{ marginLeft: Spacing.sm }}>
-                            <Text style={styles.adWatchTitle}>Reklam İzle, Kredi Kazan</Text>
-                            <Text style={styles.adWatchDesc}>Kısa bir reklam izleyerek 10 kredi kazanın</Text>
+                    {avatarUri ? (
+                        <Image source={{ uri: avatarUri }} style={styles.avatar} />
+                    ) : (
+                        <View style={styles.avatarPlaceholder}>
+                            <AppText variant="hero" color={Colors.purpleLight}>
+                                {profile.name ? profile.name.charAt(0).toUpperCase() : '?'}
+                            </AppText>
                         </View>
-                    </View>
-                    <View style={styles.adWatchBadge}>
-                        <Text style={styles.adWatchBadgeText}>+10</Text>
+                    )}
+                    <View style={styles.cameraIcon}>
+                        <Ionicons name="camera" size={14} color={Colors.textPrimary} />
                     </View>
                 </TouchableOpacity>
 
-                {/* Premium Upgrade */}
-                {!isPremium ? (
-                    <TouchableOpacity style={styles.upgradeCard} activeOpacity={0.8} onPress={() => setPremiumVisible(true)}>
-                        <View style={styles.upgradeLeft}>
-                            <Ionicons name="star" size={24} color={Colors.accentYellow} />
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.upgradeTitle}>Valeria Premium</Text>
-                                <Text style={styles.upgradeDesc}>Günlük ücretsiz sorular, ekstra kredi, reklamsız deneyim</Text>
-                            </View>
+                <AppText variant="title">{profile.name || 'Misafir'}</AppText>
+                <View style={styles.signRow}>
+                    <AppText variant="caption">
+                        {profile.sunSign ? `${profile.sunSign} · ` : ''}Seviye {level}
+                    </AppText>
+                    {isPremium && (
+                        <View style={styles.premiumInlineBadge}>
+                            <Ionicons name="diamond" size={10} color={Colors.textOnAccent} />
+                            <AppText variant="label" color={Colors.textOnAccent} style={styles.premiumInlineText}>
+                                Premium
+                            </AppText>
                         </View>
-                        <View style={styles.upgradeBtn}>
-                            <Text style={styles.upgradeBtnText}>Yükselt</Text>
-                        </View>
-                    </TouchableOpacity>
-                ) : (
-                    <KismetCard style={styles.premiumActiveCard}>
-                        <View style={styles.premiumActiveRow}>
-                            <Ionicons name="checkmark-circle" size={22} color={Colors.success} />
-                            <View style={{ flex: 1, marginLeft: Spacing.sm }}>
-                                <Text style={styles.premiumActiveTitle}>Valeria Premium Aktif ✨</Text>
-                                <Text style={styles.premiumActiveDesc}>
-                                    Günlük 2 ücretsiz soru · Aylık 800 kredi · Reklamsız
-                                </Text>
-                            </View>
-                        </View>
-                    </KismetCard>
-                )}
+                    )}
+                </View>
+            </View>
 
-                {/* Günlük Haklarım */}
-                <SectionHeader title="Günlük Haklarım" />
-                <KismetCard style={styles.dailyCard}>
-                    <View style={styles.dailyRow}>
-                        <View style={styles.dailyItem}>
-                            <Text style={styles.dailyValue}>{dailyQuestionsRemaining}</Text>
-                            <Text style={styles.dailyLabel}>Kalan Soru</Text>
+            {/* Membership + Stats */}
+            <Card glow style={styles.memberCard}>
+                <View style={styles.memberRow}>
+                    <View style={styles.memberInfo}>
+                        <View style={[styles.memberBadge, isPremium ? styles.memberBadgePremium : styles.memberBadgeFree]}>
+                            <Ionicons name={isPremium ? 'diamond' : 'person'} size={14} color={isPremium ? Colors.textOnAccent : Colors.textMuted} />
+                            <AppText variant="label" color={isPremium ? Colors.textOnAccent : Colors.textMuted} style={styles.memberBadgeText}>
+                                {isPremium ? 'Premium' : 'Ücretsiz'}
+                            </AppText>
                         </View>
-                        <View style={styles.dailyDivider} />
-                        <View style={styles.dailyItem}>
-                            <Text style={styles.dailyValue}>{isPremium ? 2 : 0}</Text>
-                            <Text style={styles.dailyLabel}>Günlük Limit</Text>
-                        </View>
+                        <AppText variant="caption">Üyelik</AppText>
                     </View>
-                    <Text style={styles.resetTimeText}>
-                        Bugün 00:00'da yenilenir ({getTimeUntilReset()})
-                    </Text>
-                </KismetCard>
-
-                {/* Başarımlar */}
-                <SectionHeader title="Başarımlar" />
-                <View style={styles.badges}>
-                    <View style={[styles.badge, streakDays >= 7 && styles.badgeActive]}>
-                        <Ionicons name="flame" size={24} color={streakDays >= 7 ? Colors.accentYellow : Colors.textMuted} />
-                        <Text style={styles.badgeLabel}>7 Gün Seri</Text>
+                    <View style={styles.memberDivider} />
+                    <View style={styles.memberInfo}>
+                        <AppText variant="h1">{credits}</AppText>
+                        <AppText variant="caption">Kredi</AppText>
                     </View>
-                    <View style={[styles.badge, styles.badgeActive]}>
-                        <Ionicons name="layers" size={24} color={Colors.accentYellow} />
-                        <Text style={styles.badgeLabel}>İlk Tarot</Text>
-                    </View>
-                    <View style={[styles.badge]}>
-                        <Ionicons name="book" size={24} color={Colors.textMuted} />
-                        <Text style={styles.badgeLabel}>İlk Öğrenme</Text>
-                    </View>
-                    <View style={[styles.badge]}>
-                        <Ionicons name="chatbubble" size={24} color={Colors.textMuted} />
-                        <Text style={styles.badgeLabel}>İlk Soru</Text>
+                    <View style={styles.memberDivider} />
+                    <View style={styles.memberInfo}>
+                        <AppText variant="h1" color={Colors.warning}>{streakDays}</AppText>
+                        <AppText variant="caption">Seri</AppText>
                     </View>
                 </View>
 
-                {/* Ayarlar */}
-                <SectionHeader title="Ayarlar" />
-                <ListItemRow
-                    icon="wallet-outline"
-                    title="Kredi Yükle"
-                    onPress={() => router.push('/buy-credits')}
-                />
+                <View style={styles.xpHeader}>
+                    <AppText variant="label">XP</AppText>
+                    <AppText variant="caption">{xpInLevel} / 100</AppText>
+                </View>
+                <ProgressBar progress={xpInLevel / 100} />
+            </Card>
 
-                {/* Bildirimler */}
-                <SectionHeader title="Bildirimler" />
-                <KismetCard style={styles.settingsCard}>
-                    <View style={styles.settingRow}>
-                        <View style={styles.settingLeft}>
-                            <Ionicons name="notifications-outline" size={20} color={Colors.purpleLight} />
-                            <Text style={styles.settingText}>Push Bildirimleri</Text>
-                        </View>
-                        <Switch
-                            value={notifEnabled}
-                            onValueChange={setNotifEnabled}
-                            trackColor={{ false: Colors.border, true: Colors.purple }}
-                            thumbColor={notifEnabled ? Colors.accentYellow : Colors.textMuted}
-                        />
+            {/* Günlük Ücretsiz Kredi (ads disabled → honest free daily reward; no ad plays) */}
+            <Card
+                onPress={async () => {
+                    try {
+                        const watchAd = useEntitlementsStore.getState().watchAd;
+                        const success = await watchAd();
+                        Alert.alert(
+                            success ? 'Tebrikler!' : 'Hata',
+                            success
+                                ? '10 kredi kazandınız!'
+                                : Features.adsEnabled
+                                    ? 'Reklam izlenemedi, tekrar deneyin.'
+                                    : 'Günlük ödül alınamadı, tekrar deneyin.'
+                        );
+                    } catch (e: any) {
+                        Alert.alert('Hata', e.message || (Features.adsEnabled ? 'Reklam izlenemedi' : 'Günlük ödül alınamadı'));
+                    }
+                }}
+                accessibilityLabel={Features.adsEnabled ? 'Reklam izle, 10 kredi kazan' : 'Günlük ücretsiz kredini al, 10 kredi kazan'}
+                style={styles.adWatchCard}
+            >
+                <View style={styles.adWatchLeft}>
+                    <Ionicons
+                        name={Features.adsEnabled ? 'play-circle-outline' : 'gift-outline'}
+                        size={28}
+                        color={Colors.accentYellow}
+                    />
+                    <View style={styles.adWatchTexts}>
+                        <AppText variant="bodyStrong">
+                            {Features.adsEnabled ? 'Reklam İzle, Kredi Kazan' : 'Günlük Ücretsiz Kredi'}
+                        </AppText>
+                        <AppText variant="caption">
+                            {Features.adsEnabled
+                                ? 'Kısa bir reklam izleyerek 10 kredi kazanın'
+                                : 'Günlük ödülünü alarak 10 kredi kazan'}
+                        </AppText>
                     </View>
-                    <View style={styles.settingDivider} />
-                    <View style={styles.settingRow}>
-                        <View style={styles.settingLeft}>
-                            <Ionicons name="alarm-outline" size={20} color={Colors.purpleLight} />
-                            <Text style={styles.settingText}>Günlük Hatırlatma</Text>
-                        </View>
-                        <Switch
-                            value={dailyReminder}
-                            onValueChange={setDailyReminder}
-                            trackColor={{ false: Colors.border, true: Colors.purple }}
-                            thumbColor={dailyReminder ? Colors.accentYellow : Colors.textMuted}
-                        />
-                    </View>
-                </KismetCard>
+                </View>
+                <View style={styles.adWatchBadge}>
+                    <AppText variant="bodyStrong" color={Colors.textOnAccent}>+10</AppText>
+                </View>
+            </Card>
 
-                {/* Gizlilik */}
-                <SectionHeader title="Gizlilik" />
-                <KismetCard style={styles.settingsCard}>
-                    <View style={styles.settingRow}>
-                        <View style={styles.settingLeft}>
-                            <Ionicons name="analytics-outline" size={20} color={Colors.purpleLight} />
-                            <Text style={styles.settingText}>Kullanım Verisi Paylaş</Text>
-                        </View>
-                        <Switch
-                            value={shareData}
-                            onValueChange={setShareData}
-                            trackColor={{ false: Colors.border, true: Colors.purple }}
-                            thumbColor={shareData ? Colors.accentYellow : Colors.textMuted}
-                        />
-                    </View>
-                    <View style={styles.settingDivider} />
-                    <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('https://valeria.app/privacy')}>
-                        <View style={styles.settingLeft}>
-                            <Ionicons name="document-text-outline" size={20} color={Colors.purpleLight} />
-                            <Text style={styles.settingText}>Gizlilik Politikası</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-                    </TouchableOpacity>
-                    <View style={styles.settingDivider} />
-                    <TouchableOpacity style={styles.settingRow} onPress={() => Linking.openURL('https://valeria.app/terms')}>
-                        <View style={styles.settingLeft}>
-                            <Ionicons name="shield-checkmark-outline" size={20} color={Colors.purpleLight} />
-                            <Text style={styles.settingText}>Kullanım Koşulları</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-                    </TouchableOpacity>
-                </KismetCard>
-
-                {/* Logout */}
-                <TouchableOpacity
-                    style={styles.logoutBtn}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                        Alert.alert('Çıkış Yap', 'Hesabınızdan çıkış yapmak istediğinize emin misiniz?', [
-                            { text: 'Vazgeç', style: 'cancel' },
-                            {
-                                text: 'Çıkış Yap',
-                                style: 'destructive',
-                                onPress: async () => {
-                                    await logout();
-                                    router.replace('/(auth)/login');
-                                },
-                            },
-                        ]);
-                    }}
+            {/* Premium Upgrade / Active
+                Upgrade CTA is a purchase flow → hidden when purchases are disabled.
+                The "Premium aktif" status card still shows for existing members. */}
+            {!isPremium ? (
+                Features.purchasesEnabled ? (
+                <Card
+                    onPress={() => setPremiumVisible(true)}
+                    accessibilityLabel="Valeria Premium'a yükselt"
+                    style={styles.upgradeCard}
                 >
-                    <Ionicons name="log-out-outline" size={20} color={Colors.error} />
-                    <Text style={styles.logoutText}>Çıkış Yap</Text>
-                </TouchableOpacity>
+                    <View style={styles.upgradeLeft}>
+                        <Ionicons name="star" size={24} color={Colors.accentYellow} />
+                        <View style={styles.upgradeTexts}>
+                            <AppText variant="h3" color={Colors.accentYellow}>Valeria Premium</AppText>
+                            <AppText variant="caption">Günlük ücretsiz sorular, ekstra kredi, reklamsız deneyim</AppText>
+                        </View>
+                    </View>
+                    <View style={styles.upgradeBtn}>
+                        <AppText variant="bodyStrong" color={Colors.textOnAccent}>Yükselt</AppText>
+                    </View>
+                </Card>
+                ) : null
+            ) : (
+                <Card style={styles.premiumActiveCard}>
+                    <View style={styles.premiumActiveRow}>
+                        <Ionicons name="checkmark-circle" size={22} color={Colors.success} />
+                        <View style={styles.premiumActiveTexts}>
+                            <AppText variant="h3" color={Colors.success}>Valeria Premium Aktif</AppText>
+                            <AppText variant="caption">Günlük 2 ücretsiz soru · Aylık 800 kredi · Reklamsız</AppText>
+                        </View>
+                    </View>
+                </Card>
+            )}
 
-                {/* Disclaimer */}
-                <KismetCard style={styles.disclaimer}>
-                    <Ionicons name="information-circle-outline" size={18} color={Colors.textMuted} />
-                    <Text style={styles.disclaimerText}>
-                        Bu uygulamadaki içerikler eğlence ve kişisel farkındalık amaçlıdır. Kesinlik ve garanti içermez.
-                    </Text>
-                </KismetCard>
-            </ScrollView>
+            {/* Günlük Haklarım */}
+            <AppText variant="label" style={styles.sectionLabel}>Günlük Haklarım</AppText>
+            <Card style={styles.dailyCard}>
+                <View style={styles.dailyMain}>
+                    <AppText variant="hero" color={Colors.accentYellow}>{dailyQuestionsRemaining}</AppText>
+                    <AppText variant="caption">Kalan ücretsiz soru</AppText>
+                </View>
+                <AppText variant="callout" center style={styles.dailyNote}>
+                    {isPremium
+                        ? 'Premium ile günde 2 ücretsiz soru hakkın var.'
+                        : 'Premium ile günde 2 ücretsiz soru kazan.'}
+                </AppText>
+                <AppText variant="caption" center>
+                    Her gün 00:00'da yenilenir ({getTimeUntilReset()})
+                </AppText>
+            </Card>
+
+            {/* Başarımlar */}
+            <AppText variant="label" style={styles.sectionLabel}>Başarımlar</AppText>
+            <View style={styles.badges}>
+                {achievements.map((a) => (
+                    <View key={a.label} style={[styles.badge, a.unlocked && styles.badgeActive]}>
+                        <Ionicons name={a.icon} size={24} color={a.unlocked ? Colors.accentYellow : Colors.textMuted} />
+                        <AppText variant="caption" color={a.unlocked ? Colors.textSecondary : Colors.textMuted}>
+                            {a.label}
+                        </AppText>
+                    </View>
+                ))}
+            </View>
+
+            {/* Ayarlar */}
+            <AppText variant="label" style={styles.sectionLabel}>Ayarlar</AppText>
+            <Card padded={false} style={styles.groupCard}>
+                {/* Kredi satın alma (IAP) devre dışı — App Store Guideline 3.1.1 */}
+                {Features.purchasesEnabled && (
+                    <>
+                        <Row
+                            icon="wallet-outline"
+                            title="Kredi Yükle"
+                            onPress={() => router.push('/buy-credits')}
+                            accessibilityLabel="Kredi yükle"
+                        />
+                        <View style={styles.divider} />
+                    </>
+                )}
+                <Row
+                    icon="notifications-outline"
+                    title="Bildirimler"
+                    subtitle="Günlük fal ve hatırlatma bildirimleri"
+                    accessibilityLabel="Bildirimleri aç veya kapat"
+                    right={
+                        notifBusy ? (
+                            <ActivityIndicator color={Colors.accentYellow} />
+                        ) : (
+                            <Switch
+                                value={notifEnabled}
+                                onValueChange={handleToggleNotif}
+                                trackColor={{ false: Colors.border, true: Colors.purple }}
+                                thumbColor={notifEnabled ? Colors.accentYellow : Colors.textMuted}
+                            />
+                        )
+                    }
+                />
+            </Card>
+
+            {/* Hesap & Gizlilik */}
+            <AppText variant="label" style={styles.sectionLabel}>Hesap & Gizlilik</AppText>
+            <Card padded={false} style={styles.groupCard}>
+                <Row
+                    icon="document-text-outline"
+                    title="Gizlilik Politikası"
+                    onPress={() => Linking.openURL(Config.privacyUrl)}
+                    accessibilityLabel="Gizlilik Politikasını aç"
+                />
+                <View style={styles.divider} />
+                <Row
+                    icon="shield-checkmark-outline"
+                    title="Kullanım Şartları"
+                    onPress={() => Linking.openURL(Config.termsUrl)}
+                    accessibilityLabel="Kullanım Şartlarını aç"
+                />
+                <View style={styles.divider} />
+                <Row
+                    icon="trash-outline"
+                    title="Hesabı Sil"
+                    danger
+                    onPress={() => router.push('/delete-account')}
+                    accessibilityLabel="Hesabı sil"
+                />
+            </Card>
+
+            {/* Logout */}
+            <Button
+                title="Çıkış Yap"
+                variant="danger"
+                icon={<Ionicons name="log-out-outline" size={20} color={Colors.error} />}
+                style={styles.logoutBtn}
+                onPress={() => {
+                    Alert.alert('Çıkış Yap', 'Hesabınızdan çıkış yapmak istediğinize emin misiniz?', [
+                        { text: 'Vazgeç', style: 'cancel' },
+                        {
+                            text: 'Çıkış Yap',
+                            style: 'destructive',
+                            onPress: async () => {
+                                await logout();
+                                router.replace('/(auth)/login');
+                            },
+                        },
+                    ]);
+                }}
+            />
+
+            {/* Disclaimer */}
+            <View style={styles.disclaimer}>
+                <Ionicons name="information-circle-outline" size={18} color={Colors.textMuted} />
+                <AppText variant="caption" style={styles.disclaimerText}>{Config.disclaimer}</AppText>
+            </View>
 
             {/* Premium Modal */}
             <Modal visible={premiumVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        {/* Close */}
-                        <TouchableOpacity style={styles.modalClose} onPress={() => setPremiumVisible(false)}>
+                        <TouchableOpacity
+                            style={styles.modalClose}
+                            onPress={() => setPremiumVisible(false)}
+                            accessibilityRole="button"
+                            accessibilityLabel="Kapat"
+                        >
                             <Ionicons name="close" size={24} color={Colors.textPrimary} />
                         </TouchableOpacity>
 
-                        {/* Icon & Title */}
-                        <Ionicons name="diamond" size={48} color={Colors.accentYellow} style={{ alignSelf: 'center', marginBottom: Spacing.md }} />
-                        <Text style={styles.modalTitle}>Valeria Premium</Text>
-                        <Text style={styles.modalSubtitle}>Tüm özelliklere sınırsız erişim</Text>
+                        <Ionicons name="diamond" size={48} color={Colors.accentYellow} style={styles.modalIcon} />
+                        <AppText variant="title" center>Valeria Premium</AppText>
+                        <AppText variant="caption" center style={styles.modalSubtitle}>
+                            Tüm özelliklere sınırsız erişim
+                        </AppText>
 
-                        {/* Features */}
                         <View style={styles.featureList}>
                             {[
                                 { icon: 'chatbubble-ellipses', text: 'Günlük 2 ücretsiz soru' },
@@ -371,62 +481,59 @@ export default function ProfileScreen() {
                             ].map((f, i) => (
                                 <View key={i} style={styles.featureRow}>
                                     <Ionicons name={f.icon as any} size={18} color={Colors.accentYellow} />
-                                    <Text style={styles.featureText}>{f.text}</Text>
+                                    <AppText variant="callout" color={Colors.textSecondary}>{f.text}</AppText>
                                 </View>
                             ))}
                         </View>
 
-                        {/* Plan Tabs */}
                         <View style={styles.planTabs}>
                             <TouchableOpacity
                                 style={[styles.planTab, selectedPlan === 'monthly' && styles.planTabActive]}
                                 onPress={() => setSelectedPlan('monthly')}
+                                accessibilityRole="button"
+                                accessibilityLabel="Aylık plan seç"
                             >
-                                <Text style={[styles.planTabLabel, selectedPlan === 'monthly' && styles.planTabLabelActive]}>Aylık</Text>
-                                <Text style={[styles.planTabPrice, selectedPlan === 'monthly' && styles.planTabPriceActive]}>₺99</Text>
-                                <Text style={[styles.planTabSub, selectedPlan === 'monthly' && styles.planTabSubActive]}>ayda</Text>
+                                <AppText variant="label" color={selectedPlan === 'monthly' ? Colors.accentYellow : Colors.textMuted}>Aylık</AppText>
+                                <AppText variant="title" color={selectedPlan === 'monthly' ? Colors.accentYellow : Colors.textPrimary} style={styles.planPrice}>₺99</AppText>
+                                <AppText variant="caption">ayda</AppText>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.planTab, selectedPlan === 'yearly' && styles.planTabActive]}
                                 onPress={() => setSelectedPlan('yearly')}
+                                accessibilityRole="button"
+                                accessibilityLabel="Yıllık plan seç"
                             >
                                 <View style={styles.saveBadge}>
-                                    <Text style={styles.saveBadgeText}>%25 Kazanç</Text>
+                                    <AppText variant="label" color={Colors.textPrimary} style={styles.saveBadgeText}>%25 Kazanç</AppText>
                                 </View>
-                                <Text style={[styles.planTabLabel, selectedPlan === 'yearly' && styles.planTabLabelActive]}>Yıllık</Text>
-                                <Text style={[styles.planTabPrice, selectedPlan === 'yearly' && styles.planTabPriceActive]}>₺899</Text>
-                                <Text style={[styles.planTabSub, selectedPlan === 'yearly' && styles.planTabSubActive]}>yılda</Text>
+                                <AppText variant="label" color={selectedPlan === 'yearly' ? Colors.accentYellow : Colors.textMuted}>Yıllık</AppText>
+                                <AppText variant="title" color={selectedPlan === 'yearly' ? Colors.accentYellow : Colors.textPrimary} style={styles.planPrice}>₺899</AppText>
+                                <AppText variant="caption">yılda</AppText>
                             </TouchableOpacity>
                         </View>
 
-                        {/* Purchase Button */}
-                        <TouchableOpacity
-                            style={[styles.purchaseBtn, purchasing && { opacity: 0.5 }]}
-                            disabled={purchasing}
-                            onPress={handlePurchasePremium}
-                        >
-                            <Text style={styles.purchaseBtnText}>
-                                {purchasing ? 'İşleniyor...' : `Premium'a Yükselt`}
-                            </Text>
-                        </TouchableOpacity>
+                        {/* Purchase CTA hidden when in-app purchases are disabled */}
+                        {Features.purchasesEnabled && (
+                            <>
+                                <Button
+                                    title={purchasing ? 'İşleniyor...' : "Premium'a Yükselt"}
+                                    loading={purchasing}
+                                    onPress={handlePurchasePremium}
+                                />
 
-                        <Text style={styles.modalDisclaimer}>
-                            Abonelik, dönem sonunda otomatik yenilenir. İstediğiniz zaman iptal edebilirsiniz.
-                        </Text>
+                                <AppText variant="caption" center style={styles.modalDisclaimer}>
+                                    Abonelik, dönem sonunda otomatik yenilenir. İstediğiniz zaman iptal edebilirsiniz.
+                                </AppText>
+                            </>
+                        )}
                     </View>
                 </View>
             </Modal>
-        </GradientBackground>
+        </Screen>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    scrollContent: {
-        paddingHorizontal: Spacing.xl,
-        paddingTop: 60,
-        paddingBottom: 40,
-    },
     // Header
     headerTop: { alignItems: 'center', marginBottom: Spacing.xl },
     avatarWrap: { position: 'relative', marginBottom: Spacing.md },
@@ -437,10 +544,9 @@ const styles = StyleSheet.create({
     avatarPlaceholder: {
         width: 90, height: 90, borderRadius: 45,
         borderWidth: 3, borderColor: Colors.purple,
-        backgroundColor: Colors.purple + '30',
+        backgroundColor: Colors.purpleA25,
         alignItems: 'center', justifyContent: 'center',
     },
-    avatarInitial: { fontSize: 36, fontWeight: '700', color: Colors.purpleLight },
     cameraIcon: {
         position: 'absolute', bottom: 0, right: 0,
         width: 28, height: 28, borderRadius: 14,
@@ -448,17 +554,16 @@ const styles = StyleSheet.create({
         alignItems: 'center', justifyContent: 'center',
         borderWidth: 2, borderColor: Colors.backgroundDark,
     },
-    name: { fontSize: FontSize.xxl, fontWeight: '700', color: Colors.textPrimary },
-    signRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
-    signLabel: { fontSize: FontSize.sm, color: Colors.textMuted },
+    signRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.xs },
     premiumInlineBadge: {
         flexDirection: 'row', alignItems: 'center', gap: 3,
-        backgroundColor: Colors.accentYellow, paddingHorizontal: 8, paddingVertical: 2,
+        backgroundColor: Colors.accentYellow, paddingHorizontal: Spacing.sm, paddingVertical: 2,
         borderRadius: BorderRadius.full,
     },
-    premiumInlineText: { fontSize: 10, fontWeight: '700', color: '#000' },
+    premiumInlineText: { letterSpacing: 0.3 },
+
     // Member Card
-    memberCard: { marginBottom: Spacing.xl },
+    memberCard: { marginBottom: Spacing.lg },
     memberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
     memberInfo: { alignItems: 'center', gap: 4 },
     memberDivider: { width: 1, height: 32, backgroundColor: Colors.border },
@@ -467,136 +572,106 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10, paddingVertical: 3, borderRadius: BorderRadius.full,
     },
     memberBadgePremium: { backgroundColor: Colors.accentYellow },
-    memberBadgeFree: { backgroundColor: Colors.border },
-    memberBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.textMuted },
-    memberLabel: { fontSize: 10, color: Colors.textMuted },
-    statValue: { fontSize: FontSize.xl, fontWeight: '700', color: Colors.textPrimary },
+    memberBadgeFree: { backgroundColor: Colors.whiteA08 },
+    memberBadgeText: { letterSpacing: 0.3 },
+    xpHeader: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+        marginTop: Spacing.lg, marginBottom: Spacing.sm,
+    },
+
     // Ad Watch
     adWatchCard: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        backgroundColor: Colors.backgroundCard, borderRadius: BorderRadius.lg,
-        padding: Spacing.md, borderWidth: 1, borderColor: Colors.accentYellow + '40',
-        marginBottom: Spacing.md,
+        borderColor: Colors.borderAccent, marginBottom: Spacing.md,
     },
-    adWatchLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-    adWatchTitle: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.textPrimary },
-    adWatchDesc: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
+    adWatchLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: Spacing.sm },
+    adWatchTexts: { flex: 1 },
     adWatchBadge: {
         backgroundColor: Colors.accentYellow, borderRadius: BorderRadius.full,
-        paddingHorizontal: Spacing.sm, paddingVertical: 4,
+        paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs,
     },
-    adWatchBadgeText: { fontSize: FontSize.sm, fontWeight: '800', color: Colors.backgroundDark },
+
     // Upgrade Card
     upgradeCard: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        backgroundColor: Colors.purple + '20', borderWidth: 1,
-        borderColor: Colors.accentYellow + '30', borderRadius: BorderRadius.lg,
-        padding: Spacing.lg, marginBottom: Spacing.xl,
+        backgroundColor: Colors.purpleA15, borderColor: Colors.borderAccent, marginBottom: Spacing.xl,
     },
     upgradeLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-    upgradeTitle: { fontSize: FontSize.md, fontWeight: '700', color: Colors.accentYellow },
-    upgradeDesc: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
+    upgradeTexts: { flex: 1 },
     upgradeBtn: {
         backgroundColor: Colors.accentYellow, paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.sm, borderRadius: BorderRadius.full,
     },
-    upgradeBtnText: { fontSize: FontSize.sm, fontWeight: '700', color: '#000' },
+
     // Premium Active
-    premiumActiveCard: { marginBottom: Spacing.xl, borderColor: Colors.success + '30' },
-    premiumActiveRow: { flexDirection: 'row', alignItems: 'center' },
-    premiumActiveTitle: { fontSize: FontSize.md, fontWeight: '700', color: Colors.success },
-    premiumActiveDesc: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 2 },
+    premiumActiveCard: { marginBottom: Spacing.xl, borderColor: Colors.success },
+    premiumActiveRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+    premiumActiveTexts: { flex: 1 },
+
+    // Section labels
+    sectionLabel: { marginBottom: Spacing.md, marginTop: Spacing.xs },
+
     // Daily
-    dailyCard: { marginBottom: Spacing.lg },
-    dailyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md },
-    dailyItem: { flex: 1, alignItems: 'center' },
-    dailyValue: { fontSize: FontSize.xxxl, fontWeight: '700', color: Colors.accentYellow },
-    dailyLabel: { fontSize: FontSize.sm, color: Colors.textMuted },
-    dailyDivider: { width: 1, height: 40, backgroundColor: Colors.border },
-    resetTimeText: { fontSize: FontSize.xs, color: Colors.textMuted, textAlign: 'center' },
+    dailyCard: { marginBottom: Spacing.xl, alignItems: 'center', gap: Spacing.sm },
+    dailyMain: { alignItems: 'center' },
+    dailyNote: { marginTop: Spacing.xs },
+
     // Badges
     badges: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md, marginBottom: Spacing.xl },
     badge: {
         width: '47%', alignItems: 'center', paddingVertical: Spacing.lg,
-        borderRadius: BorderRadius.lg, backgroundColor: Colors.backgroundCard,
+        borderRadius: BorderRadius.lg, backgroundColor: Colors.surface1,
         borderWidth: 1, borderColor: Colors.border, gap: Spacing.xs, opacity: 0.5,
     },
-    badgeActive: { opacity: 1, borderColor: Colors.accentYellow + '40' },
-    badgeLabel: { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: '500' },
-    // Settings
-    settingsCard: { marginBottom: Spacing.md },
-    settingRow: {
+    badgeActive: { opacity: 1, borderColor: Colors.borderAccent },
+
+    // Grouped list cards
+    groupCard: { marginBottom: Spacing.xl },
+    row: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingVertical: Spacing.sm,
+        paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, minHeight: 56,
     },
-    settingLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-    settingText: { fontSize: FontSize.sm, color: Colors.textPrimary },
-    settingDivider: { height: 1, backgroundColor: Colors.border + '40', marginVertical: 2 },
+    rowLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, flex: 1 },
+    rowTexts: { flex: 1 },
+    divider: { height: 1, backgroundColor: Colors.border, marginHorizontal: Spacing.lg },
+
     // Logout
-    logoutBtn: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-        marginTop: Spacing.xl, paddingVertical: Spacing.lg, borderRadius: BorderRadius.lg,
-        borderWidth: 1, borderColor: Colors.error + '40', backgroundColor: Colors.error + '10',
-    },
-    logoutText: { fontSize: FontSize.md, fontWeight: '600', color: Colors.error },
+    logoutBtn: { marginTop: Spacing.sm },
+
     // Disclaimer
     disclaimer: {
         flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm,
         marginTop: Spacing.xl, marginBottom: Spacing.xxl,
     },
-    disclaimerText: { flex: 1, fontSize: FontSize.xs, color: Colors.textMuted, lineHeight: 18 },
+    disclaimerText: { flex: 1 },
+
     // Modal
-    modalOverlay: {
-        flex: 1, backgroundColor: 'rgba(0,0,0,0.85)',
-        justifyContent: 'flex-end',
-    },
+    modalOverlay: { flex: 1, backgroundColor: Colors.scrim, justifyContent: 'flex-end' },
     modalContent: {
-        backgroundColor: Colors.backgroundCard, borderTopLeftRadius: 24, borderTopRightRadius: 24,
-        padding: Spacing.xl, paddingBottom: 40,
+        backgroundColor: Colors.backgroundModal, borderTopLeftRadius: BorderRadius.xxl, borderTopRightRadius: BorderRadius.xxl,
+        padding: Spacing.xl, paddingBottom: Spacing.huge,
     },
     modalClose: { position: 'absolute', top: Spacing.md, right: Spacing.md, zIndex: 1 },
-    modalTitle: {
-        fontSize: FontSize.xxl, fontWeight: '800', color: Colors.textPrimary,
-        textAlign: 'center', marginBottom: 4,
-    },
-    modalSubtitle: {
-        fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center',
-        marginBottom: Spacing.lg,
-    },
+    modalIcon: { alignSelf: 'center', marginBottom: Spacing.md },
+    modalSubtitle: { marginBottom: Spacing.lg },
+
     // Features
     featureList: { marginBottom: Spacing.lg },
-    featureRow: {
-        flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-        paddingVertical: 6,
-    },
-    featureText: { fontSize: FontSize.sm, color: Colors.textSecondary },
+    featureRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 6 },
+
     // Plan Tabs
     planTabs: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg },
     planTab: {
         flex: 1, alignItems: 'center', paddingVertical: Spacing.lg,
-        borderRadius: BorderRadius.lg, borderWidth: 2, borderColor: Colors.border,
-        position: 'relative',
+        borderRadius: BorderRadius.lg, borderWidth: 2, borderColor: Colors.border, position: 'relative',
     },
-    planTabActive: { borderColor: Colors.accentYellow, backgroundColor: Colors.accentYellow + '10' },
-    planTabLabel: { fontSize: FontSize.xs, color: Colors.textMuted, fontWeight: '600' },
-    planTabLabelActive: { color: Colors.accentYellow },
-    planTabPrice: { fontSize: 28, fontWeight: '800', color: Colors.textPrimary, marginVertical: 2 },
-    planTabPriceActive: { color: Colors.accentYellow },
-    planTabSub: { fontSize: FontSize.xs, color: Colors.textMuted },
-    planTabSubActive: { color: Colors.textSecondary },
+    planTabActive: { borderColor: Colors.accentYellow, backgroundColor: Colors.goldA12 },
+    planPrice: { marginVertical: 2 },
     saveBadge: {
         position: 'absolute', top: -10,
-        backgroundColor: Colors.success, paddingHorizontal: 8, paddingVertical: 2,
+        backgroundColor: Colors.success, paddingHorizontal: Spacing.sm, paddingVertical: 2,
         borderRadius: BorderRadius.full,
     },
-    saveBadgeText: { fontSize: 9, fontWeight: '700', color: '#fff' },
-    // Purchase
-    purchaseBtn: {
-        backgroundColor: Colors.accentYellow, paddingVertical: Spacing.md,
-        borderRadius: BorderRadius.full, alignItems: 'center', marginBottom: Spacing.md,
-    },
-    purchaseBtnText: { fontSize: FontSize.md, fontWeight: '800', color: '#000' },
-    modalDisclaimer: {
-        fontSize: FontSize.xs, color: Colors.textMuted, textAlign: 'center', lineHeight: 16,
-    },
+    saveBadgeText: { letterSpacing: 0.2 },
+    modalDisclaimer: { marginTop: Spacing.md },
 });

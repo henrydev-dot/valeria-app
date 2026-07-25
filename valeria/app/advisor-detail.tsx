@@ -1,196 +1,244 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View, TextInput, Alert } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { GradientBackground, KismetCard, PrimaryButton, StatBar } from '../src/components';
-import { useContentStore } from '../src/stores/useContentStore';
+import { Screen, Header, Card, Button, AppText, LoadingView, EmptyState } from '../src/components';
 import { useEntitlementsStore } from '../src/stores/useEntitlementsStore';
+import { ContentRepository } from '../src/repositories/ContentRepository';
+import { Advisor } from '../src/types';
+import * as api from '../src/api';
 import { Colors } from '../src/theme/colors';
-import { FontSize, Spacing, BorderRadius } from '../src/theme/spacing';
+import { Spacing, BorderRadius } from '../src/theme/spacing';
+
+type Pkg = { duration: string; credits: number };
 
 export default function AdvisorDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
-    const advisors = useContentStore((s) => s.advisors);
-    const { spendCredits } = useEntitlementsStore();
-    const advisor = advisors.find((a) => String(a.id) === id);
-    const [messages, setMessages] = useState<{ role: string; text: string }[]>([]);
-    const [input, setInput] = useState('');
-    const [chatActive, setChatActive] = useState(false);
+    const spendCredits = useEntitlementsStore((s) => s.spendCredits);
 
-    if (!advisor) {
+    const [advisor, setAdvisor] = useState<Advisor | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+
+    // Session / request state
+    const [activePackage, setActivePackage] = useState<Pkg | null>(null);
+    const [starting, setStarting] = useState<number | null>(null);
+    const [question, setQuestion] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
+
+    const load = async () => {
+        setLoading(true);
+        setError(false);
+        try {
+            const all = await ContentRepository.getAdvisors();
+            const found = all.find((a) => String(a.id) === id) || null;
+            setAdvisor(found);
+        } catch {
+            setError(true);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        load();
+    }, [id]);
+
+    const confirmStart = (pkg: Pkg, idx: number) => {
+        if (!advisor) return;
+        Alert.alert(
+            'Seansı Başlat',
+            `${advisor.name} ile ${pkg.duration} seans için ${pkg.credits} kredi harcanacak. Devam edilsin mi?`,
+            [
+                { text: 'Vazgeç', style: 'cancel' },
+                { text: 'Onayla', onPress: () => startSession(pkg, idx) },
+            ]
+        );
+    };
+
+    const startSession = async (pkg: Pkg, idx: number) => {
+        // spendCredits is async → it MUST be awaited; a bare Promise is always truthy.
+        setStarting(idx);
+        const ok = await spendCredits(pkg.credits, 'advisor_session', `advisor_${advisor?.id}`);
+        setStarting(null);
+        if (!ok) {
+            Alert.alert('Yetersiz Kredi', `Bu seans için ${pkg.credits} kredi gerekiyor.`);
+            return;
+        }
+        setActivePackage(pkg);
+        setSubmitted(false);
+        setQuestion('');
+    };
+
+    const submitRequest = async () => {
+        if (!advisor || !question.trim()) return;
+        setSubmitting(true);
+        try {
+            await api.readings.advisorRequest(String(advisor.id), 'advisor_session', question.trim());
+            setSubmitted(true);
+        } catch (e: any) {
+            Alert.alert('Hata', e.message || 'Talebiniz gönderilemedi. Lütfen tekrar deneyin.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    if (loading) {
         return (
-            <GradientBackground>
-                <View style={styles.center}>
-                    <Text style={styles.notFound}>Danisman bulunamadi.</Text>
-                </View>
-            </GradientBackground>
+            <Screen>
+                <Header title="Danışman" />
+                <LoadingView text="Danışman yükleniyor..." />
+            </Screen>
         );
     }
 
-    const startSession = (pkg: { duration: string; credits: number }) => {
-        if (!spendCredits(pkg.credits)) {
-            Alert.alert('Yetersiz Kredi', `Bu seans icin ${pkg.credits} kredi gerekiyor.`);
-            return;
-        }
-        setChatActive(true);
-        setMessages([
-            { role: 'system', text: `${advisor.name} ile ${pkg.duration} seansiniz basliyor.` },
-            { role: 'advisor', text: `Merhaba! Ben ${advisor.name}. Size nasil yardimci olabilirim?` },
-        ]);
-    };
+    if (error || !advisor) {
+        return (
+            <Screen>
+                <Header title="Danışman" />
+                <EmptyState
+                    icon={<Ionicons name="person-remove-outline" size={48} color={Colors.textMuted} />}
+                    title="Danışman bulunamadı"
+                    message={error ? 'İçerik yüklenemedi. Lütfen tekrar deneyin.' : 'Bu danışman artık mevcut değil.'}
+                    actionLabel={error ? 'Tekrar Dene' : undefined}
+                    onAction={error ? load : undefined}
+                />
+            </Screen>
+        );
+    }
 
-    const sendMessage = () => {
-        if (!input.trim()) return;
-        const userMsg = { role: 'user', text: input };
-        const advisorMsg = {
-            role: 'advisor',
-            text: `Anlattiklriniz cok onemli. ${advisor.specialties[0]} perspektifinden bakildiginda, bu durumun size onemli bir mesaj tasidiigini goruyorum. Sabirl olmanizi ve ic sesinize guvenmenizi oneririm.`,
-        };
-        setMessages((prev) => [...prev, userMsg, advisorMsg]);
-        setInput('');
-    };
+    // ── Active session: async advisor-request flow (no fake instant reply) ──
+    if (activePackage) {
+        return (
+            <Screen keyboard>
+                <Header title={advisor.name} onBack={() => setActivePackage(null)} />
 
+                <Card glow style={styles.sessionBanner}>
+                    <Ionicons name="hourglass-outline" size={22} color={Colors.accentYellow} />
+                    <AppText variant="callout" style={styles.sessionBannerText}>
+                        {advisor.name} ile {activePackage.duration} seansınız aktif.
+                    </AppText>
+                </Card>
+
+                {submitted ? (
+                    <Card style={styles.section}>
+                        <View style={styles.submittedIcon}>
+                            <Ionicons name="checkmark-circle" size={48} color={Colors.success} />
+                        </View>
+                        <AppText variant="h2" center>Talebiniz alındı</AppText>
+                        <AppText variant="body" center style={styles.submittedText}>
+                            Sorunuz {advisor.name} adlı danışmana iletildi. Yanıt hazır olduğunda size bildirim
+                            gönderilecek ve okuma geçmişinizde görüntülenecektir.
+                        </AppText>
+                        <Button title="Bitir" onPress={() => setActivePackage(null)} style={styles.finishBtn} />
+                    </Card>
+                ) : (
+                    <Card style={styles.section}>
+                        <AppText variant="h3" style={styles.sectionTitle}>Sorunuzu yazın</AppText>
+                        <AppText variant="caption" style={styles.helperText}>
+                            Danışman sorunuzu inceleyip yanıtını hazırlayacaktır. Yanıt anında gelmez.
+                        </AppText>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Danışmana sormak istediğinizi yazın..."
+                            placeholderTextColor={Colors.textMuted}
+                            value={question}
+                            onChangeText={setQuestion}
+                            multiline
+                            textAlignVertical="top"
+                            accessibilityLabel="Danışmana sorunuz"
+                        />
+                        <Button
+                            title="Danışmana Gönder"
+                            onPress={submitRequest}
+                            loading={submitting}
+                            disabled={!question.trim()}
+                            icon={<Ionicons name="send" size={16} color={Colors.textOnAccent} />}
+                            style={styles.submitBtn}
+                        />
+                    </Card>
+                )}
+            </Screen>
+        );
+    }
+
+    // ── Advisor profile ──
     return (
-        <GradientBackground>
-            <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()}>
-                        <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>{advisor.name}</Text>
-                    <View style={{ width: 24 }} />
-                </View>
+        <Screen>
+            <Header title={advisor.name} />
 
-                {!chatActive ? (
-                    <View>
-                        {/* Profile Card */}
-                        <KismetCard glow style={styles.profileCard}>
-                            <View style={styles.avatarLarge}>
-                                <Ionicons name="person" size={40} color={Colors.purpleLight} />
-                            </View>
-                            <Text style={styles.name}>{advisor.name}</Text>
-                            <View style={styles.ratingRow}>
-                                <Ionicons name="star" size={16} color={Colors.accentYellow} />
-                                <Text style={styles.rating}>{advisor.rating}</Text>
-                                <Text style={styles.sessions}>{advisor.sessions} seans tamamlandi</Text>
-                            </View>
-                            <View style={styles.tags}>
-                                {advisor.specialties.map((s) => (
-                                    <View key={s} style={styles.tag}>
-                                        <Text style={styles.tagText}>{s}</Text>
-                                    </View>
+            <Card glow style={styles.profileCard}>
+                <View style={styles.avatarLarge}>
+                    <Ionicons name="person" size={40} color={Colors.purpleLight} />
+                </View>
+                <AppText variant="title" center>{advisor.name}</AppText>
+                <View style={styles.ratingRow}>
+                    <Ionicons name="star" size={16} color={Colors.accentYellow} />
+                    <AppText variant="bodyStrong" color={Colors.accentYellow}>{advisor.rating}</AppText>
+                    <AppText variant="caption" style={styles.sessions}>{advisor.sessions} seans tamamlandı</AppText>
+                </View>
+                <View style={styles.tags}>
+                    {advisor.specialties.map((s) => (
+                        <View key={s} style={styles.tag}>
+                            <AppText variant="caption" color={Colors.purpleLight}>{s}</AppText>
+                        </View>
+                    ))}
+                </View>
+            </Card>
+
+            <Card style={styles.section}>
+                <AppText variant="h3" style={styles.sectionTitle}>Hakkında</AppText>
+                <AppText variant="body">{advisor.bio}</AppText>
+            </Card>
+
+            <Card style={styles.section}>
+                <AppText variant="h3" style={styles.sectionTitle}>Seans Paketleri</AppText>
+                {advisor.packages.map((pkg, idx) => (
+                    <View
+                        key={idx}
+                        style={[styles.packageRow, idx === advisor.packages.length - 1 && styles.packageRowLast]}
+                    >
+                        <View>
+                            <AppText variant="bodyStrong">{pkg.duration}</AppText>
+                            <AppText variant="callout" color={Colors.accentYellow}>{pkg.credits} kredi</AppText>
+                        </View>
+                        <Button
+                            title="Danış"
+                            size="sm"
+                            fullWidth={false}
+                            loading={starting === idx}
+                            disabled={starting !== null && starting !== idx}
+                            onPress={() => confirmStart(pkg, idx)}
+                        />
+                    </View>
+                ))}
+            </Card>
+
+            <Card style={styles.section}>
+                <AppText variant="h3" style={styles.sectionTitle}>Yorumlar</AppText>
+                {advisor.reviews.map((r, idx) => (
+                    <View
+                        key={idx}
+                        style={[styles.review, idx === advisor.reviews.length - 1 && styles.reviewLast]}
+                    >
+                        <View style={styles.reviewHeader}>
+                            <AppText variant="bodyStrong">{r.user}</AppText>
+                            <View style={styles.reviewStars}>
+                                {Array.from({ length: r.rating }).map((_, i) => (
+                                    <Ionicons key={i} name="star" size={12} color={Colors.accentYellow} />
                                 ))}
                             </View>
-                        </KismetCard>
-
-                        {/* Bio */}
-                        <KismetCard style={styles.section}>
-                            <Text style={styles.sectionTitle}>Hakkinda</Text>
-                            <Text style={styles.bio}>{advisor.bio}</Text>
-                        </KismetCard>
-
-                        {/* Packages */}
-                        <KismetCard style={styles.section}>
-                            <Text style={styles.sectionTitle}>Seans Paketleri</Text>
-                            {advisor.packages.map((pkg, idx) => (
-                                <TouchableOpacity
-                                    key={idx}
-                                    style={styles.packageRow}
-                                    onPress={() => startSession(pkg)}
-                                >
-                                    <View>
-                                        <Text style={styles.packageDuration}>{pkg.duration}</Text>
-                                        <Text style={styles.packageCredits}>{pkg.credits} kredi</Text>
-                                    </View>
-                                    <PrimaryButton title="Danis" onPress={() => startSession(pkg)} />
-                                </TouchableOpacity>
-                            ))}
-                        </KismetCard>
-
-                        {/* Reviews */}
-                        <KismetCard style={styles.section}>
-                            <Text style={styles.sectionTitle}>Yorumlar</Text>
-                            {advisor.reviews.map((r, idx) => (
-                                <View key={idx} style={styles.review}>
-                                    <View style={styles.reviewHeader}>
-                                        <Text style={styles.reviewUser}>{r.user}</Text>
-                                        <View style={styles.reviewStars}>
-                                            {Array.from({ length: r.rating }).map((_, i) => (
-                                                <Ionicons key={i} name="star" size={12} color={Colors.accentYellow} />
-                                            ))}
-                                        </View>
-                                    </View>
-                                    <Text style={styles.reviewText}>{r.text}</Text>
-                                </View>
-                            ))}
-                        </KismetCard>
-                    </View>
-                ) : (
-                    <View style={styles.chatContainer}>
-                        {messages.map((msg, idx) => (
-                            <View
-                                key={idx}
-                                style={[
-                                    styles.message,
-                                    msg.role === 'user' ? styles.userMsg : styles.advisorMsg,
-                                ]}
-                            >
-                                <Text style={[
-                                    styles.msgText,
-                                    msg.role === 'user' ? styles.userMsgText : styles.advisorMsgText,
-                                ]}>
-                                    {msg.text}
-                                </Text>
-                            </View>
-                        ))}
-
-                        <View style={styles.inputRow}>
-                            <TextInput
-                                style={styles.chatInput}
-                                placeholder="Mesajinizi yazin..."
-                                placeholderTextColor={Colors.textMuted}
-                                value={input}
-                                onChangeText={setInput}
-                            />
-                            <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
-                                <Ionicons name="send" size={18} color={Colors.backgroundDark} />
-                            </TouchableOpacity>
                         </View>
+                        <AppText variant="callout">{r.text}</AppText>
                     </View>
-                )}
-            </ScrollView>
-        </GradientBackground>
+                ))}
+            </Card>
+        </Screen>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    scrollContent: {
-        paddingHorizontal: Spacing.xl,
-        paddingTop: 20,
-        paddingBottom: 40,
-    },
-    center: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    notFound: {
-        color: Colors.textMuted,
-        fontSize: FontSize.lg,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: Spacing.xl,
-        paddingTop: 40,
-    },
-    headerTitle: {
-        fontSize: FontSize.xl,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-    },
     profileCard: {
         alignItems: 'center',
         marginBottom: Spacing.lg,
@@ -199,15 +247,10 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: Colors.purple + '30',
+        backgroundColor: Colors.purpleA25,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: Spacing.md,
-    },
-    name: {
-        fontSize: FontSize.xxl,
-        fontWeight: '700',
-        color: Colors.textPrimary,
     },
     ratingRow: {
         flexDirection: 'row',
@@ -216,44 +259,26 @@ const styles = StyleSheet.create({
         marginTop: Spacing.xs,
         marginBottom: Spacing.md,
     },
-    rating: {
-        fontSize: FontSize.md,
-        fontWeight: '600',
-        color: Colors.accentYellow,
-    },
     sessions: {
-        fontSize: FontSize.sm,
-        color: Colors.textMuted,
         marginLeft: Spacing.sm,
     },
     tags: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: Spacing.xs,
+        justifyContent: 'center',
     },
     tag: {
         paddingHorizontal: Spacing.md,
         paddingVertical: 4,
         borderRadius: BorderRadius.full,
-        backgroundColor: Colors.purple + '20',
-    },
-    tagText: {
-        fontSize: FontSize.xs,
-        color: Colors.purpleLight,
+        backgroundColor: Colors.purpleA15,
     },
     section: {
         marginBottom: Spacing.lg,
     },
     sectionTitle: {
-        fontSize: FontSize.lg,
-        fontWeight: '700',
-        color: Colors.textPrimary,
         marginBottom: Spacing.md,
-    },
-    bio: {
-        fontSize: FontSize.md,
-        color: Colors.textSecondary,
-        lineHeight: 24,
     },
     packageRow: {
         flexDirection: 'row',
@@ -263,19 +288,18 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: Colors.border,
     },
-    packageDuration: {
-        fontSize: FontSize.md,
-        fontWeight: '600',
-        color: Colors.textPrimary,
-    },
-    packageCredits: {
-        fontSize: FontSize.sm,
-        color: Colors.accentYellow,
+    packageRowLast: {
+        borderBottomWidth: 0,
+        paddingBottom: 0,
     },
     review: {
         paddingVertical: Spacing.md,
         borderBottomWidth: 1,
         borderBottomColor: Colors.border,
+    },
+    reviewLast: {
+        borderBottomWidth: 0,
+        paddingBottom: 0,
     },
     reviewHeader: {
         flexDirection: 'row',
@@ -283,71 +307,46 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: Spacing.xs,
     },
-    reviewUser: {
-        fontSize: FontSize.sm,
-        fontWeight: '600',
-        color: Colors.textPrimary,
-    },
     reviewStars: {
         flexDirection: 'row',
         gap: 2,
     },
-    reviewText: {
-        fontSize: FontSize.sm,
-        color: Colors.textSecondary,
-        lineHeight: 20,
+    // Session
+    sessionBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
+        marginTop: Spacing.md,
+        marginBottom: Spacing.lg,
     },
-    // Chat
-    chatContainer: {
+    sessionBannerText: {
         flex: 1,
     },
-    message: {
-        maxWidth: '80%',
-        padding: Spacing.md,
+    helperText: {
+        marginBottom: Spacing.md,
+    },
+    input: {
+        minHeight: 120,
+        backgroundColor: Colors.surface2,
         borderRadius: BorderRadius.lg,
-        marginBottom: Spacing.sm,
-    },
-    userMsg: {
-        alignSelf: 'flex-end',
-        backgroundColor: Colors.purple,
-    },
-    advisorMsg: {
-        alignSelf: 'flex-start',
-        backgroundColor: Colors.backgroundCard,
+        padding: Spacing.md,
+        fontSize: 15,
+        lineHeight: 22,
+        color: Colors.textPrimary,
         borderWidth: 1,
         borderColor: Colors.border,
     },
-    msgText: {
-        fontSize: FontSize.md,
-        lineHeight: 22,
-    },
-    userMsgText: {
-        color: Colors.textPrimary,
-    },
-    advisorMsgText: {
-        color: Colors.textSecondary,
-    },
-    inputRow: {
-        flexDirection: 'row',
-        gap: Spacing.sm,
+    submitBtn: {
         marginTop: Spacing.lg,
     },
-    chatInput: {
-        flex: 1,
-        backgroundColor: Colors.backgroundCard,
-        borderRadius: BorderRadius.lg,
-        padding: Spacing.md,
-        fontSize: FontSize.md,
-        color: Colors.textPrimary,
-        borderWidth: 1,
-        borderColor: Colors.border,
-    },
-    sendBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: Colors.accentYellow,
+    submittedIcon: {
         alignItems: 'center',
-        justifyContent: 'center',
+        marginBottom: Spacing.md,
+    },
+    submittedText: {
+        marginTop: Spacing.sm,
+    },
+    finishBtn: {
+        marginTop: Spacing.xl,
     },
 });

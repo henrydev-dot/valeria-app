@@ -10,6 +10,7 @@ interface UserProfile {
     birthDate: string;
     birthTime: string;
     birthCity: string;
+    birthDistrict: string;
     birthCountry: string;
     relationshipStatus: string;
     workStatus: string;
@@ -33,16 +34,17 @@ interface UserState {
     loadProfile: () => Promise<void>;
     saveProfile: () => Promise<void>;
     login: (email: string, password: string) => Promise<{ onboardingComplete: boolean }>;
-    appleLogin: (appleId: string, email?: string, name?: string) => Promise<{ onboardingComplete: boolean }>;
+    appleLogin: (appleId: string, email?: string, name?: string, identityToken?: string) => Promise<{ onboardingComplete: boolean }>;
     register: (email: string, password: string, name: string) => Promise<void>;
     onboarding: (data: Record<string, any>) => Promise<void>;
     logout: () => Promise<void>;
+    deleteAccount: () => Promise<void>;
     resetProfile: () => void;
 }
 
 const defaultProfile: UserProfile = {
     name: '', gender: '', birthDate: '', birthTime: '',
-    birthCity: '', birthCountry: '', relationshipStatus: '',
+    birthCity: '', birthDistrict: '', birthCountry: '', relationshipStatus: '',
     workStatus: '', deityResult: '', deityName: '',
     sunSign: '', moonSign: '', risingSign: '',
     energyScore: 0, onboardingComplete: false,
@@ -78,6 +80,7 @@ export const useUserStore = create<UserState>((set, get) => ({
                 birthDate: user.birthDate || '',
                 birthTime: user.birthTime || '',
                 birthCity: user.birthCity || '',
+                birthDistrict: user.birthDistrict || '',
                 birthCountry: user.birthCountry || '',
                 relationshipStatus: user.relationshipStatus || '',
                 workStatus: user.workStatus || '',
@@ -94,9 +97,18 @@ export const useUserStore = create<UserState>((set, get) => ({
             };
             set({ profile: p, isAuthenticated: true, isLoading: false });
             await UserRepository.saveProfile(p as any);
-        } catch (e) {
-            console.error('Failed to load profile:', e);
-            // Fallback to local
+        } catch (e: any) {
+            // A valid-looking token whose session is invalid (user deleted / DB
+            // reset): server answers 401 or 404. Drop the stale session and go to
+            // a clean logged-out state instead of resurrecting a dead cache.
+            if (e?.status === 401 || e?.status === 404) {
+                await api.clearTokens();
+                await UserRepository.clearAll();
+                set({ profile: { ...defaultProfile }, isAuthenticated: false, isLoading: false });
+                return;
+            }
+            // Otherwise assume it's a transient/offline error → use local cache.
+            console.warn('Profil yüklenemedi (çevrimdışı olabilir):', e?.message);
             const saved = await UserRepository.getProfile();
             if (saved) set({ profile: saved as any, isLoading: false });
             else set({ isLoading: false });
@@ -120,8 +132,8 @@ export const useUserStore = create<UserState>((set, get) => ({
         return { onboardingComplete: res.user.onboardingComplete || false };
     },
 
-    appleLogin: async (appleId, email, name) => {
-        const res = await api.auth.apple(appleId, email || undefined, name || undefined);
+    appleLogin: async (appleId, email, name, identityToken) => {
+        const res = await api.auth.apple(appleId, email || undefined, name || undefined, identityToken);
         await api.setTokens(res.accessToken, res.refreshToken);
         set({ isAuthenticated: true });
         await get().loadProfile();
@@ -155,6 +167,14 @@ export const useUserStore = create<UserState>((set, get) => ({
     },
 
     logout: async () => {
+        await api.clearTokens();
+        await UserRepository.clearAll();
+        set({ profile: { ...defaultProfile }, isAuthenticated: false });
+    },
+
+    deleteAccount: async () => {
+        // Delete server-side account + data, then clear all local state.
+        await api.profile.deleteAccount();
         await api.clearTokens();
         await UserRepository.clearAll();
         set({ profile: { ...defaultProfile }, isAuthenticated: false });

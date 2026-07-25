@@ -1,7 +1,7 @@
 [
     {
         "id": 1,
-        "name": "Elif Yildiz",
+        "name": "Elif Yıldız",
         "specialties": [
             "Tarot",
             "Astroloji",
@@ -9,7 +9,7 @@
         ],
         "rating": 4.9,
         "sessions": 1240,
-        "bio": "15 yillik deneyimle tarot ve astroloji alaninda profesyonel okumalar sunuyorum. Bireylerin ic yolculuklarinda rehberlik etmek benim tutukum.",
+        "bio": "15 yıllık deneyimle tarot ve astroloji alanında profesyonel okumalar sunuyorum. Bireylerin iç yolculuklarında rehberlik etmek benim tutkum.",
         "packages": [
             {
                 "duration": "10 dk",
@@ -22,14 +22,14 @@
         ],
         "reviews": [
             {
-                "user": "Ayse K.",
+                "user": "Ayşe K.",
                 "rating": 5,
-                "text": "Cok detayli ve isabetli bir okuma oldu. Tesekkurler."
+                "text": "Çok detaylı ve isabetli bir okuma oldu. Teşekkürler."
             },
             {
                 "user": "Mehmet B.",
                 "rating": 5,
-                "text": "Gercekten yol gosterici ve profesyonel bir yaklasim."
+                "text": "Gerçekten yol gösterici ve profesyonel bir yaklaşım."
             }
         ]
     },
@@ -37,12 +37,12 @@
         "id": 2,
         "name": "Kaan Demir",
         "specialties": [
-            "Kahve Fali",
-            "Ruya Yorumu"
+            "Kahve Falı",
+            "Rüya Yorumu"
         ],
         "rating": 4.8,
         "sessions": 890,
-        "bio": "Kahve fali ve ruya yorum alaninda uzmanlasmis, sezgisel okumalariyla taninan bir danismanim.",
+        "bio": "Kahve falı ve rüya yorumu alanında uzmanlaşmış, sezgisel okumalarıyla tanınan bir danışmanım.",
         "packages": [
             {
                 "duration": "10 dk",
@@ -57,12 +57,12 @@
             {
                 "user": "Zeynep S.",
                 "rating": 5,
-                "text": "Kahve falinda cok basarili. Onerilerim kesinlikle olumlu."
+                "text": "Kahve falında çok başarılı. Önerileri kesinlikle olumlu."
             },
             {
                 "user": "Ali R.",
                 "rating": 4,
-                "text": "Samimi ve guven veren bir gorusme oldu."
+                "text": "Samimi ve güven veren bir görüşme oldu."
             }
         ]
     },
@@ -71,12 +71,12 @@
         "name": "Selin Ay",
         "specialties": [
             "Kristal Terapi",
-            "Enerji Calismasi",
+            "Enerji Çalışması",
             "Meditasyon"
         ],
         "rating": 4.9,
         "sessions": 670,
-        "bio": "Kristaller ve enerji calismasi uzerine egitim almis, bireylerin ic dengesini bulmalarinda yardimci olan bir terapistim.",
+        "bio": "Kristaller ve enerji çalışması üzerine eğitim almış, bireylerin iç dengesini bulmalarında yardımcı olan bir terapistim.",
         "packages": [
             {
                 "duration": "10 dk",
@@ -91,20 +91,20 @@
             {
                 "user": "Defne Y.",
                 "rating": 5,
-                "text": "Kristal onerilerini uyguladim ve cok fayda gordum."
+                "text": "Kristal önerilerini uyguladım ve çok fayda gördüm."
             }
         ]
     },
     {
         "id": 4,
-        "name": "Baris Kaya",
+        "name": "Barış Kaya",
         "specialties": [
             "Numeroloji",
             "Astroloji"
         ],
         "rating": 4.7,
         "sessions": 550,
-        "bio": "Sayilarin ve yildizlarin dilini anlamak benim ustalaliim. Numeroloji ve astroloji ile hayatinizdaki donguuleri kesfediin.",
+        "bio": "Sayıların ve yıldızların dilini anlamak benim ustalığım. Numeroloji ve astroloji ile hayatınızdaki döngüleri keşfedin.",
         "packages": [
             {
                 "duration": "10 dk",
@@ -119,20 +119,20 @@
             {
                 "user": "Can M.",
                 "rating": 5,
-                "text": "Numerolojik analiz cok aydnlatici oldu."
+                "text": "Numerolojik analiz çok aydınlatıcı oldu."
             }
         ]
     },
     {
         "id": 5,
-        "name": "Naz Celik",
+        "name": "Naz Çelik",
         "specialties": [
             "Tarot",
-            "Iliski Danismanligi"
+            "İlişki Danışmanlığı"
         ],
         "rating": 4.8,
         "sessions": 980,
-        "bio": "Iliskki ve ask konularinda uzmanlasmis tarot okuyucusu. Kalp meselelerinde netlik arayanlar icin buradayim.",
+        "bio": "İlişki ve aşk konularında uzmanlaşmış tarot okuyucusu. Kalp meselelerinde netlik arayanlar için buradayım.",
         "packages": [
             {
                 "duration": "10 dk",
@@ -147,20 +147,20 @@
             {
                 "user": "Ece D.",
                 "rating": 5,
-                "text": "Iliski konusunda cok yarali oldu Naz Hanim."
+                "text": "İlişki konusunda çok yararlı oldu Naz Hanım."
             }
         ]
     },
     {
         "id": 6,
-        "name": "Emre Ozkan",
+        "name": "Emre Özkan",
         "specialties": [
             "Run Okuma",
-            "Sarkas Faali"
+            "Sarkaç Falı"
         ],
         "rating": 4.6,
         "sessions": 420,
-        "bio": "Eski Iskandinav geleneklerinden esinlennnmiis run okuma ve sarkac calismalari yapyyorum.",
+        "bio": "Eski İskandinav geleneklerinden esinlenmiş run okuma ve sarkaç çalışmaları yapıyorum.",
         "packages": [
             {
                 "duration": "10 dk",
@@ -175,13 +175,13 @@
             {
                 "user": "Burak T.",
                 "rating": 4,
-                "text": "Run okumasi farkli ve ilginc bir deneyimdi."
+                "text": "Run okuması farklı ve ilginç bir deneyimdi."
             }
         ]
     },
     {
         "id": 7,
-        "name": "Asli Simsek",
+        "name": "Aslı Şimşek",
         "specialties": [
             "Astroloji",
             "Natal Harita",
@@ -189,7 +189,7 @@
         ],
         "rating": 4.9,
         "sessions": 1560,
-        "bio": "Profesyonel astrlog olarak natal harita, transit ve ilerleme analizleri sunuyorum. Yildizlleriin rehberliginde kararlar alin.",
+        "bio": "Profesyonel astrolog olarak natal harita, transit ve ilerleme analizleri sunuyorum. Yıldızların rehberliğinde kararlar alın.",
         "packages": [
             {
                 "duration": "10 dk",
@@ -204,7 +204,7 @@
             {
                 "user": "Gizem A.",
                 "rating": 5,
-                "text": "Natal harita analizi inanilmaaz detayli ve aciklayiciydi."
+                "text": "Natal harita analizi inanılmaz detaylı ve açıklayıcıydı."
             }
         ]
     },
@@ -213,12 +213,12 @@
         "name": "Deniz Akar",
         "specialties": [
             "Meditasyon",
-            "Nefes Calismasi",
+            "Nefes Çalışması",
             "Enerji"
         ],
         "rating": 4.7,
         "sessions": 380,
-        "bio": "Meditasyon ve nefes calismasi rehberi. Ic huzura giden yolda size eslik etmek istiyorum.",
+        "bio": "Meditasyon ve nefes çalışması rehberi. İç huzura giden yolda size eşlik etmek istiyorum.",
         "packages": [
             {
                 "duration": "10 dk",
@@ -233,7 +233,7 @@
             {
                 "user": "Simge K.",
                 "rating": 5,
-                "text": "Nefes calsmasi seanslarinden cok verim aldim."
+                "text": "Nefes çalışması seanslarından çok verim aldım."
             }
         ]
     },
@@ -241,13 +241,13 @@
         "id": 9,
         "name": "Ceren Bulut",
         "specialties": [
-            "Kahve Fali",
+            "Kahve Falı",
             "Tarot",
             "El Okuma"
         ],
         "rating": 4.8,
         "sessions": 720,
-        "bio": "Geleneksel Tuark kahve fali, tarot ve el okuma alanlarinda danismanlik sunuyorum.",
+        "bio": "Geleneksel Türk kahve falı, tarot ve el okuma alanlarında danışmanlık sunuyorum.",
         "packages": [
             {
                 "duration": "10 dk",
@@ -262,13 +262,13 @@
             {
                 "user": "Merve O.",
                 "rating": 5,
-                "text": "Hem kahve fali hem tarot seansni birlikte yaptik, muhteesemdi."
+                "text": "Hem kahve falı hem tarot seansını birlikte yaptık, muhteşemdi."
             }
         ]
     },
     {
         "id": 10,
-        "name": "Cem Yalcin",
+        "name": "Cem Yalçın",
         "specialties": [
             "Ruhsal Rehberlik",
             "Regresyon",
@@ -276,7 +276,7 @@
         ],
         "rating": 4.6,
         "sessions": 310,
-        "bio": "Ruhssl rehberlik ve gecmis yassam regresyon calismmalari ile bireylerin karmik derslerini anlamalarina yardimci oluyorum.",
+        "bio": "Ruhsal rehberlik ve geçmiş yaşam regresyon çalışmaları ile bireylerin karmik derslerini anlamalarına yardımcı oluyorum.",
         "packages": [
             {
                 "duration": "10 dk",
@@ -289,9 +289,9 @@
         ],
         "reviews": [
             {
-                "user": "Oguzhan L.",
+                "user": "Oğuzhan L.",
                 "rating": 4,
-                "text": "Farkli bir bakis acisi kazadim, tesekkurler."
+                "text": "Farklı bir bakış açısı kazandım, teşekkürler."
             }
         ]
     }

@@ -129,8 +129,8 @@ const startServer = async () => {
         await mongoose.connect(MONGODB_URI);
         console.log('✅ MongoDB bağlantısı başarılı (valerifal)');
 
-        app.listen(PORT, () => {
-            console.log(`🚀 Valeria API v2.0 çalışıyor: http://localhost:${PORT}`);
+        app.listen(Number(PORT), '0.0.0.0', () => {
+            console.log(`🚀 Valeria API v2.0 çalışıyor: http://0.0.0.0:${PORT}`);
             console.log(`📋 API Dökümantasyon: http://localhost:${PORT}`);
             console.log(`💚 Health Check: http://localhost:${PORT}/api/health`);
         });

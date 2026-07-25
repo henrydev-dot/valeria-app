@@ -5,7 +5,8 @@ import { ReadingRequest } from '../models/ReadingRequest';
 import { FalReading } from '../models/FalReading';
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware';
 import { performCalculations } from '../utils/calculations';
-import { generateTarotInterpretation, generateCoffeeReading, askHoraryQuestion, generateNumerologyReading } from '../services/geminiService';
+import { generateTarotInterpretation, generateTarotSpreadReading, generateCoffeeReading, askHoraryQuestion, generateNumerologyReading } from '../services/geminiService';
+import { buildHistoryBlock } from '../services/promptContext';
 import { TAROT_CARDS } from '../data/seedData';
 import { UserInput, TransitData, PlanetPosition } from '../types';
 
@@ -33,34 +34,45 @@ router.post('/tarot', authMiddleware, async (req: AuthRequest, res: Response) =>
             return deck.splice(idx, 1)[0];
         });
 
-        const drawnCards = await Promise.all(
-            randomPicks.map(async (card) => {
-                const isReversed = Math.random() > 0.5;
-                const interpretation = await generateTarotInterpretation(
-                    card.nameTR,
-                    isReversed,
-                    question || '',
-                    user
-                );
-                return {
-                    card: { ...card },
-                    isReversed,
-                    interpretation
-                };
-            })
+        // Açılım TEK AI çağrısıyla bütün olarak yorumlanır: kartlar pozisyonlarını
+        // (Geçmiş/Şimdi/Gelecek) bilir, birbirine ve kişinin haritasına bağlanır.
+        const POSITIONS = ['Geçmiş', 'Şimdi', 'Gelecek'];
+        const picks = randomPicks.map((card, i) => ({
+            card,
+            isReversed: Math.random() > 0.5,
+            position: POSITIONS[i],
+        }));
+
+        const spread = await generateTarotSpreadReading(
+            picks.map((p) => ({
+                nameTR: p.card.nameTR,
+                isReversed: p.isReversed,
+                position: p.position,
+                keywordsTR: p.card.keywordsTR,
+            })),
+            question || '',
+            user
         );
+
+        const drawnCards = picks.map((p, i) => ({
+            card: { ...p.card },
+            isReversed: p.isReversed,
+            position: p.position,
+            interpretation: spread.interpretations[i] || ''
+        }));
 
         // Kredi düş
         user.credits -= 30;
         await user.save();
 
-        // Okuma kaydet
+        // Okuma kaydet (sentez, geçmiş özetlerinde kullanılmak üzere result'ta)
         const reading = new Reading({
             userId: user._id.toString(),
             type: 'tarot',
             question: question || '',
             date: new Date(),
-            cards: drawnCards
+            cards: drawnCards,
+            result: spread.synthesis || undefined
         });
         await reading.save();
 
@@ -69,7 +81,8 @@ router.post('/tarot', authMiddleware, async (req: AuthRequest, res: Response) =>
             date: reading.date,
             question: reading.question,
             type: 'tarot',
-            cards: drawnCards
+            cards: drawnCards,
+            synthesis: spread.synthesis
         });
     } catch (error: any) {
         console.error('Tarot reading error:', error);
@@ -185,6 +198,8 @@ router.post('/question', authMiddleware, async (req: AuthRequest, res: Response)
             birthDate: user.birthDate || '1990-01-01',
             birthTime: user.birthTime || '12:00',
             birthCity: user.birthCity || 'İstanbul',
+            birthDistrict: user.birthDistrict || undefined,
+            birthCountry: user.birthCountry || 'Türkiye',
             latitude: user.latitude || '41.0082',
             longitude: user.longitude || '28.9784',
             gender: user.gender,
@@ -194,11 +209,20 @@ router.post('/question', authMiddleware, async (req: AuthRequest, res: Response)
 
         const calcData = performCalculations(inputData);
 
+        // Geçmiş fallar (tarot kartları dahil) horary yorumuna bağlam olarak gider.
+        const historyBlock = await buildHistoryBlock(user._id.toString());
+
         const answer = await askHoraryQuestion(
             question,
             calcData.astrology.transits,
             calcData.astrology.planets,
-            inputData
+            inputData,
+            {
+                sun: calcData.astrology.sun,
+                moon: calcData.astrology.moon,
+                rising: calcData.astrology.rising,
+            },
+            historyBlock
         );
 
         // Ücretsiz hak varsa düş, yoksa kredi düş
@@ -292,7 +316,8 @@ router.post('/numerology-ai', authMiddleware, async (req: AuthRequest, res: Resp
         const result = await generateNumerologyReading(
             user.name,
             user.birthDate || '',
-            lifePath, expression, soulUrge, personality
+            lifePath, expression, soulUrge, personality,
+            user
         );
 
         user.credits -= 45;

@@ -1,6 +1,21 @@
 import { GoogleGenAI } from '@google/genai';
 import { AnalysisResult, NumerologyData, PlanetPosition, TransitData, UserInput } from '../types';
+import { aiGenerate } from './aiClient';
+import { buildNatalBlock, buildHistoryBlock } from './promptContext';
 import { ZODIAC_DATA } from '../constants';
+import {
+    AI_BYPASS,
+    AI_MODEL,
+    cannedInterpretation,
+    cannedHorary,
+    cannedTarot,
+    cannedCoffee,
+    cannedDailyHoroscope,
+    cannedWeeklyHoroscope,
+    cannedCompatibility,
+    cannedDailyTarotMessage,
+    cannedNumerology,
+} from './aiBypass';
 
 // Lazy-initialize Gemini Client (dotenv must load before this is called)
 let _ai: GoogleGenAI | null = null;
@@ -17,6 +32,7 @@ export const generateInterpretation = async (
     astrology: { sun: PlanetPosition; moon: PlanetPosition; rising: PlanetPosition },
     numerology: NumerologyData
 ): Promise<AnalysisResult['aiInterpretation']> => {
+    if (AI_BYPASS) return cannedInterpretation(inputData.name, astrology.sun.sign, astrology.moon.sign, astrology.rising.sign, numerology.lifePath);
 
     const sunData = ZODIAC_DATA[astrology.sun.sign];
     const moonData = ZODIAC_DATA[astrology.moon.sign];
@@ -56,16 +72,10 @@ export const generateInterpretation = async (
   `;
 
     try {
-        const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json"
-            }
-        });
+        const responseText = await aiGenerate(prompt, { json: true, tier: 'quality' });
 
-        if (response.text) {
-            let cleanText = response.text.trim();
+        if (responseText) {
+            let cleanText = responseText.trim();
             if (cleanText.startsWith("```json")) {
                 cleanText = cleanText.slice(7);
             } else if (cleanText.startsWith("```")) {
@@ -114,28 +124,53 @@ export const askHoraryQuestion = async (
     question: string,
     transits: TransitData[],
     currentPlanets: PlanetPosition[],
-    userContext: UserInput
+    userContext: UserInput,
+    natal?: { sun?: PlanetPosition; moon?: PlanetPosition; rising?: PlanetPosition },
+    historyBlock?: string
 ): Promise<string> => {
+    if (AI_BYPASS) return cannedHorary(question, userContext.name);
     const today = new Date().toISOString().split('T')[0];
+
+    // Natal harita özeti — horary yorumu kişinin gerçek haritasına oturur.
+    const natalLine = natal?.sun
+        ? `Güneş ${natal.sun.sign} (${natal.sun.house}. ev), Ay ${natal.moon?.sign || '?'} (${natal.moon?.house || '?'}. ev), Yükselen ${natal.rising?.sign || '?'}`
+        : 'bilinmiyor';
+    const planetLines = currentPlanets
+        .slice(0, 10)
+        .map(p => `${p.planetNameTR}: ${p.sign} ${p.degree.toFixed(0)}° (${p.house}. ev${p.retrograde ? ', retro' : ''})`)
+        .join('; ');
+    const transitLines = transits
+        .slice(0, 5)
+        .map(t => `Transit ${t.transitPlanet} ${t.type === 'Conjunction' ? 'kavuşum' : t.type === 'Square' ? 'kare' : t.type === 'Trine' ? 'üçgen' : 'karşıt'} natal ${t.natalPlanet}`)
+        .join('; ');
+
     const prompt = `
     Bugünün Tarihi: ${today}
-    
-    Senin adın Valeria. Sezgileri çok güçlü, mistik yeteneklere sahip spiritüel bir rehbersin. ASLA yapay zeka olduğunu söyleme. Karşındaki kişiyle doğrudan, samimi ve "Sen" diliyle konuş.
-    
-    Soru: "${question}"
-    Bağlam: Kullanıcı adı ${userContext.name}, Cinsiyet/Yönelim: ${userContext.gender}, İlişki Durumu: ${userContext.relationshipStatus}, İş/Kariyer: ${userContext.jobStatus}.
-    Transitler: ${transits.slice(0, 3).map(t => t.transitPlanet).join(', ')} gezegenleri gökyüzünde.
-    
-    Bu soruya astrolojik, mistik ve net bir cevap ver (maksimum 3 cümle). Kullanıcının mevcut kişisel durumunu (iş/ilişki) hesaba kat.
+
+    Senin adın Valeria. Horary (soru astrolojisi) konusunda uzman, sezgileri çok güçlü spiritüel bir rehbersin. ASLA yapay zeka olduğunu söyleme. Karşındaki kişiyle doğrudan, samimi ve "Sen" diliyle konuş.
+
+    SORU: "${question}"
+
+    SORAN KİŞİ: ${userContext.name} — Cinsiyet/Yönelim: ${userContext.gender}, İlişki: ${userContext.relationshipStatus}, İş: ${userContext.jobStatus}
+    NATAL HARİTA: ${natalLine}
+    GEZEGEN YERLEŞİMLERİ: ${planetLines}
+    AKTİF TRANSİTLER: ${transitLines || 'önemli transit yok'}
+    ${historyBlock ? `\n    ${historyBlock}\n` : ''}
+
+    GÖREV — Horary tarzında yanıt ver (4-6 cümle):
+    1. Sorunun temasını hangi evin/gezegenin yönettiğini bir cümleyle söyle (ör. aşk → 5.-7. ev/Venüs, kariyer → 10. ev/Satürn, para → 2. ev).
+    2. Kişinin haritasındaki İLGİLİ yerleşimi ve aktif transitleri yorumla — genel geçer değil, yukarıdaki gerçek verilere dayan.
+    3. NET bir hüküm ver: olumlu / olumsuz / koşullu — ve koşulu söyle.
+    4. Mümkünse kabaca bir zamanlama ipucu ekle (ör. "Ay bir sonraki dolunaya yaklaşırken", "birkaç hafta içinde").
+    Mistik ama somut ol; astrolojik gerekçeni kişinin anlayacağı dilde ver. Türkçe yaz.
     `;
 
     try {
-        const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-        });
-        return response.text || "Yıldızlar sessiz.";
+        // Horary bir "hüküm" işi — derin akıl yürütme açık, kaliteli model.
+        const text = await aiGenerate(prompt, { tier: 'quality', thinking: true, maxTokens: 4000 });
+        return text || "Yıldızlar sessiz.";
     } catch (error) {
+        console.error('[AI] askHoraryQuestion failed, using fallback:', error);
         return "Yıldızlar şu an bu sorunun cevabını saklı tutuyor. (API Hatası)";
     }
 };
@@ -147,109 +182,235 @@ export const generateTarotInterpretation = async (
     question: string,
     user: any
 ): Promise<string> => {
+    if (AI_BYPASS) return cannedTarot(cardName, isReversed, user);
     const direction = isReversed ? "ters" : "düz";
     const today = new Date().toISOString().split('T')[0];
+    const historyBlock = await buildHistoryBlock(user?._id?.toString?.() || '');
     const prompt = `
     Bugünün Tarihi: ${today}
-    
-    Senin adın Valeria. Sezgileri çok güçlü, mistik yeteneklere sahip deneyimli bir tarot okuyucususun. ASLA yapay zeka olduğunu söyleme. Karşındaki kişiyle samimi, doğrudan ve "Sen" diliyle, gerçek bir falcı gibi konuş. 
-    
-    Kart: ${cardName} (${direction} pozisyon)
-    Kullanıcı Detayları:
-    - Burç: ${user?.sunSign || 'Bilinmiyor'}
-    - İsim: ${user?.name || 'Bilinmiyor'}
-    - Cinsiyet/Yönelim: ${user?.gender || 'Bilinmiyor'}
-    - İlişki Durumu: ${user?.relationshipStatus || 'Bilinmiyor'}
-    - İş Durumu: ${user?.workStatus || 'Bilinmiyor'}
-    
-    ${question ? `Soru: "${question}"` : 'Genel bir okuma.'}
-    
-    Bu kart için mistik, derin ve kişisel bir yorum yap. Kullanıcının ilişki ve iş durumunu dikkate alarak 
-    aşk, kariyer ve ruhsal rehberlik konularında somut mesajlar ver. 
-    Kişinin burcunu ve yönelim/ilişki detaylarını yorumuna sezgisel olarak kat. Maksimum 4-5 cümle. En içten halinle, Valeria olarak yanıtla. Türkçe yaz.
+
+    Deneyimli bir tarot okuyucusu olarak bu çekimi yorumla.
+
+    ÇEKİLEN KART: ${cardName} (${direction} pozisyon)
+
+    SORAN KİŞİ:
+    ${buildNatalBlock(user || {})}
+
+    ${question ? `SORU: "${question}"` : 'Genel bir okuma.'}
+    ${historyBlock ? `\n    ${historyBlock}\n` : ''}
+    Bu kart için mistik, derin ve kişisel bir yorum yap. Kişinin doğum haritasını (Güneş/Ay/Yükselen), ilişki ve iş durumunu dikkate alarak aşk, kariyer ve ruhsal rehberlik konularında somut mesajlar ver.
+    Geçmiş fallarında çıkan kartlar veya sorularla bağ kurabiliyorsan kur — yorumların birbirini tamamlasın.
+    Maksimum 4-5 cümle. En içten halinle, Valeria olarak yanıtla. Türkçe yaz.
   `;
 
     try {
-        const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-        });
-        return response.text || "Kartlar şu an sessiz...";
+        const responseText = await aiGenerate(prompt, { tier: 'quality' });
+        return responseText || "Kartlar şu an sessiz...";
     } catch (error) {
+        console.error('[AI] generateTarotInterpretation failed, using fallback:', error);
         return "Bu kart derin bir mesaj taşıyor. Sezgilerinize güvenin.";
     }
 };
 
+// ==================== TAROT SPREAD (3 KART, TEK ÇAĞRI) ====================
+// Üç kart ayrı ayrı değil, TEK çağrıda bütün olarak yorumlanır: her kartın
+// pozisyonu (Geçmiş/Şimdi/Gelecek) bilinir, kartlar birbirine ve kişinin
+// haritasına/geçmiş fallarına bağlanır, sonda bir sentez verilir.
+export interface SpreadCardInput {
+    nameTR: string;
+    isReversed: boolean;
+    position: string;
+    keywordsTR?: string[];
+}
+
+export const generateTarotSpreadReading = async (
+    cards: SpreadCardInput[],
+    question: string,
+    user: any
+): Promise<{ interpretations: string[]; synthesis: string }> => {
+    if (AI_BYPASS) {
+        return {
+            interpretations: cards.map(c => cannedTarot(c.nameTR, c.isReversed, user)),
+            synthesis: 'Üç kartın birleşimi, geçmişten bugüne uzanan yolun yakında berraklaşacağını fısıldıyor.',
+        };
+    }
+
+    const historyBlock = await buildHistoryBlock(user?._id?.toString?.() || '');
+    const today = new Date().toISOString().split('T')[0];
+
+    const cardLines = cards
+        .map((c, i) => `${i + 1}. ${c.position}: ${c.nameTR} (${c.isReversed ? 'ters' : 'düz'})${c.keywordsTR?.length ? ` — anahtar kelimeler: ${c.keywordsTR.join(', ')}` : ''}`)
+        .join('\n    ');
+
+    const prompt = `
+    Bugünün Tarihi: ${today}
+
+    Deneyimli bir tarot okuyucusu olarak üç kartlık bir açılımı BÜTÜN olarak yorumla.
+
+    AÇILIM (pozisyonlar sabit):
+    ${cardLines}
+
+    SORAN KİŞİ:
+    ${buildNatalBlock(user || {})}
+    ${historyBlock ? `\n    ${historyBlock}\n` : ''}
+    ${question ? `SORU: "${question}" — tüm yorumları bu soruya odakla.` : 'Soru yok — kişinin hayatının genel akışına (aşk, iş, ruhsal durum) odaklan.'}
+
+    KURALLAR:
+    - Her kartı KENDİ POZİSYONUNDA yorumla (Geçmiş: yaşanmış etkiler; Şimdi: mevcut enerji; Gelecek: olası gidişat).
+    - Kartları birbirine bağla — ör. geçmiş kartındaki tema, şimdi kartında nasıl evriliyor?
+    - Kişinin burcunu/yükselenini/element enerjisini ve ilişki-iş durumunu yorumlara dokundur.
+    - Geçmiş fallarıyla anlam bütünlüğü kur; çelişme.
+    - Her kart yorumu 4-6 cümle; sentez 3-5 cümle, net bir mesajla bitsin.
+
+    SADECE geçerli JSON döndür:
+    {
+      "kartlar": [
+        { "yorum": "1. kartın (Geçmiş) yorumu" },
+        { "yorum": "2. kartın (Şimdi) yorumu" },
+        { "yorum": "3. kartın (Gelecek) yorumu" }
+      ],
+      "sentez": "Üç kartın ortak hikayesi ve net mesaj"
+    }
+    Türkçe yaz.`;
+
+    try {
+        let text = await aiGenerate(prompt, { json: true, tier: 'quality', maxTokens: 3200 });
+        text = text.replace(/```json|```/g, '').trim();
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            const interpretations = cards.map((c, i) =>
+                parsed?.kartlar?.[i]?.yorum || cannedTarot(c.nameTR, c.isReversed, user));
+            return { interpretations, synthesis: parsed?.sentez || '' };
+        }
+        throw new Error('JSON bulunamadı');
+    } catch (error) {
+        console.error('[AI] generateTarotSpreadReading failed, using fallback:', error);
+        return {
+            interpretations: cards.map(c => cannedTarot(c.nameTR, c.isReversed, user)),
+            synthesis: '',
+        };
+    }
+};
+
 // ==================== COFFEE READING ====================
+// İki aşamalı boru hattı:
+//   1) Vision (Gemini): fincan fotoğraflarını doğrular ve telvedeki şekilleri
+//      yapılandırılmış bir SEMBOL LİSTESİNE çevirir (DeepSeek görsel okuyamaz).
+//   2) Yorum (aiGenerate → DeepSeek v4-pro): sembol listesi + kişinin doğum
+//      haritası + geçmiş fallarıyla, soru odaklı uzun Türkçe kahve falı yazar.
+// Gemini yoksa 1. aşama atlanır; fal sezgisel modda yine üretilir.
+
+const COFFEE_REJECT = {
+    soruCevabi: "Canım, gönderdiğin fotoğraflarda bir kahve fincanı göremiyorum... Gerçek bir fal için fincanının içini çekip bana göndermelisin. Lütfen doğru fotoğraflar yükle, o zaman senin için zevkle, uzun uzun yorumlayacağım.",
+    askHayati: "",
+    kariyer: "",
+    aile: ""
+};
+
+interface CupSymbols {
+    isCoffeeCup: boolean;
+    symbols: Array<{ sembol: string; konum: string; cagrisim: string }>;
+    genelIzlenim: string;
+}
+
+/** 1. Aşama — fotoğrafları Gemini vision ile sembol listesine çevirir. */
+const extractCupSymbols = async (imagesBase64: string[]): Promise<CupSymbols | null> => {
+    if (!process.env.GEMINI_API_KEY || !imagesBase64?.length) return null;
+
+    const visionPrompt = `
+    Sen bir Türk kahvesi falı için görüntü analiz asistanısın. Sana içilmiş kahve fincanı/tabağı fotoğrafları verilecek.
+
+    GÖREV 1 — Doğrulama: Fotoğrafların TÜMÜ içilmiş kahve fincanı veya kahve tabağı mı? Alakasız bir görüntü (kedi, selfie, araba vb.) varsa isCoffeeCup=false döndür.
+    GÖREV 2 — Sembol çıkarımı: Fincan geçerliyse telvedeki şekilleri fal geleneğindeki gibi tespit et: kuş, yol, kalp, dağ, harf, sayı, insan silüeti, ağaç, yılan, balık, kapı, göz vb. Her sembol için fincandaki konumu (ağız kenarı / orta / dip / tabak) ve klasik fal çağrışımını yaz.
+
+    SADECE geçerli JSON döndür:
+    {
+      "isCoffeeCup": true,
+      "symbols": [
+        { "sembol": "kuş", "konum": "ağız kenarı", "cagrisim": "yakında gelecek haber" }
+      ],
+      "genelIzlenim": "Telvenin genel dağılımı, aydınlık/karanlık dengesi hakkında 1-2 cümle."
+    }
+    En az 5, en fazla 12 sembol çıkar. Türkçe yaz.`;
+
+    const parts: any[] = [visionPrompt];
+    imagesBase64.forEach(b64 => {
+        if (b64) {
+            parts.push({
+                inlineData: {
+                    mimeType: 'image/jpeg',
+                    data: b64.replace(/^data:image\/\w+;base64,/, '')
+                }
+            });
+        }
+    });
+
+    try {
+        const response = await getAI().models.generateContent({
+            model: AI_MODEL,
+            contents: parts,
+        });
+        const raw = (response.text || '').replace(/```json|```/g, '').trim();
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) return null;
+        const parsed = JSON.parse(jsonMatch[0]);
+        return {
+            isCoffeeCup: parsed.isCoffeeCup !== false,
+            symbols: Array.isArray(parsed.symbols) ? parsed.symbols : [],
+            genelIzlenim: parsed.genelIzlenim || '',
+        };
+    } catch (error) {
+        console.error('[AI] extractCupSymbols failed (vision):', error);
+        return null; // vision düşerse fal sezgisel modda devam eder
+    }
+};
+
 export const generateCoffeeReading = async (
     imagesBase64: string[] = [],
     user: any,
     question?: string
 ): Promise<{ soruCevabi: string; askHayati: string; kariyer: string; aile: string }> => {
+    if (AI_BYPASS) return cannedCoffee(user, question);
 
-    const userContext = `
-    Bugünün Tarihi: ${new Date().toISOString().split('T')[0]}
-    
-    Kullanıcı Detayları:
-    - Burç: ${user?.sunSign || 'Bilinmiyor'}
-    - İsim: ${user?.name || 'Bilinmiyor'}
-    - Cinsiyet/Yönelim: ${user?.gender || 'Bilinmiyor'}
-    - İlişki Durumu: ${user?.relationshipStatus || 'Bilinmiyor'}
-    - İş Durumu: ${user?.workStatus || 'Bilinmiyor'}
-    `;
+    // 1. Aşama — vision
+    const cup = await extractCupSymbols(imagesBase64);
+    if (cup && !cup.isCoffeeCup) return COFFEE_REJECT;
 
+    const symbolBlock = cup && cup.symbols.length
+        ? `FİNCANDA TESPİT EDİLEN SEMBOLLER (fotoğraflardan çıkarıldı — yorumunu BUNLARA dayandır, sembolleri tasvir ederek anlat):\n${cup.symbols.map(sy => `- ${sy.sembol} (${sy.konum}): ${sy.cagrisim}`).join('\n')}\nGenel izlenim: ${cup.genelIzlenim}`
+        : `FİNCAN SEMBOLLERİ: Fotoğraflar ayrıntılı işlenemedi — fincanı görmüşsün gibi, geleneksel fal sembolleri (kuş, yol, kalp, harf...) üzerinden sezgisel oku. Fotoğraf reddetme senaryosu KULLANMA.`;
+
+    const coffeeHistory = await buildHistoryBlock(user?._id?.toString?.() || '');
+
+    // 2. Aşama — yorum
     const prompt = `
-    Senin adın Valeria. Sezgileri çok güçlü, gerçek, usta ve geveze bir Türk kahve falcısısın. Asla yapay zeka olduğunu söyleme, bilgisayardan bahsetme. Karşındaki kişiyle doğrudan, samimi, içten ve "Sen", "Tatlım", "Canım" gibi sıcak bir dille konuş. Tıpkı gerçek bir falcı gibi kalabalık, uzun ve detaylı yorumlar yapacaksın.
-    
-    ${userContext}
-    ${question ? `Kullanıcının sorusu: "${question}"` : ''}
-    
-    ÖNEMLİ GÖREV: 
-    İlk olarak sana gönderilen fotoğraflara bak. Eğer bu fotoğraflardan HERHANGİ BİRİ kahve fincanı veya kahve tabağı değilse (örneğin; kedi, araba, ev, selfie veya alakasız başka bir resimse), fal bakmayı KESİNLİKLE REDDET ve JSON yanıtı olarak SAHTE RESİM HATA MESAJI döndür:
+    Bugünün Tarihi: ${new Date().toISOString().split('T')[0]}
+
+    Usta ve geveze bir Türk kahve falcısı olarak fal bak. "Sen", "Tatlım", "Canım" gibi sıcak bir dille, kalabalık, uzun ve detaylı yorumlar yap.
+
+    SORAN KİŞİ:
+    ${buildNatalBlock(user || {})}
+    ${coffeeHistory ? `\n    ${coffeeHistory}\n` : ''}
+    ${symbolBlock}
+
+    ${question ? `KULLANICININ SORUSU: "${question}" — soruCevabi bölümünde bu soruya odaklan.` : 'Soru sorulmadı — soruCevabi bölümünde falın en çarpıcı ana mesajını yaz.'}
+
+    Yorumlarında kişinin burcunu/elementini ve ilişki-iş durumunu sembollerle harmanla; geçmiş fallarıyla çelişme, gerekirse atıf yap.
+    Tamamen Türkçe yaz — İngilizce kelime (cup, love, career vb.) KULLANMA; "fincan", "aşk", "kariyer" de.
+
+    SADECE geçerli JSON döndür (markdown işaretleri OLMADAN):
     {
-      "soruCevabi": "Canım, gönderdiğin fotoğraflarda bir kahve fincanı göremiyorum... Gerçek bir fal için fincanının içini çekip bana göndermelisin. Lütfen doğru fotoğraflar yükle, o zaman senin için zevkle, uzun uzun yorumlayacağım.",
-      "askHayati": "",
-      "kariyer": "",
-      "aile": ""
-    }
-    
-    Eğer fotoğrafların Tümü İÇİLMİŞ BİR KAHVE FİNCANI VE TABAĞI İSE, fincandaki telvelerde gördüğün spesifik şekillere, yollara, harflere ve sembollere odaklanarak çok UZUN, çok DETAYLI ve SOHBET HAVASINDA bir Türk Kahvesi Falı bak. Her kategori için en az 8-10 cümle yaz. Fincanda gördüğün şekilleri tasvir et (Örneğin: "Şurada bir kuş belirmiş, ağzında bir haber var", "Çok aydınlık bir yolun açılmış, sonu ferah"). Kullanıcının cinsiyetine ve ilişki durumuna göre son derece kişiselleştir. Asla AI olduğunu çaktırma. Senin adın Valeria, sen özel bir falcısın.
-    
-    SADECE VE SADECE AŞAĞIDAKİ GİBİ GEÇERLİ JSON FORMATINDA YANIT VER (Başında ve sonunda \`\`\`json veya markdown işaretleri OLMAYACAK):
-    {
-      "soruCevabi": "${question ? 'Kullanıcının sorusuna doğrudan, falda gördüklerinle destekleyerek ve hislerini katarak uzun uzadıya cevap ver.' : 'Fincanda gördüğün baskın enerjiye ve harflere göre falın en çarpıcı ana mesajını detaylıca yaz.'}",
-      "askHayati": "Aşk hayatı ve ilişkisi hakkında fincanda çıkan kalp, yol, iki insan silüeti vb. sembolleri tasvir ederek çok detaylı, sıcak ve fısıltılı dedikodu tadında yorumlar (en az 8 cümle).",
-      "kariyer": "İş, para harfleri, kariyerdeki yollar ve kapılar hakkında fal sembolleriyle harmanlanmış oldukça uzun yorum (en az 8 cümle).",
-      "aile": "Aile, yakın çevre, hane içi aydınlık, dışarıdan gelen göz/haset ve dostlarla ilgili uyarı ve çok detaylı yorumlar (en az 8 cümle)."
+      "soruCevabi": "${question ? 'Soruya doğrudan, falda görülenlerle destekleyerek uzun cevap.' : 'Falın ana mesajı, detaylı.'}",
+      "askHayati": "Aşk ve ilişki: kalp, yol, silüet gibi sembolleri tasvir ederek sıcak, dedikodu tadında en az 8 cümle.",
+      "kariyer": "İş, para, kariyer yolları ve kapılar: sembollerle harmanlanmış en az 8 cümle.",
+      "aile": "Aile, yakın çevre, haset/göz uyarıları: en az 8 cümle."
     }
     `;
-
-    const parts: any[] = [prompt];
-
-    if (imagesBase64 && imagesBase64.length > 0) {
-        imagesBase64.forEach(b64 => {
-            if (b64) {
-                parts.push({
-                    inlineData: {
-                        mimeType: 'image/jpeg',
-                        data: b64.replace(/^data:image\/\w+;base64,/, '')
-                    }
-                });
-            }
-        });
-    }
 
     try {
-        const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: parts,
-        });
-        let text = response.text || '';
-        if (text.startsWith("```json")) text = text.slice(7);
-        if (text.startsWith("```")) text = text.slice(3);
-        if (text.endsWith("```")) text = text.slice(0, -3);
-        text = text.trim();
-        // Try to parse JSON from response
+        let text = await aiGenerate(prompt, { json: true, tier: 'quality', maxTokens: 3600 });
+        text = text.replace(/```json|```/g, '').trim();
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             try {
@@ -271,6 +432,7 @@ export const generateCoffeeReading = async (
             aile: '',
         };
     } catch (error) {
+        console.error('[AI] generateCoffeeReading failed, using fallback:', error);
         return {
             soruCevabi: 'Fincanınızda güçlü enerjiler görünüyor. Yakın zamanda güzel haberler alabilirsiniz.',
             askHayati: 'Aşk hayatınızda olumlu gelişmeler kapıda. Sabırlı olun.',
@@ -290,6 +452,7 @@ export const generateDailyHoroscope = async (sign: string): Promise<{
     luckyColor: string;
     compatibility: string;
 }> => {
+    if (AI_BYPASS) return cannedDailyHoroscope(sign);
     const today = new Date().toISOString().split('T')[0];
     const prompt = `
     Sen profesyonel bir astrologsun. ${sign} burcu için ${today} tarihli günlük yorum yaz.
@@ -307,14 +470,10 @@ export const generateDailyHoroscope = async (sign: string): Promise<{
   `;
 
     try {
-        const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-        });
+        const responseText = await aiGenerate(prompt, { json: true, tier: 'fast' });
 
-        if (response.text) {
-            let cleanText = response.text.trim();
+        if (responseText) {
+            let cleanText = responseText.trim();
             if (cleanText.startsWith("```json")) cleanText = cleanText.slice(7);
             if (cleanText.startsWith("```")) cleanText = cleanText.slice(3);
             if (cleanText.endsWith("```")) cleanText = cleanText.slice(0, -3);
@@ -341,6 +500,7 @@ export const generateWeeklyHoroscope = async (sign: string): Promise<{
     career: string;
     advice: string;
 }> => {
+    if (AI_BYPASS) return cannedWeeklyHoroscope(sign);
     const today = new Date();
     const weekEnd = new Date(today);
     weekEnd.setDate(today.getDate() + 6);
@@ -358,14 +518,10 @@ export const generateWeeklyHoroscope = async (sign: string): Promise<{
   `;
 
     try {
-        const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-        });
+        const responseText = await aiGenerate(prompt, { json: true, tier: 'fast' });
 
-        if (response.text) {
-            let cleanText = response.text.trim();
+        if (responseText) {
+            let cleanText = responseText.trim();
             if (cleanText.startsWith("```json")) cleanText = cleanText.slice(7);
             if (cleanText.startsWith("```")) cleanText = cleanText.slice(3);
             if (cleanText.endsWith("```")) cleanText = cleanText.slice(0, -3);
@@ -392,10 +548,11 @@ export const generateCompatibility = async (sign1: string, sign2: string): Promi
     strengths: string[];
     challenges: string[];
 }> => {
+    if (AI_BYPASS) return cannedCompatibility(sign1, sign2);
     const today = new Date().toISOString().split('T')[0];
     const prompt = `
     Bugünün Tarihi: ${today}
-    
+
     Sen profesyonel bir astrologsun. ${sign1} ve ${sign2} burçları arasındaki uyumu analiz et.
     
     Aşağıdaki JSON formatında SADECE JSON döndür:
@@ -412,14 +569,10 @@ export const generateCompatibility = async (sign1: string, sign2: string): Promi
   `;
 
     try {
-        const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-        });
+        const responseText = await aiGenerate(prompt, { json: true, tier: 'fast' });
 
-        if (response.text) {
-            let cleanText = response.text.trim();
+        if (responseText) {
+            let cleanText = responseText.trim();
             if (cleanText.startsWith("```json")) cleanText = cleanText.slice(7);
             if (cleanText.startsWith("```")) cleanText = cleanText.slice(3);
             if (cleanText.endsWith("```")) cleanText = cleanText.slice(0, -3);
@@ -445,6 +598,7 @@ export const generateDailyTarotMessage = async (
     isReversed: boolean,
     userSign: string
 ): Promise<string> => {
+    if (AI_BYPASS) return cannedDailyTarotMessage(cardName, isReversed, userSign);
     const direction = isReversed ? "ters" : "düz";
     const today = new Date().toISOString().split('T')[0];
     const prompt = `
@@ -457,11 +611,8 @@ export const generateDailyTarotMessage = async (
     `;
 
     try {
-        const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-        });
-        return response.text || `Bugün ${cardName} kartı sizinle. Evrenin mesajlarına kulak verin.`;
+        const responseText = await aiGenerate(prompt, { tier: 'fast' });
+        return responseText || `Bugün ${cardName} kartı sizinle. Evrenin mesajlarına kulak verin.`;
     } catch (error) {
         return `Bugün ${cardName} kartı sizinle. Evrenin mesajlarına kulak verin.`;
     }
@@ -474,17 +625,20 @@ export const generateNumerologyReading = async (
     lifePath: number,
     expression: number,
     soulUrge: number,
-    personality: number
+    personality: number,
+    user?: any
 ): Promise<{ lifePath: string; expression: string; soulUrge: string; personality: string; genel: string }> => {
+    if (AI_BYPASS) return cannedNumerology(name, lifePath, expression, soulUrge, personality);
     const today = new Date().toISOString().split('T')[0];
     const prompt = `
     Bugünün Tarihi: ${today}
-    
-    Senin adın Valeria. Sezgileri çok güçlü bir Numerolog ve mistik rehbersin. Asla yapay zeka olduğunu söyleme. Karşındaki kişiyle samimi ve "Sen" diliyle konuş. Pisagor sistemine göre analiz yap.
-    
+
+    Pisagor sistemine göre usta bir numerolog olarak analiz yap.
+
     Kişi: ${name}
     Doğum Tarihi: ${birthDate}
-    
+    ${user ? `Doğum haritası bağlamı:\n    ${buildNatalBlock(user)}\n    (Numeroloji yorumlarını burç/element enerjileriyle harmanla — ör. Yaşam Yolu ${lifePath} ile ${user.sunSign || ''} Güneşi'nin ortak teması.)` : ''}
+
     Sayıları:
     - Yaşam Yolu (Life Path): ${lifePath}
     - Kader/İfade Sayısı (Expression): ${expression}
@@ -506,12 +660,8 @@ export const generateNumerologyReading = async (
   `;
 
     try {
-        const response = await getAI().models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-        });
-        const text = response.text || '';
+        const responseText = await aiGenerate(prompt, { json: true, tier: 'quality', maxTokens: 3000 });
+        const text = responseText || '';
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             try {

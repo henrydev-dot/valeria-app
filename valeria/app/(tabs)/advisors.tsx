@@ -1,84 +1,110 @@
-import React from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { GradientBackground, KismetCard, SectionHeader } from '../../src/components';
-import { useContentStore } from '../../src/stores/useContentStore';
+import { Screen, Card, AppText, LoadingView, EmptyState } from '../../src/components';
+import { ContentRepository } from '../../src/repositories/ContentRepository';
+import { Advisor } from '../../src/types';
 import { Colors } from '../../src/theme/colors';
-import { FontSize, Spacing, BorderRadius } from '../../src/theme/spacing';
+import { Spacing, BorderRadius } from '../../src/theme/spacing';
 
 export default function AdvisorsScreen() {
-    const advisors = useContentStore((s) => s.advisors);
+    const [advisors, setAdvisors] = useState<Advisor[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+
+    const load = async () => {
+        setLoading(true);
+        setError(false);
+        try {
+            const data = await ContentRepository.getAdvisors();
+            setAdvisors(data);
+        } catch {
+            setError(true);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        load();
+    }, []);
 
     return (
-        <GradientBackground>
-            <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-                <Text style={styles.title}>Danismanlar</Text>
-                <Text style={styles.subtitle}>Uzman danismanlarimizdan kisisel rehberlik alin.</Text>
+        <Screen>
+            <AppText variant="hero" style={styles.title}>Danışmanlar</AppText>
+            <AppText variant="body" style={styles.subtitle}>
+                Uzman danışmanlarımızdan kişisel rehberlik alın.
+            </AppText>
 
-                {advisors.map((advisor) => (
-                    <TouchableOpacity
-                        key={advisor.id}
-                        activeOpacity={0.8}
-                        onPress={() =>
-                            router.push({ pathname: '/advisor-detail', params: { id: String(advisor.id) } })
-                        }
-                    >
-                        <KismetCard style={styles.card}>
-                            <View style={styles.cardHeader}>
-                                <View style={styles.avatar}>
-                                    <Ionicons name="person" size={28} color={Colors.purpleLight} />
-                                </View>
-                                <View style={styles.info}>
-                                    <Text style={styles.name}>{advisor.name}</Text>
-                                    <View style={styles.ratingRow}>
-                                        <Ionicons name="star" size={14} color={Colors.accentYellow} />
-                                        <Text style={styles.rating}>{advisor.rating}</Text>
-                                        <Text style={styles.sessions}>{advisor.sessions} seans</Text>
-                                    </View>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
+            {loading && <LoadingView text="Danışmanlar yükleniyor..." />}
+
+            {!loading && error && (
+                <EmptyState
+                    icon={<Ionicons name="cloud-offline-outline" size={48} color={Colors.textMuted} />}
+                    title="Bir sorun oluştu"
+                    message="Danışmanlar yüklenemedi. Lütfen tekrar deneyin."
+                    actionLabel="Tekrar Dene"
+                    onAction={load}
+                />
+            )}
+
+            {!loading && !error && advisors.length === 0 && (
+                <EmptyState
+                    icon={<Ionicons name="people-outline" size={48} color={Colors.textMuted} />}
+                    title="Henüz danışman yok"
+                    message="Yakında uzman danışmanlarımız burada olacak."
+                />
+            )}
+
+            {!loading && !error && advisors.map((advisor) => (
+                <Card
+                    key={advisor.id}
+                    style={styles.card}
+                    accessibilityLabel={`${advisor.name} danışman profili`}
+                    onPress={() =>
+                        router.push({ pathname: '/advisor-detail', params: { id: String(advisor.id) } })
+                    }
+                >
+                    <View style={styles.cardHeader}>
+                        <View style={styles.avatar}>
+                            <Ionicons name="person" size={28} color={Colors.purpleLight} />
+                        </View>
+                        <View style={styles.info}>
+                            <AppText variant="h3">{advisor.name}</AppText>
+                            <View style={styles.ratingRow}>
+                                <Ionicons name="star" size={14} color={Colors.accentYellow} />
+                                <AppText variant="callout" color={Colors.accentYellow}>{advisor.rating}</AppText>
+                                <AppText variant="caption" style={styles.sessions}>{advisor.sessions} seans</AppText>
                             </View>
-                            <View style={styles.tags}>
-                                {advisor.specialties.map((s) => (
-                                    <View key={s} style={styles.tag}>
-                                        <Text style={styles.tagText}>{s}</Text>
-                                    </View>
-                                ))}
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
+                    </View>
+                    <View style={styles.tags}>
+                        {advisor.specialties.map((s) => (
+                            <View key={s} style={styles.tag}>
+                                <AppText variant="caption" color={Colors.purpleLight}>{s}</AppText>
                             </View>
-                            <View style={styles.priceRow}>
-                                {advisor.packages.map((pkg, idx) => (
-                                    <Text key={idx} style={styles.price}>
-                                        {pkg.duration}: {pkg.credits} kredi
-                                    </Text>
-                                ))}
-                            </View>
-                        </KismetCard>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
-        </GradientBackground>
+                        ))}
+                    </View>
+                    <View style={styles.priceRow}>
+                        {advisor.packages.map((pkg, idx) => (
+                            <AppText key={idx} variant="caption" color={Colors.textSecondary}>
+                                {pkg.duration}: {pkg.credits} kredi
+                            </AppText>
+                        ))}
+                    </View>
+                </Card>
+            ))}
+        </Screen>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    scrollContent: {
-        paddingHorizontal: Spacing.xl,
-        paddingTop: 60,
-        paddingBottom: 40,
-    },
     title: {
-        fontSize: FontSize.hero,
-        fontWeight: '700',
-        color: Colors.textPrimary,
         marginBottom: Spacing.sm,
     },
     subtitle: {
-        fontSize: FontSize.md,
-        color: Colors.textSecondary,
         marginBottom: Spacing.xxl,
     },
     card: {
@@ -93,7 +119,7 @@ const styles = StyleSheet.create({
         width: 50,
         height: 50,
         borderRadius: 25,
-        backgroundColor: Colors.purple + '30',
+        backgroundColor: Colors.purpleA25,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: Spacing.md,
@@ -101,25 +127,13 @@ const styles = StyleSheet.create({
     info: {
         flex: 1,
     },
-    name: {
-        fontSize: FontSize.lg,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-    },
     ratingRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
         marginTop: 2,
     },
-    rating: {
-        fontSize: FontSize.sm,
-        fontWeight: '600',
-        color: Colors.accentYellow,
-    },
     sessions: {
-        fontSize: FontSize.sm,
-        color: Colors.textMuted,
         marginLeft: Spacing.sm,
     },
     tags: {
@@ -132,19 +146,10 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.sm,
         paddingVertical: 3,
         borderRadius: BorderRadius.full,
-        backgroundColor: Colors.purple + '20',
-    },
-    tagText: {
-        fontSize: FontSize.xs,
-        color: Colors.purpleLight,
-        fontWeight: '500',
+        backgroundColor: Colors.purpleA15,
     },
     priceRow: {
         flexDirection: 'row',
         gap: Spacing.lg,
-    },
-    price: {
-        fontSize: FontSize.sm,
-        color: Colors.textSecondary,
     },
 });

@@ -1,35 +1,156 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, ScrollView, TextInput, Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { GradientBackground, KismetCard, SectionHeader, PrimaryButton } from '../../src/components';
+import {
+    Screen, AppText, Button, Card, EmptyState, LoadingView, Skeleton,
+} from '../../src/components';
 import { useEntitlementsStore } from '../../src/stores/useEntitlementsStore';
+import { ContentRepository } from '../../src/repositories/ContentRepository';
+import { Advisor } from '../../src/types';
 import { Colors } from '../../src/theme/colors';
-import { FontSize, Spacing, BorderRadius } from '../../src/theme/spacing';
+import { Spacing, BorderRadius, FontWeight } from '../../src/theme/spacing';
 import * as api from '../../src/api';
 
-type Tab = 'tarot' | 'kahve' | 'sarkac';
+type ReadingType = 'tarot' | 'kahve' | 'yildiz' | 'sarkac';
 
-const ADVISORS = [
-    { id: 'valeria', name: 'Valeria', title: 'Mistik Rehber', icon: 'sparkles' as const, color: Colors.accentYellow, isAI: true },
-    { id: 'ayse', name: 'Ayşe Hanım', title: 'Tarot Uzmanı', icon: 'person-circle' as const, color: Colors.purpleLight, isAI: false },
-    { id: 'mehmet', name: 'Mehmet Hoca', title: 'Kahve Falı', icon: 'person-circle' as const, color: Colors.info, isAI: false },
-    { id: 'elif', name: 'Elif Hanım', title: 'Medyum', icon: 'person-circle' as const, color: '#F472B6', isAI: false },
+interface ReadingTypeDef {
+    key: ReadingType;
+    name: string;
+    description: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    color: string;
+    /** Credit cost of the Valeria (AI) reading. 0 = free/local. */
+    cost: number;
+    /** Kart üzerinde gösterilecek ücret etiketi (cost yerine geçer). */
+    costLabel?: string;
+    route: string;
+    /** Whether this type can be handed to a human advisor. */
+    usesAdvisor: boolean;
+    /** Danışmansız türlerde aksiyon panelinde gösterilecek metinler. */
+    panelDesc?: string;
+    panelCta?: string;
+}
+
+const READING_TYPES: ReadingTypeDef[] = [
+    {
+        key: 'tarot',
+        name: 'Tarot Okuması',
+        description: 'Geçmiş, şimdi ve gelecek için üç kart çek.',
+        icon: 'albums',
+        color: Colors.accentYellow,
+        cost: 30,
+        route: '/tarot-reading',
+        usesAdvisor: true,
+    },
+    {
+        key: 'kahve',
+        name: 'Kahve Falı',
+        description: 'Fincanındaki sembolleri Valeria yorumlasın.',
+        icon: 'cafe',
+        color: Colors.purpleLight,
+        cost: 20,
+        route: '/coffee-reading',
+        usesAdvisor: true,
+    },
+    {
+        key: 'yildiz',
+        name: 'Yıldızlara Sor',
+        description: 'Horary: doğum haritana göre tek soruna net yanıt.',
+        icon: 'telescope',
+        color: '#C084FC',
+        cost: 0,
+        costLabel: 'Günlük ücretsiz',
+        route: '/ask-question',
+        usesAdvisor: false,
+        panelDesc: 'Horary astroloji, tek bir sorunun cevabını gökyüzünde arar. Valeria doğum haritanı — burcunu, yükselenini, evlerini — ve şu anki transitleri okuyarak sana net bir hüküm verir: olumlu, olumsuz ya da koşullu.',
+        panelCta: 'Yıldızlara Sor',
+    },
+    {
+        key: 'sarkac',
+        name: 'Sarkaç',
+        description: 'Evet/hayır sorularına anında yanıt al.',
+        icon: 'navigate',
+        color: Colors.info,
+        cost: 0,
+        route: '/pendulum',
+        usesAdvisor: false,
+        panelDesc: 'Sarkaç yalnızca senin enerjinle çalışır — falcı gerekmez. Evet/hayır ile yanıtlanabilecek bir soru sor, sarkaç senin için dönsün.',
+        panelCta: 'Sarkaca Sor',
+    },
 ];
 
+/** Backend deducts this many credits per human-advisor request. */
+const ADVISOR_REQUEST_COST = 10;
+
+const VALERIA_ID = 'valeria';
+
+interface RosterAdvisor {
+    id: string;
+    name: string;
+    subtitle: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    color: string;
+    isAI: boolean;
+}
+
+const VALERIA: RosterAdvisor = {
+    id: VALERIA_ID,
+    name: 'Valeria',
+    subtitle: 'Yapay Zekâ Rehber • Anında',
+    icon: 'sparkles',
+    color: Colors.accentYellow,
+    isAI: true,
+};
+
 export default function ReadingScreen() {
-    const [activeTab, setActiveTab] = useState<Tab>('tarot');
-    const [selectedAdvisor, setSelectedAdvisor] = useState('valeria');
+    const [activeType, setActiveType] = useState<ReadingType>('tarot');
+    const [selectedAdvisor, setSelectedAdvisor] = useState<string>(VALERIA_ID);
     const [question, setQuestion] = useState('');
     const [sending, setSending] = useState(false);
+
+    const [humanAdvisors, setHumanAdvisors] = useState<RosterAdvisor[]>([]);
+    const [advisorsLoading, setAdvisorsLoading] = useState(true);
+
     const [pendingRequests, setPendingRequests] = useState<any[]>([]);
     const [requestsLoading, setRequestsLoading] = useState(true);
+
     const refreshEnt = useEntitlementsStore((s) => s.refresh);
 
-    const selectedAdv = ADVISORS.find(a => a.id === selectedAdvisor)!;
-    const isValearia = selectedAdv.isAI;
+    const activeDef = READING_TYPES.find((t) => t.key === activeType)!;
+    const roster: RosterAdvisor[] = [VALERIA, ...humanAdvisors];
+    const selectedAdv = roster.find((a) => a.id === selectedAdvisor) ?? VALERIA;
+    const isAI = selectedAdv.isAI;
 
-    // Load pending requests every time the screen comes into focus
+    // Load the human advisor roster from the single content source.
+    useEffect(() => {
+        let active = true;
+        (async () => {
+            try {
+                const data = await ContentRepository.getAdvisors();
+                if (!active) return;
+                setHumanAdvisors(
+                    (data as Advisor[]).map((a) => ({
+                        id: String(a.id),
+                        name: a.name,
+                        subtitle: a.specialties.slice(0, 2).join(' • '),
+                        icon: 'person-circle' as const,
+                        color: Colors.purpleLight,
+                        isAI: false,
+                    }))
+                );
+            } catch {
+                if (active) setHumanAdvisors([]);
+            } finally {
+                if (active) setAdvisorsLoading(false);
+            }
+        })();
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    // Load pending requests every time the screen comes into focus.
     useFocusEffect(
         useCallback(() => {
             loadRequests();
@@ -40,312 +161,405 @@ export default function ReadingScreen() {
         try {
             const reqs = await api.readings.advisorRequests();
             setPendingRequests(reqs);
-        } catch (e) {
-            console.log('loadRequests error:', e);
+        } catch {
+            // Swallow — surfaced via the empty state below.
         } finally {
             setRequestsLoading(false);
         }
     };
 
-    const handleSendToAdvisor = async () => {
+    const selectType = (type: ReadingType) => {
+        setActiveType(type);
+        const def = READING_TYPES.find((t) => t.key === type)!;
+        // Reset to Valeria when switching to a type that has no advisor flow.
+        if (!def.usesAdvisor) setSelectedAdvisor(VALERIA_ID);
+    };
+
+    const startValeriaReading = () => {
+        router.push(activeDef.route as any);
+    };
+
+    const handleAdvisorAction = async () => {
+        // Kahve requires 4 cup photos — hand off to the dedicated screen that
+        // collects them and submits the advisor request there.
+        if (activeType === 'kahve') {
+            router.push({
+                pathname: '/coffee-reading',
+                params: { advisorId: selectedAdv.id },
+            } as any);
+            return;
+        }
+
         if (!question.trim()) {
             Alert.alert('Soru Gerekli', 'Lütfen falcıya sormak istediğiniz soruyu yazın.');
             return;
         }
         setSending(true);
         try {
-            await api.readings.advisorRequest(
-                selectedAdvisor,
-                activeTab,
-                question.trim()
-            );
+            await api.readings.advisorRequest(selectedAdv.id, activeType, question.trim());
             await refreshEnt();
             Alert.alert(
-                'Fal İsteği Gönderildi ✨',
-                `${selectedAdv.name} falınızı en kısa sürede okuyacak. Falınız hazır olduğunda bildirim alacaksınız.`,
+                'Fal İsteği Gönderildi',
+                `${selectedAdv.name} falınızı en kısa sürede okuyacak. Hazır olduğunda bildirim alacaksınız.`,
                 [{ text: 'Tamam' }]
             );
             setQuestion('');
             await loadRequests();
         } catch (e: any) {
-            Alert.alert('Hata', e.message || 'Fal isteği gönderilemedi');
+            Alert.alert('Hata', e?.message || 'Fal isteği gönderilemedi');
         } finally {
             setSending(false);
         }
     };
 
-    const tabs: { key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-        { key: 'tarot', label: 'Tarot', icon: 'layers-outline' },
-        { key: 'kahve', label: 'Kahve', icon: 'cafe-outline' },
-        { key: 'sarkac', label: 'Sarkaç', icon: 'navigate-outline' },
-    ];
+    const getStatusColor = (status: string) =>
+        status === 'answered' ? Colors.success : Colors.warning;
+    const getStatusText = (status: string) =>
+        status === 'answered' ? 'Cevaplandı' : 'Beklemede';
+    const getAdvisorName = (id: string) =>
+        roster.find((a) => a.id === id)?.name ?? 'Falcı';
 
-    const getStatusColor = (status: string) => status === 'answered' ? Colors.success : Colors.warning;
-    const getStatusText = (status: string) => status === 'answered' ? 'Cevaplandı' : 'Beklemede';
-    const getAdvisorName = (id: string) => ADVISORS.find(a => a.id === id)?.name || id;
+    const costLabel = (cost: number, label?: string) => label || (cost === 0 ? 'Ücretsiz' : `${cost} kredi`);
 
     return (
-        <GradientBackground>
-            <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-                <Text style={styles.title}>Fal</Text>
+        <Screen edges={['top']} keyboard>
+            <AppText variant="hero" style={styles.heading}>Fal</AppText>
+            <AppText variant="body" style={styles.subheading}>
+                Sana nasıl yol gösterelim? Bir fal türü seç.
+            </AppText>
 
-                {/* Segmented Control */}
-                <View style={styles.segmented}>
-                    {tabs.map((tab) => (
-                        <TouchableOpacity
-                            key={tab.key}
-                            style={[styles.segment, activeTab === tab.key && styles.segmentActive]}
-                            onPress={() => setActiveTab(tab.key)}
+            {/* Reading type entry tiles */}
+            <View style={styles.tiles}>
+                {READING_TYPES.map((t) => {
+                    const isActive = activeType === t.key;
+                    return (
+                        <Card
+                            key={t.key}
+                            onPress={() => selectType(t.key)}
+                            accessibilityLabel={`${t.name}, ${costLabel(t.cost, t.costLabel)}`}
+                            style={[styles.tile, isActive && { borderColor: t.color }]}
                         >
-                            <Ionicons
-                                name={tab.icon}
-                                size={18}
-                                color={activeTab === tab.key ? Colors.accentYellow : Colors.textMuted}
-                            />
-                            <Text style={[styles.segmentText, activeTab === tab.key && styles.segmentTextActive]}>
-                                {tab.label}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
+                            <View style={styles.tileRow}>
+                                <View style={[styles.tileIcon, { backgroundColor: t.color + '20' }]}>
+                                    <Ionicons name={t.icon} size={26} color={t.color} />
+                                </View>
+                                <View style={styles.tileText}>
+                                    <AppText variant="h3">{t.name}</AppText>
+                                    <AppText variant="caption" numberOfLines={1}>
+                                        {t.description}
+                                    </AppText>
+                                </View>
+                                <View style={styles.tileMeta}>
+                                    <View
+                                        style={[
+                                            styles.costBadge,
+                                            t.cost === 0 && styles.costBadgeFree,
+                                        ]}
+                                    >
+                                        <AppText
+                                            variant="caption"
+                                            color={t.cost === 0 ? Colors.success : Colors.accentYellow}
+                                            style={styles.costText}
+                                        >
+                                            {costLabel(t.cost, t.costLabel)}
+                                        </AppText>
+                                    </View>
+                                    <Ionicons
+                                        name={isActive ? 'chevron-down' : 'chevron-forward'}
+                                        size={18}
+                                        color={Colors.textMuted}
+                                    />
+                                </View>
+                            </View>
+                        </Card>
+                    );
+                })}
+            </View>
 
-                {/* Advisor Selection — for tarot & kahve */}
-                {(activeTab === 'tarot' || activeTab === 'kahve') && (
-                    <View style={styles.advisorSection}>
-                        <Text style={styles.advisorLabel}>Kim baksın?</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.advisorRow}>
-                            {ADVISORS.map((adv) => {
-                                const isActive = selectedAdvisor === adv.id;
+            {/* Detail / action panel for the selected type */}
+            {activeDef.usesAdvisor ? (
+                <View style={styles.panel}>
+                    <AppText variant="label" style={styles.panelLabel}>Kim baksın?</AppText>
+
+                    {advisorsLoading ? (
+                        <View style={styles.advisorRow}>
+                            {[0, 1, 2].map((i) => (
+                                <Skeleton key={i} width={132} height={116} radius={BorderRadius.lg} style={styles.advisorSkeleton} />
+                            ))}
+                        </View>
+                    ) : (
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.advisorRow}
+                        >
+                            {roster.map((adv) => {
+                                const active = selectedAdvisor === adv.id;
                                 return (
-                                    <TouchableOpacity
+                                    <Card
                                         key={adv.id}
-                                        style={[styles.advisorCard, isActive && { borderColor: adv.color }]}
                                         onPress={() => setSelectedAdvisor(adv.id)}
-                                        activeOpacity={0.7}
+                                        padded={false}
+                                        accessibilityLabel={`${adv.name}, ${adv.subtitle}`}
+                                        style={[styles.advisorCard, active && { borderColor: adv.color }]}
                                     >
                                         <View style={[styles.advisorAvatar, { backgroundColor: adv.color + '20' }]}>
-                                            <Ionicons name={adv.icon} size={24} color={adv.color} />
+                                            <Ionicons name={adv.icon} size={26} color={adv.color} />
                                         </View>
-                                        <Text style={[styles.advisorName, isActive && { color: Colors.textPrimary }]}>
+                                        <AppText variant="bodyStrong" center numberOfLines={1} style={styles.advisorName}>
                                             {adv.name}
-                                        </Text>
-                                        <Text style={styles.advisorTitle}>{adv.title}</Text>
-                                        {isActive && (
-                                            <Ionicons name="checkmark-circle" size={16} color={adv.color} style={styles.advisorCheck} />
+                                        </AppText>
+                                        <AppText variant="caption" center numberOfLines={2} style={styles.advisorSubtitle}>
+                                            {adv.subtitle}
+                                        </AppText>
+                                        {active && (
+                                            <View style={styles.advisorCheck}>
+                                                <Ionicons name="checkmark-circle" size={18} color={adv.color} />
+                                            </View>
                                         )}
-                                    </TouchableOpacity>
+                                    </Card>
                                 );
                             })}
                         </ScrollView>
-                    </View>
-                )}
+                    )}
 
-                {/* Tarot Content */}
-                {activeTab === 'tarot' && (
-                    <View>
-                        {isValearia ? (
-                            <KismetCard glow style={styles.card}>
-                                <Ionicons name="layers" size={48} color={Colors.accentYellow} style={styles.icon} />
-                                <Text style={styles.cardTitle}>3 Kartlı Tarot Okuması</Text>
-                                <Text style={styles.cardDesc}>
-                                    Geçmiş, şimdi ve gelecek için 3 kart çekin. Valeria size kendinize özel, sezgisel okumalar sunacak.
-                                </Text>
-                                <PrimaryButton
-                                    title="Tarot Kartı Çek"
-                                    onPress={() => router.push('/tarot-reading')}
-                                    style={styles.ctaBtn}
+                    {!advisorsLoading && humanAdvisors.length === 0 && (
+                        <View style={styles.humansEmpty}>
+                            <EmptyState
+                                icon={<Ionicons name="people-outline" size={40} color={Colors.textMuted} />}
+                                title="Şu an uzman falcı yok"
+                                message="Gerçek falcılarımız çevrimiçi olduğunda burada görünecek. Şimdilik Valeria ile başlayabilirsin."
+                            />
+                        </View>
+                    )}
+
+                    {/* Action card */}
+                    <Card glow style={styles.actionCard}>
+                        {isAI ? (
+                            <>
+                                <AppText variant="h2" center>{activeDef.name}</AppText>
+                                <AppText variant="body" center style={styles.actionDesc}>
+                                    {activeType === 'tarot'
+                                        ? 'Valeria senin için üç kart çekip geçmiş, şimdi ve geleceğe dair sezgisel bir yorum sunacak.'
+                                        : 'Fincan fotoğraflarını yükle; Valeria enerjine odaklanıp sana özel detaylı bir yorum hazırlayacak.'}
+                                </AppText>
+                                <View style={styles.costPill}>
+                                    <Ionicons name="diamond-outline" size={14} color={Colors.accentYellow} />
+                                    <AppText variant="caption" color={Colors.accentYellow} style={styles.costPillText}>
+                                        {costLabel(activeDef.cost)}
+                                    </AppText>
+                                </View>
+                                <Button
+                                    title={activeType === 'tarot' ? 'Tarot Kartı Çek' : 'Fal Baktır'}
+                                    onPress={startValeriaReading}
+                                    style={styles.actionBtn}
                                 />
-                            </KismetCard>
+                            </>
                         ) : (
-                            <KismetCard glow style={styles.card}>
-                                <Ionicons name="layers" size={48} color={selectedAdv.color} style={styles.icon} />
-                                <Text style={styles.cardTitle}>{selectedAdv.name} — Tarot Falı</Text>
-                                <Text style={styles.cardDesc}>
-                                    Sorunuzu yazın ve {selectedAdv.name}'a gönderin. Falcınız kartlarınızı okuyup size özel yorum yazacak.
-                                </Text>
-                                <TextInput
-                                    style={styles.questionInput}
-                                    placeholder="Sorunuzu yazın..."
-                                    placeholderTextColor={Colors.textMuted}
-                                    value={question}
-                                    onChangeText={setQuestion}
-                                    multiline
-                                    numberOfLines={3}
-                                    editable={!sending}
-                                />
-                                <Text style={styles.costNote}>Ücret: 10 kredi</Text>
-                                {sending ? (
-                                    <ActivityIndicator size="small" color={Colors.accentYellow} style={{ marginTop: Spacing.md }} />
-                                ) : (
-                                    <PrimaryButton
-                                        title="Falcıya Gönder"
-                                        onPress={handleSendToAdvisor}
-                                        style={styles.ctaBtn}
+                            <>
+                                <AppText variant="h2" center>{selectedAdv.name}</AppText>
+                                <AppText variant="body" center style={styles.actionDesc}>
+                                    {activeType === 'tarot'
+                                        ? `Sorunu yaz, ${selectedAdv.name} kartlarını okuyup sana özel bir yorum yazsın.`
+                                        : `Fincan fotoğraflarını yükleyip sorunu sor; ${selectedAdv.name} senin için yorumlayacak.`}
+                                </AppText>
+                                {activeType === 'tarot' && (
+                                    <TextInput
+                                        style={styles.questionInput}
+                                        placeholder="Sorunu yaz..."
+                                        placeholderTextColor={Colors.textMuted}
+                                        value={question}
+                                        onChangeText={setQuestion}
+                                        multiline
+                                        editable={!sending}
+                                        accessibilityLabel="Falcıya sorulacak soru"
                                     />
                                 )}
-                            </KismetCard>
-                        )}
-                    </View>
-                )}
-
-                {/* Kahve Content */}
-                {activeTab === 'kahve' && (
-                    <View>
-                        {isValearia ? (
-                            <KismetCard glow style={styles.card}>
-                                <Ionicons name="cafe" size={48} color={Colors.purpleLight} style={styles.icon} />
-                                <Text style={styles.cardTitle}>Kahve Falı</Text>
-                                <Text style={styles.cardDesc}>
-                                    Fincan fotoğraflarınızı yükleyin. Valeria enerjinize odaklanıp size özel detaylı fal yorumunuzu hazırlayacak.
-                                </Text>
-                                <PrimaryButton
-                                    title="Fal Baktır"
-                                    onPress={() => router.push('/coffee-reading')}
-                                    style={styles.ctaBtn}
-                                />
-                            </KismetCard>
-                        ) : (
-                            <KismetCard glow style={styles.card}>
-                                <Ionicons name="cafe" size={48} color={selectedAdv.color} style={styles.icon} />
-                                <Text style={styles.cardTitle}>{selectedAdv.name} — Kahve Falı</Text>
-                                <Text style={styles.cardDesc}>
-                                    Fincan fotoğraflarınızı yüklemek ve sorunuzu sormak için devam edin. Gerçek falcı sizin için yorumlayacak.
-                                </Text>
-                                <Text style={styles.costNote}>Ücret: 10 kredi</Text>
-                                <PrimaryButton
-                                    title="Fotoğraf Yükle ve Baktır"
-                                    onPress={() => router.push({ pathname: '/coffee-reading', params: { advisorId: selectedAdv.id } })}
-                                    style={styles.ctaBtn}
-                                />
-                            </KismetCard>
-                        )}
-                    </View>
-                )}
-
-                {/* Sarkaç Content */}
-                {activeTab === 'sarkac' && (
-                    <View>
-                        <KismetCard glow style={styles.card}>
-                            <Ionicons name="navigate" size={48} color={Colors.accentYellow} style={styles.icon} />
-                            <Text style={styles.cardTitle}>Sarkaç</Text>
-                            <Text style={styles.cardDesc}>
-                                Evet/Hayır ile cevaplanabilecek bir soru sorun. Sarkaç sizin için dönecek ve cevabınızı verecek.
-                            </Text>
-                            <PrimaryButton
-                                title="Sarkaca Sor"
-                                onPress={() => router.push('/pendulum')}
-                                style={styles.ctaBtn}
-                            />
-                        </KismetCard>
-                    </View>
-                )}
-
-                {/* Pending Reading Requests */}
-                {pendingRequests.length > 0 && (
-                    <View style={{ marginTop: Spacing.xl }}>
-                        <SectionHeader title="Fal İstekleriniz" />
-                        {pendingRequests.map((req: any) => (
-                            <KismetCard key={req._id} style={styles.requestCard}>
-                                <View style={styles.requestRow}>
-                                    <Ionicons
-                                        name={req.type === 'tarot' ? 'layers-outline' : 'cafe-outline'}
-                                        size={20}
-                                        color={Colors.purpleLight}
-                                    />
-                                    <View style={styles.requestContent}>
-                                        <View style={styles.requestHeader}>
-                                            <Text style={styles.requestTitle}>
-                                                {getAdvisorName(req.advisorId)}
-                                            </Text>
-                                            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(req.status) + '20' }]}>
-                                                <View style={[styles.statusDot, { backgroundColor: getStatusColor(req.status) }]} />
-                                                <Text style={[styles.statusText, { color: getStatusColor(req.status) }]}>
-                                                    {getStatusText(req.status)}
-                                                </Text>
-                                            </View>
-                                        </View>
-                                        <Text style={styles.requestQuestion} numberOfLines={2}>
-                                            {req.question}
-                                        </Text>
-                                        {req.status === 'answered' && req.answer && (
-                                            <Text style={styles.requestAnswer}>{req.answer}</Text>
-                                        )}
-                                        <Text style={styles.requestDate}>
-                                            {new Date(req.createdAt).toLocaleDateString('tr-TR')}
-                                        </Text>
-                                    </View>
+                                <View style={styles.costPill}>
+                                    <Ionicons name="diamond-outline" size={14} color={Colors.accentYellow} />
+                                    <AppText variant="caption" color={Colors.accentYellow} style={styles.costPillText}>
+                                        {ADVISOR_REQUEST_COST} kredi
+                                    </AppText>
                                 </View>
-                            </KismetCard>
+                                <Button
+                                    title={activeType === 'tarot' ? 'Falcıya Gönder' : 'Fotoğraf Yükle ve Baktır'}
+                                    onPress={handleAdvisorAction}
+                                    loading={sending}
+                                    style={styles.actionBtn}
+                                />
+                            </>
+                        )}
+                    </Card>
+                </View>
+            ) : (
+                <View style={styles.panel}>
+                    <Card glow style={styles.actionCard}>
+                        <View style={[styles.tileIcon, styles.sarkacIcon, { backgroundColor: activeDef.color + '20' }]}>
+                            <Ionicons name={activeDef.icon} size={30} color={activeDef.color} />
+                        </View>
+                        <AppText variant="h2" center>{activeDef.name}</AppText>
+                        <AppText variant="body" center style={styles.actionDesc}>
+                            {activeDef.panelDesc}
+                        </AppText>
+                        <View style={[styles.costPill, styles.costPillFree]}>
+                            <Ionicons
+                                name={activeType === 'yildiz' ? 'gift-outline' : 'leaf-outline'}
+                                size={14}
+                                color={Colors.success}
+                            />
+                            <AppText variant="caption" color={Colors.success} style={styles.costPillText}>
+                                {activeType === 'yildiz'
+                                    ? 'Günlük ücretsiz hak • Sonrası kredi ile'
+                                    : 'Ücretsiz • Cihazında çalışır'}
+                            </AppText>
+                        </View>
+                        <Button title={activeDef.panelCta || 'Başla'} onPress={startValeriaReading} style={styles.actionBtn} />
+                    </Card>
+                </View>
+            )}
+
+            {/* Pending advisor requests */}
+            <View style={styles.requestsSection}>
+                <AppText variant="h2" style={styles.requestsTitle}>Fal İstekleriniz</AppText>
+
+                {requestsLoading ? (
+                    <View>
+                        {[0, 1].map((i) => (
+                            <Card key={i} style={styles.requestCard}>
+                                <Skeleton width="60%" height={16} />
+                                <Skeleton width="90%" height={12} style={{ marginTop: Spacing.sm }} />
+                            </Card>
                         ))}
                     </View>
+                ) : pendingRequests.length === 0 ? (
+                    <Card>
+                        <EmptyState
+                            icon={<Ionicons name="hourglass-outline" size={40} color={Colors.textMuted} />}
+                            title="Henüz fal isteğin yok"
+                            message="Bir uzman falcıya gönderdiğin fallar ve yanıtları burada listelenir."
+                        />
+                    </Card>
+                ) : (
+                    pendingRequests.map((req: any) => (
+                        <Card key={req._id} style={styles.requestCard}>
+                            <View style={styles.requestRow}>
+                                <Ionicons
+                                    name={req.type === 'tarot' ? 'albums-outline' : 'cafe-outline'}
+                                    size={20}
+                                    color={Colors.purpleLight}
+                                />
+                                <View style={styles.requestContent}>
+                                    <View style={styles.requestHeader}>
+                                        <AppText variant="bodyStrong">{getAdvisorName(req.advisorId)}</AppText>
+                                        <View
+                                            style={[
+                                                styles.statusBadge,
+                                                { backgroundColor: getStatusColor(req.status) + '20' },
+                                            ]}
+                                        >
+                                            <View style={[styles.statusDot, { backgroundColor: getStatusColor(req.status) }]} />
+                                            <AppText variant="caption" color={getStatusColor(req.status)} style={styles.statusText}>
+                                                {getStatusText(req.status)}
+                                            </AppText>
+                                        </View>
+                                    </View>
+                                    <AppText variant="body" numberOfLines={2} style={styles.requestQuestion}>
+                                        {req.question}
+                                    </AppText>
+                                    {req.status === 'answered' && req.answer && (
+                                        <AppText variant="callout" color={Colors.textPrimary} style={styles.requestAnswer}>
+                                            {req.answer}
+                                        </AppText>
+                                    )}
+                                    <AppText variant="caption" style={styles.requestDate}>
+                                        {new Date(req.createdAt).toLocaleDateString('tr-TR')}
+                                    </AppText>
+                                </View>
+                            </View>
+                        </Card>
+                    ))
                 )}
-            </ScrollView>
-        </GradientBackground>
+            </View>
+        </Screen>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    scrollContent: { paddingHorizontal: Spacing.xl, paddingTop: 60, paddingBottom: 40 },
-    title: { fontSize: FontSize.hero, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.xl },
-    segmented: {
-        flexDirection: 'row', backgroundColor: Colors.backgroundCard,
-        borderRadius: BorderRadius.lg, padding: 4, marginBottom: Spacing.xl,
-        borderWidth: 1, borderColor: Colors.border,
+    heading: { marginTop: Spacing.sm },
+    subheading: { marginTop: Spacing.xs, marginBottom: Spacing.xl },
+
+    tiles: { gap: Spacing.md },
+    tile: { paddingVertical: Spacing.lg, paddingHorizontal: Spacing.lg, borderWidth: 1.5 },
+    tileRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+    tileIcon: {
+        width: 48, height: 48, borderRadius: BorderRadius.md,
+        alignItems: 'center', justifyContent: 'center',
     },
-    segment: {
-        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        paddingVertical: Spacing.md, borderRadius: BorderRadius.md, gap: 6,
+    tileText: { flex: 1, gap: 2 },
+    tileMeta: { alignItems: 'flex-end', gap: Spacing.xs },
+    costBadge: {
+        paddingHorizontal: Spacing.sm, paddingVertical: 3,
+        borderRadius: BorderRadius.full, backgroundColor: Colors.goldA12,
     },
-    segmentActive: { backgroundColor: Colors.backgroundCardLight },
-    segmentText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.textMuted },
-    segmentTextActive: { color: Colors.accentYellow },
-    advisorSection: { marginBottom: Spacing.xl },
-    advisorLabel: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.textMuted, marginBottom: Spacing.sm },
-    advisorRow: { flexDirection: 'row' },
+    costBadgeFree: { backgroundColor: 'rgba(52, 211, 153, 0.14)' },
+    costText: { fontWeight: FontWeight.bold },
+
+    panel: { marginTop: Spacing.xl },
+    panelLabel: { marginBottom: Spacing.sm },
+    advisorRow: { gap: Spacing.md, paddingVertical: Spacing.xs, paddingRight: Spacing.xl },
+    advisorSkeleton: { marginRight: 0 },
     advisorCard: {
-        alignItems: 'center', paddingVertical: Spacing.md, paddingHorizontal: Spacing.md,
-        borderRadius: BorderRadius.lg, backgroundColor: Colors.backgroundCard,
-        borderWidth: 1.5, borderColor: Colors.border, marginRight: Spacing.sm, width: 90, gap: 4,
+        width: 132, height: 156, paddingVertical: Spacing.lg, paddingHorizontal: Spacing.md,
+        alignItems: 'center', justifyContent: 'flex-start', borderWidth: 1.5, gap: Spacing.xs,
     },
-    advisorAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-    advisorName: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary, textAlign: 'center' },
-    advisorTitle: { fontSize: 9, color: Colors.textMuted, textAlign: 'center' },
-    advisorCheck: { position: 'absolute', top: 4, right: 4 },
-    aiBadge: {
-        position: 'absolute', top: 4, left: 4,
-        backgroundColor: Colors.accentYellow, paddingHorizontal: 4, paddingVertical: 1,
-        borderRadius: BorderRadius.full,
+    advisorAvatar: {
+        width: 48, height: 48, borderRadius: 24,
+        alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs,
     },
-    aiBadgeText: { fontSize: 8, fontWeight: '700', color: '#000' },
-    card: { marginBottom: Spacing.lg, alignItems: 'center' },
-    icon: { marginBottom: Spacing.lg },
-    cardTitle: { fontSize: FontSize.xl, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.sm, textAlign: 'center' },
-    cardDesc: { fontSize: FontSize.md, color: Colors.textSecondary, lineHeight: 22, textAlign: 'center', marginBottom: Spacing.lg },
-    ctaBtn: { width: '100%' },
+    advisorName: { width: '100%' },
+    advisorSubtitle: { minHeight: 36 },
+    advisorCheck: { position: 'absolute', top: Spacing.sm, right: Spacing.sm },
+    humansEmpty: { marginTop: Spacing.sm },
+
+    actionCard: { marginTop: Spacing.lg, alignItems: 'center' },
+    sarkacIcon: { marginBottom: Spacing.md },
+    actionDesc: { marginTop: Spacing.sm, marginBottom: Spacing.md },
+    costPill: {
+        flexDirection: 'row', alignItems: 'center', gap: Spacing.xs,
+        paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs,
+        borderRadius: BorderRadius.full, backgroundColor: Colors.goldA12,
+        marginBottom: Spacing.lg,
+    },
+    costPillFree: { backgroundColor: 'rgba(52, 211, 153, 0.14)' },
+    costPillText: { fontWeight: FontWeight.bold },
+    actionBtn: { width: '100%' },
     questionInput: {
-        width: '100%', backgroundColor: Colors.backgroundCard, borderRadius: BorderRadius.lg,
-        padding: Spacing.lg, fontSize: FontSize.md, color: Colors.textPrimary,
-        borderWidth: 1, borderColor: Colors.border, minHeight: 80, textAlignVertical: 'top',
-        marginBottom: Spacing.sm,
+        width: '100%', backgroundColor: Colors.surface2, borderRadius: BorderRadius.md,
+        padding: Spacing.lg, color: Colors.textPrimary, fontSize: 15,
+        borderWidth: 1, borderColor: Colors.border, minHeight: 90,
+        textAlignVertical: 'top', marginBottom: Spacing.lg,
     },
-    costNote: { fontSize: FontSize.sm, color: Colors.accentYellow, fontWeight: '600', marginBottom: Spacing.sm },
-    requestCard: { marginBottom: Spacing.sm },
+
+    requestsSection: { marginTop: Spacing.xxxl },
+    requestsTitle: { marginBottom: Spacing.md },
+    requestCard: { marginBottom: Spacing.md },
     requestRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md },
     requestContent: { flex: 1 },
-    requestHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-    requestTitle: { fontSize: FontSize.md, fontWeight: '600', color: Colors.textPrimary },
+    requestHeader: {
+        flexDirection: 'row', justifyContent: 'space-between',
+        alignItems: 'center', marginBottom: Spacing.xs,
+    },
     statusBadge: {
-        flexDirection: 'row', alignItems: 'center', gap: 4,
-        paddingHorizontal: 8, paddingVertical: 2, borderRadius: BorderRadius.full,
+        flexDirection: 'row', alignItems: 'center', gap: Spacing.xs,
+        paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: BorderRadius.full,
     },
     statusDot: { width: 6, height: 6, borderRadius: 3 },
-    statusText: { fontSize: 10, fontWeight: '600' },
-    requestQuestion: { fontSize: FontSize.sm, color: Colors.textSecondary, marginBottom: 4 },
+    statusText: { fontWeight: FontWeight.semibold },
+    requestQuestion: { marginBottom: Spacing.xs },
     requestAnswer: {
-        fontSize: FontSize.sm, color: Colors.textPrimary, lineHeight: 20,
-        backgroundColor: Colors.backgroundCard, padding: Spacing.sm, borderRadius: BorderRadius.md,
-        marginBottom: 4, borderLeftWidth: 3, borderLeftColor: Colors.success,
+        marginTop: Spacing.xs, marginBottom: Spacing.xs,
+        backgroundColor: Colors.surface2, padding: Spacing.md,
+        borderRadius: BorderRadius.md, borderLeftWidth: 3, borderLeftColor: Colors.success,
     },
-    requestDate: { fontSize: FontSize.xs, color: Colors.textMuted },
+    requestDate: { marginTop: Spacing.xs },
 });

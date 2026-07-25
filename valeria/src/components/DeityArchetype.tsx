@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, Image, TouchableOpacity, Dimensions } from 'react-native';
+import { StyleSheet, View, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
-import { FontSize, Spacing, BorderRadius } from '../theme/spacing';
+import { Spacing, BorderRadius } from '../theme/spacing';
+import { AppText } from './AppText';
+import { Card } from './Card';
 import { useUserStore } from '../stores/useUserStore';
 import { ContentRepository } from '../repositories/ContentRepository';
 import type { Deity } from '../types';
-
-const { width } = Dimensions.get('window');
 
 import { API_HOST } from '../api';
 const DEITY_IMAGES: Record<string, any> = {
@@ -47,49 +47,41 @@ export function DeityArchetype() {
     const deityImage = DEITY_IMAGES[deity.id];
 
     return (
-        <View style={styles.container}>
-            {/* Compact Card — always visible */}
-            <TouchableOpacity
-                style={styles.card}
-                onPress={() => setExpanded(!expanded)}
-                activeOpacity={0.85}
-            >
-                {/* Deity Image */}
-                <Image
-                    source={deityImage}
-                    style={styles.avatar}
-                    resizeMode="cover"
-                />
-                {/* Info */}
+        <Card
+            onPress={() => setExpanded(!expanded)}
+            accessibilityLabel={`Arketipin ${deity.nameTR}. ${expanded ? 'Detayları gizle' : 'Detayları göster'}`}
+            padded={false}
+        >
+            {/* Compact header — always visible */}
+            <View style={styles.card}>
+                <Image source={deityImage} style={styles.avatar} resizeMode="cover" />
                 <View style={styles.info}>
-                    <Text style={styles.label}>Arketipiniz</Text>
-                    <Text style={styles.name}>{deity.nameTR}</Text>
-                    <Text style={styles.title}>{deity.titleTR}</Text>
+                    <AppText variant="label" color={Colors.accentYellow}>Arketipin</AppText>
+                    <AppText variant="h3">{deity.nameTR}</AppText>
+                    <AppText variant="caption" color={Colors.textMuted}>{deity.titleTR}</AppText>
                 </View>
-                {/* Chevron */}
                 <Ionicons
                     name={expanded ? 'chevron-up' : 'chevron-down'}
                     size={20}
                     color={Colors.textMuted}
                 />
-            </TouchableOpacity>
+            </View>
 
             {/* Expanded Details */}
             {expanded && (
                 <View style={styles.details}>
-                    {/* Description */}
-                    <Text style={styles.description}>{deity.descriptionTR}</Text>
+                    <AppText variant="body" style={styles.description}>{deity.descriptionTR}</AppText>
 
                     {/* Strengths */}
                     <View style={styles.traitSection}>
                         <View style={styles.traitHeader}>
                             <Ionicons name="star" size={14} color={Colors.accentYellow} />
-                            <Text style={styles.traitTitle}>Guclu Yonler</Text>
+                            <AppText variant="bodyStrong">Güçlü Yönler</AppText>
                         </View>
                         <View style={styles.traitList}>
                             {deity.strengthsTR.map((s, i) => (
                                 <View key={i} style={styles.traitBadge}>
-                                    <Text style={styles.traitText}>{s}</Text>
+                                    <AppText variant="caption" color={Colors.accentYellow}>{s}</AppText>
                                 </View>
                             ))}
                         </View>
@@ -99,34 +91,27 @@ export function DeityArchetype() {
                     <View style={styles.traitSection}>
                         <View style={styles.traitHeader}>
                             <Ionicons name="trending-up" size={14} color={Colors.purpleLight} />
-                            <Text style={styles.traitTitle}>Gelisim Alanlari</Text>
+                            <AppText variant="bodyStrong">Gelişim Alanları</AppText>
                         </View>
                         <View style={styles.traitList}>
                             {deity.growthTR.map((s, i) => (
                                 <View key={i} style={[styles.traitBadge, styles.growthBadge]}>
-                                    <Text style={[styles.traitText, styles.growthText]}>{s}</Text>
+                                    <AppText variant="caption" color={Colors.purpleLight}>{s}</AppText>
                                 </View>
                             ))}
                         </View>
                     </View>
                 </View>
             )}
-        </View>
+        </Card>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        marginBottom: Spacing.md,
-    },
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.backgroundCard,
-        borderRadius: BorderRadius.lg,
-        borderWidth: 1,
-        borderColor: Colors.border,
-        padding: Spacing.md,
+        padding: Spacing.lg,
         gap: Spacing.md,
     },
     avatar: {
@@ -138,42 +123,19 @@ const styles = StyleSheet.create({
     },
     info: {
         flex: 1,
-    },
-    label: {
-        fontSize: 10,
-        fontWeight: '600',
-        color: Colors.accentYellow,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginBottom: 2,
-    },
-    name: {
-        fontSize: FontSize.lg,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-    },
-    title: {
-        fontSize: FontSize.xs,
-        color: Colors.textMuted,
-        marginTop: 1,
+        gap: 2,
     },
     details: {
-        backgroundColor: Colors.backgroundCard,
-        borderRadius: BorderRadius.lg,
-        borderWidth: 1,
-        borderColor: Colors.border,
-        borderTopWidth: 0,
-        borderTopLeftRadius: 0,
-        borderTopRightRadius: 0,
-        marginTop: -BorderRadius.lg,
-        paddingTop: BorderRadius.lg + Spacing.md,
         paddingHorizontal: Spacing.lg,
         paddingBottom: Spacing.lg,
+        paddingTop: Spacing.xs,
+        borderTopWidth: 1,
+        borderTopColor: Colors.border,
+        marginTop: -Spacing.xs,
     },
     description: {
-        fontSize: FontSize.sm,
-        color: Colors.textSecondary,
         lineHeight: 22,
+        marginTop: Spacing.md,
         marginBottom: Spacing.lg,
     },
     traitSection: {
@@ -185,11 +147,6 @@ const styles = StyleSheet.create({
         gap: Spacing.xs,
         marginBottom: Spacing.sm,
     },
-    traitTitle: {
-        fontSize: FontSize.sm,
-        fontWeight: '600',
-        color: Colors.textPrimary,
-    },
     traitList: {
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -199,20 +156,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.md,
         paddingVertical: 4,
         borderRadius: BorderRadius.full,
-        backgroundColor: Colors.accentYellow + '15',
+        backgroundColor: Colors.goldA12,
         borderWidth: 1,
-        borderColor: Colors.accentYellow + '30',
-    },
-    traitText: {
-        fontSize: FontSize.xs,
-        fontWeight: '500',
-        color: Colors.accentYellow,
+        borderColor: Colors.borderAccent,
     },
     growthBadge: {
-        backgroundColor: Colors.purple + '15',
-        borderColor: Colors.purple + '30',
-    },
-    growthText: {
-        color: Colors.purpleLight,
+        backgroundColor: Colors.purpleA15,
+        borderColor: Colors.purpleA25,
     },
 });

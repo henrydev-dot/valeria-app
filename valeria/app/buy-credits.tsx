@@ -1,14 +1,22 @@
-import React from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { GradientBackground, KismetCard, PrimaryButton } from '../src/components';
+import { Screen, Header, Card, Button, AppText, EmptyState } from '../src/components';
 import { useEntitlementsStore } from '../src/stores/useEntitlementsStore';
 import * as api from '../src/api';
 import { Colors } from '../src/theme/colors';
-import { FontSize, Spacing, BorderRadius } from '../src/theme/spacing';
+import { Spacing, BorderRadius } from '../src/theme/spacing';
+import { Features } from '../src/config';
 
-const PACKAGES = [
+interface CreditPackage {
+    name: string;
+    credits: number;
+    price: string;
+    popular?: boolean;
+}
+
+const PACKAGES: CreditPackage[] = [
     { name: 'Başlangıç', credits: 150, price: '10 TL' },
     { name: 'Standart', credits: 1000, price: '50 TL', popular: true },
     { name: 'Premium', credits: 2500, price: '100 TL' },
@@ -18,8 +26,10 @@ const PACKAGES = [
 export default function BuyCreditsScreen() {
     const credits = useEntitlementsStore((s) => s.credits);
     const refreshEnt = useEntitlementsStore((s) => s.refresh);
+    const [pending, setPending] = useState<string | null>(null);
 
-    const handlePurchase = async (pkg: typeof PACKAGES[0]) => {
+    const grantCredits = async (pkg: CreditPackage) => {
+        setPending(pkg.name);
         try {
             await api.entitlements.addCredits(pkg.credits, pkg.name);
             await refreshEnt();
@@ -30,111 +40,149 @@ export default function BuyCreditsScreen() {
             );
         } catch (e: any) {
             Alert.alert('Hata', e.message || 'Satın alma başarısız');
+        } finally {
+            setPending(null);
         }
     };
 
+    const handlePurchase = (pkg: CreditPackage) => {
+        // Gate behind an explicit confirmation. This is a simulation, not a real
+        // payment — the disclaimer stays honest and the dialog makes it deliberate.
+        Alert.alert(
+            'Satın Almayı Onayla',
+            `${pkg.name} paketi (${pkg.credits} kredi) — ${pkg.price}\n\nBu bir demo simülasyonudur; gerçek bir ödeme alınmaz. Devam etmek istiyor musunuz?`,
+            [
+                { text: 'Vazgeç', style: 'cancel' },
+                { text: 'Onayla', onPress: () => grantCredits(pkg) },
+            ]
+        );
+    };
+
+    // No in-app purchases in this build (App Store Guideline 3.1.1). If this
+    // screen is reached via a deep link, show a graceful "coming soon" state —
+    // credits are earned for free. Flip Features.purchasesEnabled to restore.
+    if (!Features.purchasesEnabled) {
+        return (
+            <Screen>
+                <Header
+                    title="Kredi"
+                    showBack={false}
+                    right={
+                        <Ionicons
+                            name="close"
+                            size={28}
+                            color={Colors.textPrimary}
+                            onPress={() => router.back()}
+                            accessibilityRole="button"
+                            accessibilityLabel="Kapat"
+                        />
+                    }
+                />
+
+                <Card glow style={styles.balanceCard}>
+                    <AppText variant="label" center>Mevcut Bakiye</AppText>
+                    <AppText variant="hero" center color={Colors.accentYellow} style={styles.balanceValue}>
+                        {credits} Kredi
+                    </AppText>
+                </Card>
+
+                <EmptyState
+                    icon={<Ionicons name="sparkles-outline" size={48} color={Colors.accentYellow} />}
+                    title="Kredi satın alma çok yakında"
+                    message="Şimdilik krediler tamamen ücretsiz kazanılıyor. Günlük ödülünü al, serini sürdür ve seviye atlayarak kredi topla."
+                    actionLabel="Anladım"
+                    onAction={() => router.back()}
+                />
+            </Screen>
+        );
+    }
+
     return (
-        <GradientBackground>
-            <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()}>
-                        <Ionicons name="close" size={28} color={Colors.textPrimary} />
-                    </TouchableOpacity>
-                    <Text style={styles.title}>Kredi Yukle</Text>
-                    <View style={{ width: 28 }} />
-                </View>
+        <Screen>
+            <Header
+                title="Kredi Yükle"
+                showBack={false}
+                right={
+                    <Ionicons
+                        name="close"
+                        size={28}
+                        color={Colors.textPrimary}
+                        onPress={() => router.back()}
+                        accessibilityRole="button"
+                        accessibilityLabel="Kapat"
+                    />
+                }
+            />
 
-                <KismetCard glow style={styles.balanceCard}>
-                    <Text style={styles.balanceLabel}>Mevcut Bakiye</Text>
-                    <Text style={styles.balanceValue}>{credits} Kredi</Text>
-                </KismetCard>
+            <Card glow style={styles.balanceCard}>
+                <AppText variant="label" center>Mevcut Bakiye</AppText>
+                <AppText variant="hero" center color={Colors.accentYellow} style={styles.balanceValue}>
+                    {credits} Kredi
+                </AppText>
+            </Card>
 
-                <Text style={styles.sectionTitle}>Paketler</Text>
-                <Text style={styles.sectionSubtitle}>
-                    MVP demo modunda ucretler simule edilmektedir.
-                </Text>
+            <AppText variant="h1" style={styles.sectionTitle}>Paketler</AppText>
+            <AppText variant="caption" style={styles.sectionSubtitle}>
+                Demo modunda ücretler simüle edilmektedir; gerçek bir ödeme alınmaz.
+            </AppText>
 
-                {PACKAGES.map((pkg) => (
-                    <KismetCard
-                        key={pkg.name}
-                        style={pkg.popular ? { ...styles.packageCard, ...styles.popularCard } : styles.packageCard}
-                    >
-                        {pkg.popular && (
-                            <View style={styles.popularBadge}>
-                                <Text style={styles.popularText}>En Populer</Text>
-                            </View>
-                        )}
-                        <View style={styles.packageRow}>
-                            <View>
-                                <Text style={styles.packageName}>{pkg.name}</Text>
-                                <Text style={styles.packageCredits}>{pkg.credits} kredi</Text>
-                            </View>
-                            <View style={styles.packageRight}>
-                                <Text style={styles.packagePrice}>{pkg.price}</Text>
-                                <TouchableOpacity
-                                    style={styles.buyBtn}
-                                    onPress={() => handlePurchase(pkg)}
-                                >
-                                    <Text style={styles.buyBtnText}>Satin Al</Text>
-                                </TouchableOpacity>
-                            </View>
+            {PACKAGES.map((pkg) => (
+                <Card
+                    key={pkg.name}
+                    style={pkg.popular ? { ...styles.packageCard, ...styles.popularCard } : styles.packageCard}
+                >
+                    {pkg.popular && (
+                        <View style={styles.popularBadge}>
+                            <AppText variant="label" color={Colors.textOnAccent} style={styles.popularText}>
+                                En Popüler
+                            </AppText>
                         </View>
-                    </KismetCard>
-                ))}
-            </ScrollView>
-        </GradientBackground>
+                    )}
+                    <View style={styles.packageRow}>
+                        <View style={styles.packageInfo}>
+                            <AppText variant="h3">{pkg.name}</AppText>
+                            <AppText variant="callout" color={Colors.purpleLight} style={styles.packageCredits}>
+                                {pkg.credits} kredi
+                            </AppText>
+                        </View>
+                        <View style={styles.packageRight}>
+                            <AppText variant="bodyStrong" style={styles.packagePrice}>{pkg.price}</AppText>
+                            <Button
+                                title="Satın Al"
+                                size="sm"
+                                fullWidth={false}
+                                loading={pending === pkg.name}
+                                disabled={pending !== null && pending !== pkg.name}
+                                onPress={() => handlePurchase(pkg)}
+                            />
+                        </View>
+                    </View>
+                </Card>
+            ))}
+        </Screen>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    scrollContent: {
-        paddingHorizontal: Spacing.xl,
-        paddingTop: 20,
-        paddingBottom: 40,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: Spacing.xxl,
-        paddingTop: 40,
-    },
-    title: {
-        fontSize: FontSize.xl,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-    },
     balanceCard: {
         alignItems: 'center',
+        marginTop: Spacing.md,
         marginBottom: Spacing.xxl,
     },
-    balanceLabel: {
-        fontSize: FontSize.sm,
-        color: Colors.textMuted,
-        marginBottom: Spacing.xs,
-    },
     balanceValue: {
-        fontSize: FontSize.hero,
-        fontWeight: '700',
-        color: Colors.accentYellow,
+        marginTop: Spacing.xs,
     },
     sectionTitle: {
-        fontSize: FontSize.xl,
-        fontWeight: '700',
-        color: Colors.textPrimary,
         marginBottom: Spacing.xs,
     },
     sectionSubtitle: {
-        fontSize: FontSize.sm,
-        color: Colors.textMuted,
         marginBottom: Spacing.xl,
     },
     packageCard: {
         marginBottom: Spacing.md,
     },
     popularCard: {
-        borderColor: Colors.accentYellow + '50',
+        borderColor: Colors.borderAccent,
     },
     popularBadge: {
         position: 'absolute',
@@ -147,23 +195,17 @@ const styles = StyleSheet.create({
         borderBottomRightRadius: BorderRadius.sm,
     },
     popularText: {
-        fontSize: FontSize.xs,
-        fontWeight: '700',
-        color: Colors.backgroundDark,
+        letterSpacing: 0,
     },
     packageRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
     },
-    packageName: {
-        fontSize: FontSize.lg,
-        fontWeight: '700',
-        color: Colors.textPrimary,
+    packageInfo: {
+        flex: 1,
     },
     packageCredits: {
-        fontSize: FontSize.sm,
-        color: Colors.purpleLight,
         marginTop: 2,
     },
     packageRight: {
@@ -171,19 +213,6 @@ const styles = StyleSheet.create({
         gap: Spacing.sm,
     },
     packagePrice: {
-        fontSize: FontSize.md,
-        fontWeight: '600',
         color: Colors.textSecondary,
-    },
-    buyBtn: {
-        backgroundColor: Colors.accentYellow,
-        paddingHorizontal: Spacing.lg,
-        paddingVertical: Spacing.sm,
-        borderRadius: BorderRadius.md,
-    },
-    buyBtnText: {
-        fontSize: FontSize.sm,
-        fontWeight: '700',
-        color: Colors.backgroundDark,
     },
 });

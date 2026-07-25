@@ -1,44 +1,125 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+    StyleSheet,
+    View,
+    TextInput,
+    TouchableOpacity,
+    Image,
+    Alert,
+} from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { GradientBackground, KismetCard, PrimaryButton } from '../src/components';
+import {
+    Screen,
+    Header,
+    AppText,
+    Button,
+    Card,
+    LoadingView,
+} from '../src/components';
 import { useEntitlementsStore } from '../src/stores/useEntitlementsStore';
 import { Colors } from '../src/theme/colors';
-import { FontSize, Spacing, BorderRadius } from '../src/theme/spacing';
+import { Spacing, BorderRadius } from '../src/theme/spacing';
 import * as api from '../src/api';
+import { Features } from '../src/config';
 
+const COFFEE_COST = 20;
+const MAX_IMAGE_BYTES = 6 * 1024 * 1024; // ~6MB guard
 const IMAGE_LABELS = ['Fincan İçi (Üst)', 'Fincan İçi (Yan)', 'Tabak', 'Fincan Dibi'];
 
+const LOADING_MESSAGES = [
+    'Fincanınız okunuyor...',
+    'Telve şekilleri yorumlanıyor...',
+    'Sembollerin anlamı çözülüyor...',
+    'Yorumunuz hazırlanıyor, birkaç saniye...',
+];
+
+interface CoffeeResult {
+    soruCevabi?: string;
+    askHayati?: string;
+    kariyer?: string;
+    aile?: string;
+}
+
 export default function CoffeeReadingScreen() {
-    const { advisorId } = useLocalSearchParams();
+    const { advisorId } = useLocalSearchParams<{ advisorId?: string }>();
     const [question, setQuestion] = useState('');
     const [images, setImages] = useState<(string | null)[]>([null, null, null, null]);
-    const [result, setResult] = useState<any>(null);
+    const [result, setResult] = useState<CoffeeResult | null>(null);
     const [loading, setLoading] = useState(false);
+    const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
+    const credits = useEntitlementsStore((s) => s.credits);
     const refreshEnt = useEntitlementsStore((s) => s.refresh);
 
+    // Rotate reassuring copy while the (long-running) AI reading runs.
+    const msgTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+    useEffect(() => {
+        if (loading && !advisorId) {
+            let i = 0;
+            setLoadingMsg(LOADING_MESSAGES[0]);
+            msgTimer.current = setInterval(() => {
+                i = (i + 1) % LOADING_MESSAGES.length;
+                setLoadingMsg(LOADING_MESSAGES[i]);
+            }, 3000);
+        }
+        return () => {
+            if (msgTimer.current) {
+                clearInterval(msgTimer.current);
+                msgTimer.current = null;
+            }
+        };
+    }, [loading, advisorId]);
+
     const pickImage = async (index: number) => {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) {
+            Alert.alert(
+                'İzin Gerekli',
+                'Fotoğraf seçebilmek için galeri erişim izni vermeniz gerekiyor.'
+            );
+            return;
+        }
         const imgResult = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
             quality: 0.6,
             base64: true,
         });
-        if (!imgResult.canceled && imgResult.assets[0]) {
-            const newImages = [...images];
-            newImages[index] = `data:image/jpeg;base64,${imgResult.assets[0].base64}`;
-            setImages(newImages);
+        if (imgResult.canceled || !imgResult.assets[0]?.base64) return;
+
+        const asset = imgResult.assets[0];
+        const approxBytes = Math.ceil((asset.base64!.length * 3) / 4);
+        if (approxBytes > MAX_IMAGE_BYTES) {
+            Alert.alert(
+                'Fotoğraf Çok Büyük',
+                'Lütfen daha küçük bir fotoğraf seçin (en fazla ~6 MB).'
+            );
+            return;
         }
+        setImages((prev) => {
+            const next = [...prev];
+            next[index] = `data:image/jpeg;base64,${asset.base64}`;
+            return next;
+        });
     };
 
-    const allImagesSelected = images.every((img) => img !== null);
+    const removeImage = (index: number) => {
+        setImages((prev) => {
+            const next = [...prev];
+            next[index] = null;
+            return next;
+        });
+    };
+
+    const filledCount = images.filter((img) => img !== null).length;
+    const allImagesSelected = filledCount === 4;
+    const isAdvisor = !!advisorId;
 
     const handleSubmit = async () => {
         if (!allImagesSelected) {
             Alert.alert(
                 'Fotoğraf Gerekli',
-                'Lütfen kahve fincanınızın 4 fotoğrafını da yükleyin. Kahve fincanı fotoğrafı olmadan fal bakılamaz.'
+                'Lütfen kahve fincanınızın 4 fotoğrafını da yükleyin. Fincan fotoğrafı olmadan fal bakılamaz.'
             );
             return;
         }
@@ -46,27 +127,48 @@ export default function CoffeeReadingScreen() {
             Alert.alert('Soru Gerekli', 'Lütfen merak ettiğiniz bir soru yazın.');
             return;
         }
+        if (!isAdvisor && credits < COFFEE_COST) {
+            if (Features.purchasesEnabled) {
+                Alert.alert(
+                    'Yetersiz Kredi',
+                    `Bu fal için ${COFFEE_COST} kredi gerekiyor. Mevcut bakiyeniz: ${credits} kredi.`,
+                    [
+                        { text: 'Vazgeç', style: 'cancel' },
+                        { text: 'Kredi Al', onPress: () => router.push('/buy-credits') },
+                    ]
+                );
+            } else {
+                // No purchases — guide the user to earn credits for free instead.
+                Alert.alert(
+                    'Yetersiz Kredi',
+                    `Bu fal için ${COFFEE_COST} kredi gerekiyor (mevcut: ${credits}). Krediler ücretsiz kazanılıyor: profildeki günlük ödülünü al, serini sürdür ve seviye atlayarak kredi topla.`
+                );
+            }
+            return;
+        }
 
         setLoading(true);
         try {
-            if (advisorId) {
-                // Sent to real advisor
-                await api.readings.advisorRequest(advisorId as string, 'kahve', question.trim(), images as string[]);
+            if (isAdvisor) {
+                await api.readings.advisorRequest(
+                    advisorId as string,
+                    'kahve',
+                    question.trim(),
+                    images as string[]
+                );
                 await refreshEnt();
-                Alert.alert('Başarılı', 'Kahve falınız yorumcuya iletildi. Yanıtlandığında bildirim alacaksınız.', [
-                    { text: 'Tamam', onPress: () => router.back() }
-                ]);
+                Alert.alert(
+                    'Başarılı',
+                    'Kahve falınız yorumcuya iletildi. Yanıtlandığında bildirim alacaksınız.',
+                    [{ text: 'Tamam', onPress: () => router.back() }]
+                );
             } else {
-                // Sent to AI
                 const res = await api.readings.coffee(question.trim(), images as string[]);
                 if (typeof res.result === 'object' && res.result !== null) {
-                    setResult(res.result);
+                    setResult(res.result as CoffeeResult);
                 } else {
                     setResult({
-                        soruCevabi: res.result || res.answer || 'Fincanınız okunuyor...',
-                        askHayati: '',
-                        kariyer: '',
-                        aile: '',
+                        soruCevabi: res.result || res.answer || 'Fincanınız okundu.',
                     });
                 }
                 await refreshEnt();
@@ -78,198 +180,224 @@ export default function CoffeeReadingScreen() {
         }
     };
 
+    const reset = () => {
+        setResult(null);
+        setQuestion('');
+        setImages([null, null, null, null]);
+    };
+
     const sections = [
-        { key: 'soruCevabi', title: 'Sorunuzun Cevabı', icon: 'help-circle-outline' as const, color: Colors.accentYellow },
-        { key: 'askHayati', title: 'Aşk Hayatı', icon: 'heart-outline' as const, color: '#FF6B9D' },
-        { key: 'kariyer', title: 'Kariyer & İş Hayatı', icon: 'briefcase-outline' as const, color: '#4ECDC4' },
-        { key: 'aile', title: 'Aile & Yakınlar', icon: 'people-outline' as const, color: '#A78BFA' },
-    ];
+        { key: 'soruCevabi', title: 'Sorunuzun Cevabı', icon: 'help-circle-outline', color: Colors.accentYellow },
+        { key: 'askHayati', title: 'Aşk Hayatı', icon: 'heart-outline', color: Colors.purpleLight },
+        { key: 'kariyer', title: 'Kariyer & İş Hayatı', icon: 'briefcase-outline', color: Colors.info },
+        { key: 'aile', title: 'Aile & Yakınlar', icon: 'people-outline', color: Colors.success },
+    ] as const;
 
     return (
-        <GradientBackground>
-            <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()}>
-                        <Ionicons name="close" size={28} color={Colors.textPrimary} />
-                    </TouchableOpacity>
-                    <Text style={styles.title}>Kahve Falı</Text>
-                    <View style={{ width: 28 }} />
-                </View>
+        <Screen keyboard>
+            <Header title={isAdvisor ? 'Kahve Falı (Yorumcu)' : 'Kahve Falı'} />
 
-                {!result ? (
-                    <View>
-                        <KismetCard glow style={styles.card}>
-                            <Ionicons name="cafe" size={48} color={Colors.purpleLight} />
-                            <Text style={styles.cardTitle}>Fincanınızı Okutun</Text>
-                            <Text style={styles.cardDesc}>
-                                4 adet kahve fincanı fotoğrafı yükleyin. Fotoğraflar kahve fincanı olmalıdır.
-                            </Text>
-                            <Text style={styles.costNote}>Ücret: 10 kredi</Text>
-                        </KismetCard>
+            {!result ? (
+                <View style={styles.section}>
+                    <Card glow style={styles.introCard}>
+                        <View style={styles.introIcon}>
+                            <Ionicons name="cafe" size={40} color={Colors.accentYellow} />
+                        </View>
+                        <AppText variant="h1" center>
+                            Fincanınızı Okutun
+                        </AppText>
+                        <AppText variant="body" center>
+                            Kahve fincanınızın 4 farklı açıdan fotoğrafını yükleyin.
+                            {isAdvisor
+                                ? ' Falınız gerçek bir yorumcuya iletilecek.'
+                                : ' Yapay zeka fincanınızı yorumlayacak.'}
+                        </AppText>
+                        {!isAdvisor ? (
+                            <View style={styles.costPill}>
+                                <Ionicons name="diamond" size={14} color={Colors.accentYellow} />
+                                <AppText variant="bodyStrong" color={Colors.accentYellow}>
+                                    {COFFEE_COST} kredi
+                                </AppText>
+                            </View>
+                        ) : null}
+                    </Card>
 
-                        <Text style={styles.label}>Sorunuz (zorunlu)</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Merak ettiklerinizi yazın..."
-                            placeholderTextColor={Colors.textMuted}
-                            value={question}
-                            onChangeText={setQuestion}
-                            multiline
-                            numberOfLines={3}
-                            editable={!loading}
-                        />
+                    <AppText variant="label" style={styles.label}>
+                        Sorunuz (zorunlu)
+                    </AppText>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Merak ettiklerinizi yazın..."
+                        placeholderTextColor={Colors.textMuted}
+                        value={question}
+                        onChangeText={setQuestion}
+                        multiline
+                        editable={!loading}
+                    />
 
-                        <Text style={styles.label}>Fincan Fotoğrafları (4 adet zorunlu)</Text>
-                        <View style={styles.imagesGrid}>
-                            {images.map((uri, index) => (
+                    <View style={styles.uploadHeader}>
+                        <AppText variant="label" style={styles.label}>
+                            Fincan Fotoğrafları
+                        </AppText>
+                        <AppText
+                            variant="caption"
+                            color={allImagesSelected ? Colors.success : Colors.textMuted}
+                        >
+                            {filledCount}/4 yüklendi
+                        </AppText>
+                    </View>
+
+                    <View style={styles.imagesGrid}>
+                        {images.map((uri, index) => (
+                            <View key={index} style={styles.imageSlot}>
                                 <TouchableOpacity
-                                    key={index}
-                                    style={styles.imageSlot}
+                                    style={styles.imageTouch}
+                                    activeOpacity={0.8}
                                     onPress={() => pickImage(index)}
                                     disabled={loading}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`${IMAGE_LABELS[index]} fotoğrafı ${uri ? 'değiştir' : 'ekle'}`}
                                 >
                                     {uri ? (
                                         <Image source={{ uri }} style={styles.imageThumb} />
                                     ) : (
                                         <View style={styles.imagePlaceholder}>
-                                            <Ionicons name="camera-outline" size={24} color={Colors.textMuted} />
-                                            <Text style={styles.imageLabel}>{IMAGE_LABELS[index]}</Text>
-                                        </View>
-                                    )}
-                                    {uri && (
-                                        <View style={styles.imageCheck}>
-                                            <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+                                            <Ionicons
+                                                name="camera-outline"
+                                                size={26}
+                                                color={Colors.textMuted}
+                                            />
+                                            <AppText variant="caption" center>
+                                                {IMAGE_LABELS[index]}
+                                            </AppText>
                                         </View>
                                     )}
                                 </TouchableOpacity>
-                            ))}
-                        </View>
-
-                        <Text style={styles.imageHint}>
-                            ☕ Sadece kahve fincanı fotoğrafı kabul edilir. Fincan fotoğrafı olmadan fal bakılmaz.
-                        </Text>
-
-                        {loading ? (
-                            <View style={styles.loadingContainer}>
-                                <ActivityIndicator size="large" color={Colors.accentYellow} />
-                                <Text style={styles.loadingText}>Falınız okunuyor...</Text>
+                                {uri ? (
+                                    <TouchableOpacity
+                                        style={styles.removeBtn}
+                                        onPress={() => removeImage(index)}
+                                        disabled={loading}
+                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`${IMAGE_LABELS[index]} fotoğrafını kaldır`}
+                                    >
+                                        <Ionicons name="close-circle" size={22} color={Colors.error} />
+                                    </TouchableOpacity>
+                                ) : null}
                             </View>
-                        ) : (
-                            <PrimaryButton
-                                title="Fal Baktır"
-                                onPress={handleSubmit}
-                                style={styles.submitBtn}
-                            />
-                        )}
+                        ))}
                     </View>
-                ) : (
-                    <View>
-                        <KismetCard glow style={styles.resultHeader}>
-                            <Ionicons name="cafe" size={32} color={Colors.accentYellow} />
-                            <Text style={styles.resultTitle}>Fal Sonucunuz</Text>
-                            <Text style={styles.resultQuestion}>"{question}"</Text>
-                        </KismetCard>
 
-                        {sections.map((section) => {
-                            const text = result[section.key];
-                            if (!text) return null;
-                            return (
-                                <KismetCard key={section.key} style={styles.sectionCard}>
-                                    <View style={styles.sectionHeader}>
-                                        <Ionicons name={section.icon} size={20} color={section.color} />
-                                        <Text style={[styles.sectionTitle, { color: section.color }]}>
-                                            {section.title}
-                                        </Text>
-                                    </View>
-                                    <Text style={styles.sectionText}>{text}</Text>
-                                </KismetCard>
-                            );
-                        })}
-
-                        <View style={styles.actionRow}>
-                            <PrimaryButton title="Yeni Fal" onPress={() => {
-                                setResult(null);
-                                setQuestion('');
-                                setImages([null, null, null, null]);
-                            }} />
-                            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-                                <Text style={styles.backBtnText}>Geri Dön</Text>
-                            </TouchableOpacity>
-                        </View>
+                    <View style={styles.hintRow}>
+                        <Ionicons name="information-circle-outline" size={16} color={Colors.textMuted} />
+                        <AppText variant="caption" style={styles.hintText}>
+                            Sadece kahve fincanı fotoğrafı kabul edilir. Net ve aydınlık
+                            fotoğraflar daha isabetli yorum sağlar.
+                        </AppText>
                     </View>
-                )}
-            </ScrollView>
-        </GradientBackground>
+
+                    {loading ? (
+                        <LoadingView text={isAdvisor ? 'Yorumcuya iletiliyor...' : loadingMsg} />
+                    ) : (
+                        <Button
+                            title={isAdvisor ? 'Yorumcuya Gönder' : 'Fal Baktır'}
+                            onPress={handleSubmit}
+                            style={styles.cta}
+                            icon={<Ionicons name="cafe" size={18} color={Colors.textOnAccent} />}
+                        />
+                    )}
+                </View>
+            ) : (
+                <View style={styles.section}>
+                    <Card glow style={styles.resultHeader}>
+                        <Ionicons name="cafe" size={32} color={Colors.accentYellow} />
+                        <AppText variant="h1" color={Colors.accentYellow} center>
+                            Fal Sonucunuz
+                        </AppText>
+                        <AppText variant="bodyStrong" center color={Colors.purpleLight}>
+                            “{question.trim()}”
+                        </AppText>
+                    </Card>
+
+                    {sections.map((section) => {
+                        const text = result[section.key];
+                        if (!text) return null;
+                        return (
+                            <Card key={section.key} style={styles.sectionCard}>
+                                <View style={styles.sectionHeader}>
+                                    <Ionicons name={section.icon} size={20} color={section.color} />
+                                    <AppText variant="h3" color={section.color}>
+                                        {section.title}
+                                    </AppText>
+                                </View>
+                                <AppText variant="body">{text}</AppText>
+                            </Card>
+                        );
+                    })}
+
+                    <View style={styles.actions}>
+                        <Button title="Yeni Fal" onPress={reset} />
+                        <Button
+                            title="Geri Dön"
+                            variant="secondary"
+                            onPress={() => router.back()}
+                        />
+                    </View>
+                </View>
+            )}
+        </Screen>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    scrollContent: {
-        paddingHorizontal: Spacing.xl,
-        paddingTop: 20,
-        paddingBottom: 40,
+    section: { gap: Spacing.lg },
+    introCard: { alignItems: 'center', gap: Spacing.md },
+    introIcon: {
+        width: 72,
+        height: 72,
+        borderRadius: BorderRadius.full,
+        backgroundColor: Colors.goldA12,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    header: {
+    costPill: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: Spacing.xxl,
-        paddingTop: 40,
+        gap: Spacing.xs,
+        backgroundColor: Colors.goldA12,
+        borderRadius: BorderRadius.pill,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.sm,
     },
-    title: {
-        fontSize: FontSize.xl,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-    },
-    card: {
-        alignItems: 'center',
-        gap: Spacing.md,
-        marginBottom: Spacing.xxl,
-    },
-    cardTitle: {
-        fontSize: FontSize.xl,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-    },
-    cardDesc: {
-        fontSize: FontSize.sm,
-        color: Colors.textSecondary,
-        textAlign: 'center',
-        lineHeight: 20,
-    },
-    costNote: {
-        fontSize: FontSize.sm,
-        color: Colors.accentYellow,
-        fontWeight: '600',
-    },
-    label: {
-        fontSize: FontSize.sm,
-        color: Colors.textMuted,
-        marginBottom: Spacing.xs,
-        marginTop: Spacing.lg,
-        fontWeight: '600',
-    },
+    label: { marginBottom: Spacing.xs, marginLeft: Spacing.xs },
     input: {
-        backgroundColor: Colors.backgroundCard,
+        backgroundColor: Colors.surface1,
         borderRadius: BorderRadius.lg,
         padding: Spacing.lg,
-        fontSize: FontSize.md,
+        fontSize: 16,
         color: Colors.textPrimary,
         borderWidth: 1,
         borderColor: Colors.border,
-        minHeight: 80,
+        minHeight: 88,
         textAlignVertical: 'top',
+    },
+    uploadHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
     },
     imagesGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: Spacing.sm,
-        marginTop: Spacing.sm,
+        gap: Spacing.md,
     },
     imageSlot: {
-        width: '47%' as any,
+        width: '47%',
         aspectRatio: 1,
+    },
+    imageTouch: {
+        flex: 1,
         borderRadius: BorderRadius.lg,
         overflow: 'hidden',
         borderWidth: 1,
@@ -280,89 +408,31 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: Colors.backgroundCard,
-        gap: 4,
+        backgroundColor: Colors.surface1,
+        gap: Spacing.xs,
+        padding: Spacing.sm,
     },
-    imageLabel: {
-        fontSize: 10,
-        color: Colors.textMuted,
-        textAlign: 'center',
-        fontWeight: '500',
-    },
-    imageThumb: {
-        width: '100%',
-        height: '100%',
-        borderRadius: BorderRadius.lg,
-    },
-    imageCheck: {
+    imageThumb: { width: '100%', height: '100%' },
+    removeBtn: {
         position: 'absolute',
         top: 6,
         right: 6,
+        backgroundColor: Colors.backgroundDark,
+        borderRadius: BorderRadius.full,
     },
-    imageHint: {
-        fontSize: FontSize.xs,
-        color: Colors.textMuted,
-        marginTop: Spacing.md,
-        textAlign: 'center',
-        fontStyle: 'italic',
+    hintRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: Spacing.xs,
     },
-    submitBtn: {
-        marginTop: Spacing.xxl,
-    },
-    loadingContainer: {
-        alignItems: 'center',
-        gap: Spacing.md,
-        paddingVertical: Spacing.xxl,
-    },
-    loadingText: {
-        fontSize: FontSize.sm,
-        color: Colors.textMuted,
-        fontStyle: 'italic',
-    },
-    resultHeader: {
-        alignItems: 'center',
-        gap: Spacing.sm,
-        marginBottom: Spacing.lg,
-    },
-    resultTitle: {
-        fontSize: FontSize.xxl,
-        fontWeight: '700',
-        color: Colors.accentYellow,
-    },
-    resultQuestion: {
-        fontSize: FontSize.md,
-        color: Colors.purpleLight,
-        fontStyle: 'italic',
-    },
-    sectionCard: {
-        marginBottom: Spacing.md,
-    },
+    hintText: { flex: 1 },
+    cta: { marginTop: Spacing.sm },
+    resultHeader: { alignItems: 'center', gap: Spacing.sm },
+    sectionCard: { gap: Spacing.sm },
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: Spacing.sm,
-        marginBottom: Spacing.sm,
     },
-    sectionTitle: {
-        fontSize: FontSize.lg,
-        fontWeight: '700',
-    },
-    sectionText: {
-        fontSize: FontSize.md,
-        color: Colors.textSecondary,
-        lineHeight: 24,
-    },
-    actionRow: {
-        gap: Spacing.md,
-        marginTop: Spacing.lg,
-    },
-    backBtn: {
-        paddingVertical: Spacing.lg,
-        alignItems: 'center',
-    },
-    backBtnText: {
-        fontSize: FontSize.md,
-        color: Colors.textMuted,
-        fontWeight: '600',
-    },
+    actions: { gap: Spacing.md, marginTop: Spacing.md },
 });

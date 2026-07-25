@@ -3,6 +3,8 @@ export interface UserInput {
     birthDate: string; // YYYY-MM-DD
     birthTime: string; // HH:MM
     birthCity: string;
+    birthDistrict?: string;
+    birthCountry?: string; // Saat dilimi seçimi için (Türkiye dışı → boylamdan tahmin)
     latitude: string;
     longitude: string;
     gender: string;

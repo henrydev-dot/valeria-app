@@ -2,16 +2,27 @@ import React, { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
+import * as SplashScreen from 'expo-splash-screen';
 import { useUserStore } from '../src/stores/useUserStore';
 import { useEntitlementsStore } from '../src/stores/useEntitlementsStore';
 import { useContentStore } from '../src/stores/useContentStore';
 import { Colors } from '../src/theme/colors';
 import * as api from '../src/api';
 
+// Açılış akışı: native splash artık İKONSUZ, sadece düz koyu renk (app.json).
+// JS yüklenir yüklenmez splash bırakılır ve yerini marka gradyanı + spinner'lı
+// sade bir yükleme ekranı alır — ikon belirip kaybolma efekti tamamen yok.
+SplashScreen.preventAutoHideAsync().catch(() => { /* zaten gizlenmişse sorun değil */ });
+SplashScreen.setOptions?.({ fade: true, duration: 200 });
+
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
         shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
     }),
@@ -54,19 +65,27 @@ export default function RootLayout() {
 
     useEffect(() => {
         async function bootstrap() {
-            const token = await api.getToken();
-            if (token) {
-                // Authenticated — load everything from API
-                await loadProfile();
-                await Promise.all([loadEntitlements(), loadContent()]);
-                await registerForPushNotificationsAsync();
-            } else {
-                // Not authenticated — just load local content (home templates etc.)
-                await loadContent();
+            try {
+                const token = await api.getToken();
+                if (token) {
+                    // Authenticated — load everything from API
+                    await loadProfile();
+                    await Promise.allSettled([loadEntitlements(), loadContent()]);
+                    // Push registration is deferred to an in-app priming prompt,
+                    // not fired cold at startup.
+                } else {
+                    // Not authenticated — just load local content (home templates etc.)
+                    await loadContent();
+                }
+            } catch (e) {
+                console.warn('Bootstrap error:', e);
+            } finally {
+                setIsReady(true);
             }
-            setIsReady(true);
         }
         bootstrap();
+        // JS hazır — düz renkli native splash'tan kendi yükleme ekranımıza geç.
+        SplashScreen.hideAsync().catch(() => { });
     }, []);
 
     if (!isReady) {
@@ -79,31 +98,38 @@ export default function RootLayout() {
     }
 
     return (
-        <>
-            <StatusBar style="light" />
-            <Stack
-                screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: Colors.backgroundDark },
-                    animation: 'slide_from_right',
-                }}
-            >
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="tarot-reading" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="coffee-reading" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="reading-history" />
-                <Stack.Screen name="advisor-detail" />
-                <Stack.Screen name="learning-card" />
-                <Stack.Screen name="buy-credits" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="ask-question" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="pendulum" options={{ presentation: 'modal' }} />
-            </Stack>
-        </>
+        <GestureHandlerRootView style={styles.flex}>
+            <SafeAreaProvider>
+                <StatusBar style="light" />
+                <Stack
+                    screenOptions={{
+                        headerShown: false,
+                        contentStyle: { backgroundColor: Colors.backgroundDark },
+                        animation: 'slide_from_right',
+                    }}
+                >
+                    <Stack.Screen name="(auth)" />
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="tarot-reading" options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="coffee-reading" options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="reading-history" />
+                    <Stack.Screen name="advisor-detail" />
+                    <Stack.Screen name="learning-card" />
+                    <Stack.Screen name="buy-credits" options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="ask-question" options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="numerology" options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="pendulum" options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="delete-account" />
+                </Stack>
+            </SafeAreaProvider>
+        </GestureHandlerRootView>
     );
 }
 
+export { registerForPushNotificationsAsync };
+
 const styles = StyleSheet.create({
+    flex: { flex: 1 },
     loading: {
         flex: 1,
         justifyContent: 'center',

@@ -10,6 +10,6 @@ export default function Index() {
         return <Redirect href="/(tabs)" />;
     }
 
-    // Go to auth flow — login first, then onboarding
-    return <Redirect href="/(auth)/login" />;
+    // Go to auth flow — welcome/value proposition first
+    return <Redirect href="/(auth)/welcome" />;
 }

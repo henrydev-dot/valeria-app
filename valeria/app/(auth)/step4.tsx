@@ -1,162 +1,112 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
-import { GradientBackground, PrimaryButton } from '../../src/components';
+import { Ionicons } from '@expo/vector-icons';
+import { OnboardingScaffold, AppText, WheelPicker } from '../../src/components';
 import { useUserStore } from '../../src/stores/useUserStore';
 import { Colors } from '../../src/theme/colors';
-import { FontSize, Spacing, BorderRadius } from '../../src/theme/spacing';
+import { Spacing, BorderRadius } from '../../src/theme/spacing';
+import { TOTAL_ONBOARDING_STEPS } from '../../src/data/onboardingOptions';
+
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
 export default function Step4() {
+    const setProfile = useUserStore((s) => s.setProfile);
     const [hour, setHour] = useState(12);
     const [minute, setMinute] = useState(0);
-    const setProfile = useUserStore((s) => s.setProfile);
+    const [unknown, setUnknown] = useState(false);
 
     const handleNext = () => {
-        const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+        // If unknown, default to solar noon; rising sign will be approximate.
+        const timeStr = unknown ? '12:00' : `${HOURS[hour]}:${MINUTES[minute]}`;
         setProfile({ birthTime: timeStr });
         router.push('/(auth)/step5');
     };
 
     return (
-        <GradientBackground>
-            <View style={styles.container}>
-                <View style={styles.content}>
-                    <Text style={styles.step}>4 / 8</Text>
-                    <Text style={styles.title}>Doğum Saatiniz</Text>
-                    <Text style={styles.subtitle}>
-                        Yükselen burcunuzu hesaplayabilmemiz için doğum saatinizi bilmemiz gerekiyor.
-                    </Text>
-
+        <OnboardingScaffold
+            step={4}
+            totalSteps={TOTAL_ONBOARDING_STEPS}
+            title="Doğum saatin"
+            subtitle="Yükselen burcun için doğum saatin gerekir. Bilmiyorsan sorun değil — yaklaşık hesaplarız."
+            onNext={handleNext}
+        >
+            {!unknown ? (
+                <View>
+                    <View style={styles.timeLabels}>
+                        <AppText variant="label" center style={styles.col}>Saat</AppText>
+                        <AppText variant="label" center style={styles.col}>Dakika</AppText>
+                    </View>
                     <View style={styles.timeRow}>
-                        {/* Hour */}
-                        <View style={styles.timeCol}>
-                            <TouchableOpacity
-                                style={styles.arrowBtn}
-                                onPress={() => setHour((h) => (h + 1) % 24)}
-                            >
-                                <Text style={styles.arrow}>+</Text>
-                            </TouchableOpacity>
-                            <Text style={styles.timeValue}>{String(hour).padStart(2, '0')}</Text>
-                            <TouchableOpacity
-                                style={styles.arrowBtn}
-                                onPress={() => setHour((h) => (h - 1 + 24) % 24)}
-                            >
-                                <Text style={styles.arrow}>-</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        <Text style={styles.colon}>:</Text>
-
-                        {/* Minute */}
-                        <View style={styles.timeCol}>
-                            <TouchableOpacity
-                                style={styles.arrowBtn}
-                                onPress={() => setMinute((m) => (m + 5) % 60)}
-                            >
-                                <Text style={styles.arrow}>+</Text>
-                            </TouchableOpacity>
-                            <Text style={styles.timeValue}>{String(minute).padStart(2, '0')}</Text>
-                            <TouchableOpacity
-                                style={styles.arrowBtn}
-                                onPress={() => setMinute((m) => (m - 5 + 60) % 60)}
-                            >
-                                <Text style={styles.arrow}>-</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <WheelPicker options={HOURS} value={hour} onChange={setHour} />
+                        <View style={styles.colon}><AppText variant="h1" color={Colors.textMuted}>:</AppText></View>
+                        <WheelPicker options={MINUTES} value={minute} onChange={setMinute} />
                     </View>
                 </View>
-                <View style={styles.footer}>
-                    <View style={styles.buttonRow}>
-                        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-                            <Text style={styles.backText}>← Geri</Text>
-                        </TouchableOpacity>
-                        <PrimaryButton title="Devam Et" onPress={handleNext} style={{ flex: 1 }} />
-                    </View>
+            ) : (
+                <View style={styles.unknownBox}>
+                    <Ionicons name="time-outline" size={32} color={Colors.textMuted} />
+                    <AppText variant="body" center color={Colors.textSecondary} style={styles.unknownText}>
+                        Doğum saatin bilinmiyor olarak işaretlendi. Güneş ve Ay burcun yine de doğru hesaplanır.
+                    </AppText>
                 </View>
-            </View>
-        </GradientBackground>
+            )}
+
+            <TouchableOpacity
+                style={[styles.toggle, unknown && styles.toggleActive]}
+                onPress={() => setUnknown((u) => !u)}
+                activeOpacity={0.8}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: unknown }}
+            >
+                <Ionicons
+                    name={unknown ? 'checkbox' : 'square-outline'}
+                    size={22}
+                    color={unknown ? Colors.accentYellow : Colors.textMuted}
+                />
+                <AppText variant="callout" color={unknown ? Colors.textPrimary : Colors.textSecondary}>
+                    Doğum saatimi bilmiyorum
+                </AppText>
+            </TouchableOpacity>
+        </OnboardingScaffold>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        paddingHorizontal: Spacing.xxl,
-        justifyContent: 'space-between',
-    },
-    content: {
-        flex: 1,
-        paddingTop: 100,
-    },
-    step: {
-        fontSize: FontSize.sm,
-        color: Colors.textMuted,
-        marginBottom: Spacing.sm,
-    },
-    title: {
-        fontSize: FontSize.hero,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-        marginBottom: Spacing.md,
-    },
-    subtitle: {
-        fontSize: FontSize.md,
-        color: Colors.textSecondary,
-        marginBottom: Spacing.xxxl,
-        lineHeight: 22,
-    },
+    timeLabels: { flexDirection: 'row', marginTop: Spacing.xl, marginBottom: Spacing.sm },
     timeRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        gap: Spacing.lg,
+        backgroundColor: Colors.surface1,
+        borderRadius: BorderRadius.lg,
+        borderWidth: 1,
+        borderColor: Colors.border,
+        paddingHorizontal: Spacing.sm,
     },
-    timeCol: {
+    colon: { width: 20, alignItems: 'center' },
+    col: { flex: 1 },
+    label: { marginBottom: Spacing.sm },
+    unknownBox: {
         alignItems: 'center',
         gap: Spacing.md,
-    },
-    arrowBtn: {
-        width: 56,
-        height: 44,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: BorderRadius.md,
-        backgroundColor: Colors.backgroundCard,
+        padding: Spacing.xl,
+        borderRadius: BorderRadius.lg,
+        backgroundColor: Colors.surface1,
         borderWidth: 1,
         borderColor: Colors.border,
     },
-    arrow: {
-        fontSize: FontSize.xl,
-        color: Colors.purpleLight,
-        fontWeight: '600',
-    },
-    timeValue: {
-        fontSize: 48,
-        fontWeight: '700',
-        color: Colors.textPrimary,
-    },
-    colon: {
-        fontSize: 48,
-        fontWeight: '700',
-        color: Colors.textMuted,
-        marginBottom: 5,
-    },
-    footer: {
-        paddingBottom: Spacing.huge,
-    },
-    buttonRow: {
+    unknownText: { paddingHorizontal: Spacing.md },
+    toggle: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: Spacing.md,
+        marginTop: Spacing.xl,
+        padding: Spacing.lg,
+        borderRadius: BorderRadius.md,
+        borderWidth: 1,
+        borderColor: Colors.border,
+        backgroundColor: Colors.whiteA05,
     },
-    backBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: Spacing.md,
-        paddingHorizontal: Spacing.md,
-    },
-    backText: {
-        fontSize: FontSize.md,
-        color: Colors.textSecondary,
-    },
+    toggleActive: { borderColor: Colors.borderAccent, backgroundColor: Colors.goldA12 },
 });

@@ -57,11 +57,20 @@ export async function apiFetch<T = any>(path: string, options: RequestInit = {})
             headers['Authorization'] = `Bearer ${newToken}`;
             res = await fetch(`${API_BASE}${path}`, { ...options, headers });
         }
+        // Still unauthorized (expired/invalid session, e.g. the user no longer
+        // exists) → drop the stale tokens so the app returns to a clean logged-out
+        // state instead of throwing on every launch.
+        if (res.status === 401) {
+            await clearTokens();
+        }
     }
 
     if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Network error' }));
-        throw new Error(err.error || `HTTP ${res.status}`);
+        const error = new Error(err.error || `HTTP ${res.status}`) as Error & { status?: number; code?: string };
+        error.status = res.status;
+        error.code = err.code;
+        throw error;
     }
 
     return res.json();
@@ -81,10 +90,10 @@ export const auth = {
             body: JSON.stringify({ email, password }),
         }),
 
-    apple: (appleId: string, email?: string, name?: string) =>
+    apple: (appleId: string, email?: string, name?: string, identityToken?: string) =>
         apiFetch<{ accessToken: string; refreshToken: string; user: any }>('/auth/apple', {
             method: 'POST',
-            body: JSON.stringify({ appleId, email, name }),
+            body: JSON.stringify({ appleId, email, name, identityToken }),
         }),
 };
 
@@ -111,6 +120,9 @@ export const profile = {
         }
         return res.json();
     },
+
+    // Permanent account + data deletion (App Store 5.1.1(v)).
+    deleteAccount: () => apiFetch<any>('/profile', { method: 'DELETE' }),
 };
 
 // ─── ENTITLEMENTS ─────────────────────────────────
