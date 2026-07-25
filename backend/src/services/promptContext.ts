@@ -7,6 +7,17 @@
  */
 import { Reading } from '../models/Reading';
 
+/** "YYYY-MM-DD" doğum tarihinden yaş; geçersizse null. */
+export function calculateAge(birthDate: string): number | null {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birthDate || '');
+    if (!m) return null;
+    const [, y, mo, d] = m.map(Number) as unknown as number[];
+    const now = new Date();
+    let age = now.getFullYear() - y;
+    if (now.getMonth() + 1 < mo || (now.getMonth() + 1 === mo && now.getDate() < d)) age--;
+    return age >= 0 && age < 130 ? age : null;
+}
+
 /** Kayıtlı kullanıcı alanlarından kısa natal kimlik bloğu. */
 export function buildNatalBlock(user: {
     name?: string;
@@ -22,7 +33,10 @@ export function buildNatalBlock(user: {
 }): string {
     const lines: string[] = [];
     if (user.name) lines.push(`Ad: ${user.name}`);
-    if (user.birthDate) lines.push(`Doğum tarihi: ${user.birthDate}`);
+    if (user.birthDate) {
+        const age = calculateAge(user.birthDate);
+        lines.push(`Doğum tarihi: ${user.birthDate}${age != null ? ` (Yaş: ${age})` : ''}`);
+    }
     const trio = [
         user.sunSign ? `Güneş ${user.sunSign}` : null,
         user.moonSign ? `Ay ${user.moonSign}` : null,

@@ -34,7 +34,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         const isReversed = (seed % 3) === 0;
 
         const card = TAROT_CARDS.find(c => c.id === cardId) || TAROT_CARDS[0];
-        const dailyMessage = await generateDailyTarotMessage(card.nameTR, isReversed, user.sunSign || 'Koç');
+        const dailyMessage = await generateDailyTarotMessage(card.nameTR, isReversed, user.sunSign || 'Koç', user);
 
         const dailyTarot = new DailyTarot({
             userId: user._id.toString(),
