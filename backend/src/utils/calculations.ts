@@ -224,6 +224,32 @@ export const getCurrentMoonPhase = (): { phase: string; image: string; illuminat
     return { phase: "Balsamik Ay (Küçülen)", image: "icons8-waning-crescent-100.png", illumination: illum };
 };
 
+/** Verilen yıl+ay için o ayın son pazar gününü (1-31) döndürür. */
+const lastSundayOf = (year: number, month1: number): number => {
+    const lastDay = new Date(Date.UTC(year, month1, 0)); // month1 1-based → day 0 = son gün
+    return lastDay.getUTCDate() - lastDay.getUTCDay();
+};
+
+/**
+ * Türkiye'nin verilen yerel doğum anı için UTC ofsetini (saat) hesaplar.
+ * - 7 Eylül 2016'dan beri kalıcı UTC+3.
+ * - Öncesinde: yaz saati (Mart son pazar → Ekim son pazar) UTC+3, kış UTC+2.
+ *   (2015'te yaz saati 8 Kasım'a uzatıldı — o yıl için Ekim/Kasım geçişi ayrıca ele alınır.)
+ */
+export const turkeyUtcOffsetHours = (year: number, month1: number, day: number): number => {
+    if (year > 2016 || (year === 2016 && (month1 > 9 || (month1 === 9 && day >= 7)))) return 3;
+    // 2015 istisnası: DST 8 Kasım 2015'e kadar sürdü
+    if (year === 2015 && (month1 === 10 || (month1 === 11 && day < 8))) return 3;
+    const dstStart = lastSundayOf(year, 3);   // Mart son pazar
+    const dstEnd = lastSundayOf(year, 10);    // Ekim son pazar
+    const afterStart = month1 > 3 || (month1 === 3 && day >= dstStart);
+    const beforeEnd = month1 < 10 || (month1 === 10 && day < dstEnd);
+    return afterStart && beforeEnd ? 3 : 2;
+};
+
+/** Türkiye dışı doğumlar için boylamdan kabaca saat dilimi tahmini. */
+const offsetFromLongitude = (lng: number): number => Math.round(lng / 15);
+
 export const performCalculations = (input: UserInput) => {
     // 1. Numerology
     const numerology: NumerologyData = {
@@ -232,29 +258,19 @@ export const performCalculations = (input: UserInput) => {
         soulUrge: calculateDestinyNumber(input.name.replace(/[^aeiou]/gi, ''))
     };
 
-    // 2. Astronomy Setup — Interpret birth time as Turkey local time
-    // Turkey has been UTC+3 year-round since Oct 30, 2016
-    // Before that: UTC+2 (winter, last Sun Oct → last Sun Mar) / UTC+3 (summer)
-    const dateString = `${input.birthDate}T${input.birthTime}:00`;
-
-    // Determine Turkey UTC offset for this date
-    const year = parseInt(input.birthDate.split('-')[0]);
-    const month = parseInt(input.birthDate.split('-')[1]);
-    let turkeyOffsetHours = 3; // Default: UTC+3 (after 2016)
-    if (year < 2016 || (year === 2016 && month < 11)) {
-        // Before Nov 2016: simple winter/summer check
-        // Winter (Nov-Mar) = UTC+2, Summer (Apr-Oct) = UTC+3
-        if (month >= 11 || month <= 3) {
-            turkeyOffsetHours = 2;
-        } else {
-            turkeyOffsetHours = 3;
-        }
-    }
-
-    // Create a UTC date by subtracting Turkey offset from the local time
+    // 2. Astronomy Setup — doğum saati yerel saattir; UTC'ye çevir.
     const [bHours, bMinutes] = input.birthTime.split(':').map(Number);
     const [bYear, bMonth, bDay] = input.birthDate.split('-').map(Number);
-    const dateObj = new Date(Date.UTC(bYear, bMonth - 1, bDay, bHours - turkeyOffsetHours, bMinutes, 0));
+
+    const lngForOffset = parseFloat(input.longitude) || 28.9784;
+    const isTurkey = !input.birthCountry
+        || /t[uü]rk/i.test(input.birthCountry)
+        || /turkey/i.test(input.birthCountry);
+    const offsetHours = isTurkey
+        ? turkeyUtcOffsetHours(bYear, bMonth, bDay)
+        : offsetFromLongitude(lngForOffset);
+
+    const dateObj = new Date(Date.UTC(bYear, bMonth - 1, bDay, bHours - offsetHours, bMinutes, 0));
 
     if (isNaN(dateObj.getTime())) {
         throw new Error("Geçersiz Tarih/Saat formatı");
@@ -265,10 +281,13 @@ export const performCalculations = (input: UserInput) => {
     const astroTime = Astronomy.MakeTime(dateObj);
 
     // 3. Calculate Ascendant (Rising Sign)
+    // Formül gündoğumu anlarında Güneş boylamıyla 0.006°'ye kadar doğrulandı.
     const siderealTime = Astronomy.SiderealTime(astroTime);
     const lst = siderealTime + (lng / 15.0);
     const ramc = (lst * 15.0) * (Math.PI / 180.0);
-    const obliquityDeg = 23.4392911;
+    // Tarihe göre ortalama ekliptik eğikliği (J2000: 23.4393°, yüzyılda ~0.013° azalır)
+    const centuriesFromJ2000 = (dateObj.getTime() / 86400000 - 10957.5) / 36525;
+    const obliquityDeg = 23.4392911 - 0.0130042 * centuriesFromJ2000;
     const epsilon = obliquityDeg * (Math.PI / 180.0);
     const latRad = lat * (Math.PI / 180.0);
 

@@ -6,10 +6,11 @@ import { DailyTarot } from '../models/DailyTarot';
 import { ReadingRequest } from '../models/ReadingRequest';
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware';
 import { performCalculations, getCurrentMoonPhase } from '../utils/calculations';
-import { ZODIAC_DATA, TURKISH_CITIES } from '../constants';
+import { ZODIAC_DATA, SIGN_DEITY } from '../constants';
 import { UserInput } from '../types';
 import { revokeAppleToken } from '../utils/appleAuth';
 import { coordsForCountry } from '../data/worldCapitals';
+import { resolveBirthCoords } from '../data/turkeyGeo';
 
 const router = Router();
 
@@ -27,6 +28,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
             birthDate: user.birthDate,
             birthTime: user.birthTime,
             birthCity: user.birthCity,
+            birthDistrict: user.birthDistrict,
             birthCountry: user.birthCountry,
             relationshipStatus: user.relationshipStatus,
             workStatus: user.workStatus,
@@ -54,19 +56,19 @@ router.put('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         const user = await User.findById(req.user!._id);
         if (!user) return res.status(404).json({ error: 'Kullanıcı bulunamadı', code: 'NOT_FOUND' });
 
-        const allowedFields = ['name', 'gender', 'birthDate', 'birthTime', 'birthCity', 'birthCountry', 'relationshipStatus', 'workStatus'];
+        const allowedFields = ['name', 'gender', 'birthDate', 'birthTime', 'birthCity', 'birthDistrict', 'birthCountry', 'relationshipStatus', 'workStatus'];
         for (const field of allowedFields) {
             if (req.body[field] !== undefined) {
                 (user as any)[field] = req.body[field];
             }
         }
 
-        // Şehir değişirse koordinatları güncelle
-        if (req.body.birthCity) {
-            const cityData = TURKISH_CITIES.find(c => c.name === req.body.birthCity);
-            if (cityData) {
-                user.latitude = cityData.lat.toString();
-                user.longitude = cityData.lon.toString();
+        // Şehir/ilçe değişirse koordinatları güncelle (ilçe > il hassasiyeti)
+        if (req.body.birthCity || req.body.birthDistrict) {
+            const resolved = resolveBirthCoords(user.birthCity, user.birthDistrict);
+            if (resolved) {
+                user.latitude = resolved.lat.toString();
+                user.longitude = resolved.lon.toString();
             }
         }
 
@@ -80,6 +82,7 @@ router.put('/', authMiddleware, async (req: AuthRequest, res: Response) => {
             birthDate: user.birthDate,
             birthTime: user.birthTime,
             birthCity: user.birthCity,
+            birthDistrict: user.birthDistrict,
             birthCountry: user.birthCountry,
             relationshipStatus: user.relationshipStatus,
             workStatus: user.workStatus,
@@ -103,18 +106,17 @@ router.post('/onboarding', authMiddleware, async (req: AuthRequest, res: Respons
         const user = await User.findById(req.user!._id);
         if (!user) return res.status(404).json({ error: 'Kullanıcı bulunamadı', code: 'NOT_FOUND' });
 
-        const { name, gender, birthDate, birthTime, birthCity, birthCountry, relationshipStatus, workStatus } = req.body;
+        const { name, gender, birthDate, birthTime, birthCity, birthDistrict, birthCountry, relationshipStatus, workStatus } = req.body;
 
         if (!name || !gender || !birthDate || !birthTime || !birthCity || !birthCountry || !relationshipStatus || !workStatus) {
             return res.status(400).json({ error: 'Tüm alanlar zorunludur', code: 'MISSING_FIELDS' });
         }
 
-        // Şehir koordinatlarını bul: önce TR şehir tablosu, sonra ülke başkenti,
-        // en son İstanbul (varsayılan).
-        const cityData = TURKISH_CITIES.find(c => c.name === birthCity);
-        const countryCoords = coordsForCountry(birthCountry);
-        const latitude = cityData ? cityData.lat.toString() : (countryCoords ? countryCoords.lat.toString() : '41.0082');
-        const longitude = cityData ? cityData.lon.toString() : (countryCoords ? countryCoords.lon.toString() : '28.9784');
+        // Koordinat çözümü: il+ilçe (Türkçe-normalize) → ülke başkenti → İstanbul.
+        const resolved = resolveBirthCoords(birthCity, birthDistrict);
+        const countryCoords = resolved ? null : coordsForCountry(birthCountry);
+        const latitude = resolved ? resolved.lat.toString() : (countryCoords ? countryCoords.lat.toString() : '41.0082');
+        const longitude = resolved ? resolved.lon.toString() : (countryCoords ? countryCoords.lon.toString() : '28.9784');
 
         // Kullanıcı bilgilerini güncelle
         user.name = name;
@@ -122,6 +124,7 @@ router.post('/onboarding', authMiddleware, async (req: AuthRequest, res: Respons
         user.birthDate = birthDate;
         user.birthTime = birthTime;
         user.birthCity = birthCity;
+        user.birthDistrict = birthDistrict || '';
         user.birthCountry = birthCountry;
         user.latitude = latitude;
         user.longitude = longitude;
@@ -131,6 +134,7 @@ router.post('/onboarding', authMiddleware, async (req: AuthRequest, res: Respons
         // Mevcut hesaplama sistemi ile astrolojik verileri hesapla
         const inputData: UserInput = {
             name, birthDate, birthTime, birthCity,
+            birthDistrict, birthCountry,
             latitude, longitude, gender,
             relationshipStatus, jobStatus: workStatus
         };
@@ -146,27 +150,18 @@ router.post('/onboarding', authMiddleware, async (req: AuthRequest, res: Respons
         user.moonSign = moonSignData?.name || calcData.astrology.moon.sign;
         user.risingSign = risingSignData?.name || calcData.astrology.rising.sign;
         user.element = sunSignData?.element || 'Su';
-        user.energyScore = Math.floor(Math.random() * 30) + 60; // 60-90 arası
+        // Enerji skoru: rastgele değil, haritadan türetilir — majör olumlu açı
+        // (Trine/Sextile) sayısı arttırır, sert açılar (Square/Opposition) azaltır.
+        const aspects = calcData.astrology.aspects || [];
+        const soft = aspects.filter(a => a.type === 'Trine' || a.type === 'Sextile').length;
+        const hard = aspects.filter(a => a.type === 'Square' || a.type === 'Opposition').length;
+        user.energyScore = Math.max(45, Math.min(98, 70 + soft * 3 - hard * 2));
 
-        // Deity mapping — convert Turkish mythology names to frontend deity IDs
-        const DEITY_ID_MAP: Record<string, string> = {
-            'ares': 'ares',
-            'afrodit': 'aphrodite',
-            'hermes': 'hermes',
-            'demeter': 'demeter',
-            'apollon': 'apollo',
-            'athena': 'athena',
-            'hera': 'hera',
-            'hades': 'hades',
-            'zeus': 'zeus',
-            'kronos': 'athena',  // no kronos deity in frontend, fallback
-            'prometheus': 'poseidon', // no prometheus deity, fallback
-            'poseidon': 'poseidon',
-            'artemis': 'artemis',
-        };
-        const rawDeityId = sunSignData?.mythology?.greek?.toLowerCase() || 'athena';
-        user.deityResult = DEITY_ID_MAP[rawDeityId] || rawDeityId;
-        user.deityName = sunSignData?.mythology?.greek || 'Athena';
+        // Tanrı arketipi: güneş burcuna birebir eşlenmiş, içerik paketinde
+        // gerçekten var olan 12 tanrıdan biri (SIGN_DEITY — constants.ts).
+        const deity = SIGN_DEITY[calcData.astrology.sun.sign] || SIGN_DEITY['Virgo'];
+        user.deityResult = deity.id;
+        user.deityName = deity.name;
 
         user.onboardingComplete = true;
         await user.save();

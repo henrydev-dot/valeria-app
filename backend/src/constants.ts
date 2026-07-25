@@ -118,6 +118,29 @@ export const RETROGRADE_CALENDAR_2025 = [
     }
 ];
 
+/**
+ * Burç → Tanrı arketipi eşlemesi (içerik paketindeki 12 tanrıyla birebir).
+ * Gerekçeler: 8 eşleşme yönetici gezegen üzerinden (Mars→Ares, Venüs→Afrodit,
+ * Merkür→Hermes, Ay→Artemis, Güneş→Apollon, Plüton→Hades, Jüpiter→Zeus,
+ * Neptün→Poseidon); Boğa→Demeter (toprak/bereket), Başak→Persefone (Başak
+ * takımyıldızının "Bakire/Kore" kimliği), Oğlak→Hera (otorite, statü, yapı),
+ * Kova→Athena (yenilikçi akıl, insancıl strateji).
+ */
+export const SIGN_DEITY: Record<string, { id: string; name: string }> = {
+    Aries: { id: 'ares', name: 'Ares' },
+    Taurus: { id: 'demeter', name: 'Demeter' },
+    Gemini: { id: 'hermes', name: 'Hermes' },
+    Cancer: { id: 'artemis', name: 'Artemis' },
+    Leo: { id: 'apollo', name: 'Apollon' },
+    Virgo: { id: 'persephone', name: 'Persefone' },
+    Libra: { id: 'aphrodite', name: 'Afrodit' },
+    Scorpio: { id: 'hades', name: 'Hades' },
+    Sagittarius: { id: 'zeus', name: 'Zeus' },
+    Capricorn: { id: 'hera', name: 'Hera' },
+    Aquarius: { id: 'athena', name: 'Athena' },
+    Pisces: { id: 'poseidon', name: 'Poseidon' },
+};
+
 export const TURKISH_CITIES = [
     { name: "Adana", lat: 37.0000, lon: 35.3213 },
     { name: "Adıyaman", lat: 37.7648, lon: 38.2786 },

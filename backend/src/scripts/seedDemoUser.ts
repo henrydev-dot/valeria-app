@@ -17,7 +17,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import { User } from '../models/User';
 import { performCalculations } from '../utils/calculations';
-import { ZODIAC_DATA, TURKISH_CITIES } from '../constants';
+import { ZODIAC_DATA, TURKISH_CITIES, SIGN_DEITY } from '../constants';
 import { coordsForCountry } from '../data/worldCapitals';
 import { UserInput } from '../types';
 
@@ -33,14 +33,6 @@ const DEMO = {
     birthCountry: 'Türkiye',
     relationshipStatus: 'bekar',
     workStatus: 'calisan',
-};
-
-// Same deity mapping the onboarding route uses.
-const DEITY_ID_MAP: Record<string, string> = {
-    ares: 'ares', afrodit: 'aphrodite', hermes: 'hermes', demeter: 'demeter',
-    apollon: 'apollo', athena: 'athena', hera: 'hera', hades: 'hades',
-    zeus: 'zeus', kronos: 'athena', prometheus: 'poseidon', poseidon: 'poseidon',
-    artemis: 'artemis',
 };
 
 async function seedDemo() {
@@ -76,7 +68,7 @@ async function seedDemo() {
     const sunData = ZODIAC_DATA[calc.astrology.sun.sign];
     const moonData = ZODIAC_DATA[calc.astrology.moon.sign];
     const risingData = ZODIAC_DATA[calc.astrology.rising.sign];
-    const rawDeityId = sunData?.mythology?.greek?.toLowerCase() || 'athena';
+    const demoDeity = SIGN_DEITY[calc.astrology.sun.sign] || SIGN_DEITY['Virgo'];
 
     const hashedPassword = await bcrypt.hash(DEMO.password, 10);
 
@@ -98,8 +90,8 @@ async function seedDemo() {
         risingSign: risingData?.name || calc.astrology.rising.sign,
         element: sunData?.element || 'Su',
         energyScore: 82,
-        deityResult: DEITY_ID_MAP[rawDeityId] || rawDeityId,
-        deityName: sunData?.mythology?.greek || 'Athena',
+        deityResult: demoDeity.id,
+        deityName: demoDeity.name,
         onboardingComplete: true,
         // Generous entitlements so the reviewer can test everything without limits.
         membershipType: 'premium',
