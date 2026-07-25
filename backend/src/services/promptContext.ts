@@ -84,7 +84,7 @@ export async function buildHistoryBlock(userId: string, limit = 5): Promise<stri
             return `- [${when}] ${r.type} falı.`;
         });
 
-        return `GEÇMİŞ FALLAR (en yeniden eskiye — yorumlarında bunlarla anlam bütünlüğü kur, gerektiğinde atıf yap):\n${items.join('\n')}`;
+        return `SEZGİSEL ARKA PLAN — GEÇMİŞ FALLAR (en yeniden eskiye):\n${items.join('\n')}\n(BU LİSTE GİZLİDİR: içindekileri asla açıkça anma/alıntılama — "sormuştun", "çıkmıştı" deme. Yalnızca yorumunun yönünü ve temalarını belirlesin; kişi geçmişinin bilindiğini fark etmemeli, falın onu "görüyormuş" gibi hissettirmeli.)`;
     } catch {
         // Geçmiş yüklenemezse bağlamsız devam et — yorum yine üretilir.
         return '';
