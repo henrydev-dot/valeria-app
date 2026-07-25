@@ -151,7 +151,14 @@ export const askHoraryQuestion = async (
 
     SORU: "${question}"
 
-    SORAN KİŞİ: ${userContext.name} — Cinsiyet/Yönelim: ${userContext.gender}, İlişki: ${userContext.relationshipStatus}, İş: ${userContext.jobStatus}
+    SORAN KİŞİ:
+    ${buildNatalBlock({
+        name: userContext.name,
+        birthDate: userContext.birthDate,
+        gender: userContext.gender,
+        relationshipStatus: userContext.relationshipStatus,
+        workStatus: userContext.jobStatus,
+    })}
     NATAL HARİTA: ${natalLine}
     GEZEGEN YERLEŞİMLERİ: ${planetLines}
     AKTİF TRANSİTLER: ${transitLines || 'önemli transit yok'}
@@ -162,6 +169,8 @@ export const askHoraryQuestion = async (
     2. Kişinin haritasındaki İLGİLİ yerleşimi ve aktif transitleri yorumla — genel geçer değil, yukarıdaki gerçek verilere dayan.
     3. NET bir hüküm ver: olumlu / olumsuz / koşullu — ve koşulu söyle.
     4. Mümkünse kabaca bir zamanlama ipucu ekle (ör. "Ay bir sonraki dolunaya yaklaşırken", "birkaç hafta içinde").
+    5. Yorumunu kişinin YAŞINA, cinsiyetine/yönelimine ve ilişki-iş durumuna göre uyarla — ör. aynı aşk sorusu
+       bekar bir öğrenciyle evli bir çalışana aynı cevabı almaz; hitabın ve örneklerin bu kişiye özel olsun.
     Mistik ama somut ol; astrolojik gerekçeni kişinin anlayacağı dilde ver. Türkçe yaz.
     `;
 
@@ -198,7 +207,7 @@ export const generateTarotInterpretation = async (
 
     ${question ? `SORU: "${question}"` : 'Genel bir okuma.'}
     ${historyBlock ? `\n    ${historyBlock}\n` : ''}
-    Bu kart için mistik, derin ve kişisel bir yorum yap. Kişinin doğum haritasını (Güneş/Ay/Yükselen), ilişki ve iş durumunu dikkate alarak aşk, kariyer ve ruhsal rehberlik konularında somut mesajlar ver.
+    Bu kart için mistik, derin ve kişisel bir yorum yap. Kişinin doğum haritasını (Güneş/Ay/Yükselen), yaşını, cinsiyetini/yönelimini, ilişki ve iş durumunu dikkate alarak aşk, kariyer ve ruhsal rehberlik konularında somut mesajlar ver.
     Geçmiş fallarında çıkan kartlar veya sorularla bağ kurabiliyorsan kur — yorumların birbirini tamamlasın.
     Maksimum 4-5 cümle. En içten halinle, Valeria olarak yanıtla. Türkçe yaz.
   `;
@@ -259,6 +268,7 @@ export const generateTarotSpreadReading = async (
     - Her kartı KENDİ POZİSYONUNDA yorumla (Geçmiş: yaşanmış etkiler; Şimdi: mevcut enerji; Gelecek: olası gidişat).
     - Kartları birbirine bağla — ör. geçmiş kartındaki tema, şimdi kartında nasıl evriliyor?
     - Kişinin burcunu/yükselenini/element enerjisini ve ilişki-iş durumunu yorumlara dokundur.
+    - Yorumları kişinin YAŞINA, cinsiyetine/yönelimine ve hayat evresine göre uyarla (öğrenci/çalışan, bekar/evli farkı hissedilsin).
     - Geçmiş fallarıyla anlam bütünlüğü kur; çelişme.
     - Her kart yorumu 4-6 cümle; sentez 3-5 cümle, net bir mesajla bitsin.
 
@@ -397,6 +407,8 @@ export const generateCoffeeReading = async (
     ${question ? `KULLANICININ SORUSU: "${question}" — soruCevabi bölümünde bu soruya odaklan.` : 'Soru sorulmadı — soruCevabi bölümünde falın en çarpıcı ana mesajını yaz.'}
 
     Yorumlarında kişinin burcunu/elementini ve ilişki-iş durumunu sembollerle harmanla; geçmiş fallarıyla çelişme, gerekirse atıf yap.
+    Falı kişinin YAŞINA, cinsiyetine/yönelimine ve hayat evresine göre uyarla — genç bir öğrenciye okul/heyecan dilinden,
+    evli bir çalışana yuva/istikrar dilinden konuş.
     Tamamen Türkçe yaz — İngilizce kelime (cup, love, career vb.) KULLANMA; "fincan", "aşk", "kariyer" de.
 
     SADECE geçerli JSON döndür (markdown işaretleri OLMADAN):
@@ -596,18 +608,20 @@ export const generateCompatibility = async (sign1: string, sign2: string): Promi
 export const generateDailyTarotMessage = async (
     cardName: string,
     isReversed: boolean,
-    userSign: string
+    userSign: string,
+    user?: any
 ): Promise<string> => {
     if (AI_BYPASS) return cannedDailyTarotMessage(cardName, isReversed, userSign);
     const direction = isReversed ? "ters" : "düz";
     const today = new Date().toISOString().split('T')[0];
     const prompt = `
     Bugünün Tarihi: ${today}
-    
-    Senin adın Valeria. Deneyimli, sezgisel bir tarot okuyucususun. Asla yapay zeka olduğunu söyleme.
+
     ${cardName} kartı (${direction}) bugün ${userSign} burcu için çekildi.
-    Bu kartın bugünkü enerjisini ve kişiye özel mesajını GÜNLÜK TAROT YORUMU olarak aktar. 
-    Kişinin burcunu dikkate alarak sadece ve tam olarak 3 (üç) cümle kur. Sıcak ve mistik bir üslupla, doğrudan Valeria olarak hitap et.
+    ${user ? `Kişi:\n    ${buildNatalBlock(user)}` : ''}
+    Bu kartın bugünkü enerjisini ve kişiye özel mesajını GÜNLÜK TAROT YORUMU olarak aktar.
+    Kişinin burcunu, yaşını ve ilişki-iş durumunu dikkate alarak sadece ve tam olarak 3 (üç) cümle kur.
+    Sıcak ve mistik bir üslupla, doğrudan Valeria olarak hitap et.
     `;
 
     try {
