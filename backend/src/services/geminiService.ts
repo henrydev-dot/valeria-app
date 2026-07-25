@@ -324,9 +324,15 @@ interface CupSymbols {
     genelIzlenim: string;
 }
 
-/** 1. Aşama — fotoğrafları Gemini vision ile sembol listesine çevirir. */
-const extractCupSymbols = async (imagesBase64: string[]): Promise<CupSymbols | null> => {
-    if (!process.env.GEMINI_API_KEY || !imagesBase64?.length) return null;
+type CupExtraction =
+    | { kind: 'ok'; data: CupSymbols }
+    | { kind: 'invalid' }        // fotoğraflar fincan değil → fal reddedilir
+    | { kind: 'unavailable' };   // vision yapılamadı (key yok / servis hatası) → fal verilmez, kredi kesilmez
+
+/** 1. Aşama — fotoğrafları Gemini vision ile doğrular ve sembol listesine çevirir. */
+const extractCupSymbols = async (imagesBase64: string[]): Promise<CupExtraction> => {
+    if (!imagesBase64?.length) return { kind: 'invalid' };
+    if (!process.env.GEMINI_API_KEY) return { kind: 'unavailable' };
 
     const visionPrompt = `
     Sen bir Türk kahvesi falı için görüntü analiz asistanısın. Sana içilmiş kahve fincanı/tabağı fotoğrafları verilecek.
@@ -363,33 +369,55 @@ const extractCupSymbols = async (imagesBase64: string[]): Promise<CupSymbols | n
         });
         const raw = (response.text || '').replace(/```json|```/g, '').trim();
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) return null;
+        if (!jsonMatch) return { kind: 'unavailable' };
         const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.isCoffeeCup === false) return { kind: 'invalid' };
         return {
-            isCoffeeCup: parsed.isCoffeeCup !== false,
-            symbols: Array.isArray(parsed.symbols) ? parsed.symbols : [],
-            genelIzlenim: parsed.genelIzlenim || '',
+            kind: 'ok',
+            data: {
+                isCoffeeCup: true,
+                symbols: Array.isArray(parsed.symbols) ? parsed.symbols : [],
+                genelIzlenim: parsed.genelIzlenim || '',
+            },
         };
     } catch (error) {
         console.error('[AI] extractCupSymbols failed (vision):', error);
-        return null; // vision düşerse fal sezgisel modda devam eder
+        // Doğrulama yapılamadıysa fal VERİLMEZ (sahte/boş resimle yorum
+        // alınamasın) — route kredi kesmeden hata döndürür.
+        return { kind: 'unavailable' };
     }
 };
+
+export interface CoffeeReadingResult {
+    soruCevabi: string;
+    askHayati: string;
+    kariyer: string;
+    aile: string;
+    /** Fotoğraflar fincan değil → route 400 döner, kredi KESİLMEZ. */
+    rejected?: boolean;
+    /** Doğrulama yapılamadı (vision yok/hata) → route 503 döner, kredi KESİLMEZ. */
+    unavailable?: boolean;
+}
 
 export const generateCoffeeReading = async (
     imagesBase64: string[] = [],
     user: any,
     question?: string
-): Promise<{ soruCevabi: string; askHayati: string; kariyer: string; aile: string }> => {
+): Promise<CoffeeReadingResult> => {
     if (AI_BYPASS) return cannedCoffee(user, question);
 
-    // 1. Aşama — vision
+    // 1. Aşama — vision doğrulaması ZORUNLU: fincan görülmeden fal verilmez.
     const cup = await extractCupSymbols(imagesBase64);
-    if (cup && !cup.isCoffeeCup) return COFFEE_REJECT;
+    if (cup.kind === 'invalid') return { ...COFFEE_REJECT, rejected: true };
+    if (cup.kind === 'unavailable') {
+        return {
+            soruCevabi: 'Canım, şu an fincanını göremiyorum — falcının gözü kapalıyken fal bakılmaz. Birkaç dakika sonra tekrar dener misin?',
+            askHayati: '', kariyer: '', aile: '',
+            unavailable: true,
+        };
+    }
 
-    const symbolBlock = cup && cup.symbols.length
-        ? `FİNCANDA TESPİT EDİLEN SEMBOLLER (fotoğraflardan çıkarıldı — yorumunu BUNLARA dayandır, sembolleri tasvir ederek anlat):\n${cup.symbols.map(sy => `- ${sy.sembol} (${sy.konum}): ${sy.cagrisim}`).join('\n')}\nGenel izlenim: ${cup.genelIzlenim}`
-        : `FİNCAN SEMBOLLERİ: Fotoğraflar ayrıntılı işlenemedi — fincanı görmüşsün gibi, geleneksel fal sembolleri (kuş, yol, kalp, harf...) üzerinden sezgisel oku. Fotoğraf reddetme senaryosu KULLANMA.`;
+    const symbolBlock = `FİNCANDA TESPİT EDİLEN SEMBOLLER (fotoğraflardan çıkarıldı — yorumunu BUNLARA dayandır, sembolleri tasvir ederek anlat):\n${cup.data.symbols.map(sy => `- ${sy.sembol} (${sy.konum}): ${sy.cagrisim}`).join('\n')}\nGenel izlenim: ${cup.data.genelIzlenim}`;
 
     const coffeeHistory = await buildHistoryBlock(user?._id?.toString?.() || '');
 
