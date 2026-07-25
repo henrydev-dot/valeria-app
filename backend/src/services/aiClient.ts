@@ -22,6 +22,7 @@
  *   - deepseek-chat / deepseek-reasoner 2026-07-24'te kullanımdan kalktı.
  */
 import { GoogleGenAI } from '@google/genai';
+import { AI_MODEL as GEMINI_SAFE_MODEL } from './aiBypass';
 
 // Valeria'nın tüm AI çağrılarında ortak kişiliği (system prompt).
 export const VALERIA_SYSTEM_PROMPT = `Senin adın Valeria. Sezgileri çok güçlü, deneyimli bir astrolog, tarot okuyucusu ve spiritüel rehbersin.
@@ -105,7 +106,8 @@ async function deepseekGenerate(prompt: string, opts: AIGenerateOptions): Promis
 }
 
 async function geminiGenerate(prompt: string, opts: AIGenerateOptions): Promise<string> {
-    const model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+    // Emekli model koruması dahil tek kaynaktan (aiBypass.AI_MODEL) gelir.
+    const model = GEMINI_SAFE_MODEL;
     const response = await getGemini().models.generateContent({
         model,
         contents: `${opts.system || VALERIA_SYSTEM_PROMPT}\n\n${prompt}`,

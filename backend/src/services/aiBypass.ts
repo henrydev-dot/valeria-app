@@ -16,9 +16,22 @@
 // Default ON per product decision (canned now, real AI later).
 export const AI_BYPASS = (process.env.AI_BYPASS ?? 'true').toLowerCase() !== 'false';
 
-// Corrected, current Gemini model id (old 'gemini-3-flash-preview' was invalid,
-// which silently routed every call to the fallback text). Override with GEMINI_MODEL.
-export const AI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+// Emekli/erişimi kapatılmış Gemini model adları — env yanlışlıkla bunlardan
+// birine ayarlıysa (prod'da "gemini-2.5-flash is no longer available" 404'ü
+// görüldü) sessizce güncel modele düşülür.
+const RETIRED_GEMINI_MODELS = new Set([
+    'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite',
+    'gemini-2.0-flash', 'gemini-2.0-flash-lite',
+    'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro',
+]);
+const requestedGeminiModel = process.env.GEMINI_MODEL || '';
+if (requestedGeminiModel && RETIRED_GEMINI_MODELS.has(requestedGeminiModel)) {
+    console.warn(`[AI] GEMINI_MODEL=${requestedGeminiModel} artık kullanılamıyor — gemini-3.1-flash-lite kullanılacak. Env değişkenini güncelleyin.`);
+}
+export const AI_MODEL =
+    requestedGeminiModel && !RETIRED_GEMINI_MODELS.has(requestedGeminiModel)
+        ? requestedGeminiModel
+        : 'gemini-3.1-flash-lite';
 
 const firstName = (name?: string) => (name || '').trim().split(/\s+/)[0] || 'canım';
 const signOf = (s?: string) => s && s !== 'Bilinmiyor' ? s : 'burcun';

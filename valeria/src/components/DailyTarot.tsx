@@ -696,17 +696,10 @@ const styles = StyleSheet.create({
         lineHeight: 26,
         fontStyle: 'italic',
     },
+    // Button bileşeni kendi altın gradyan zeminini çizer — burada yalnız
+    // boşluk verilir (ikinci bir sarı katman "buton içinde buton" yapıyordu).
     closeCta: {
         marginTop: Spacing.xxl,
-        backgroundColor: Colors.accentYellow,
-        borderRadius: BorderRadius.lg,
-        paddingVertical: Spacing.lg,
-        alignItems: 'center',
-    },
-    closeCtaText: {
-        fontSize: FontSize.lg,
-        fontWeight: '700',
-        color: Colors.backgroundDark,
     },
     aiLoadingContainer: {
         flexDirection: 'row',
