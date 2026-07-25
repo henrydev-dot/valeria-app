@@ -12,7 +12,7 @@ import { Colors } from '../../src/theme/colors';
 import { Spacing, BorderRadius, FontWeight } from '../../src/theme/spacing';
 import * as api from '../../src/api';
 
-type ReadingType = 'tarot' | 'kahve' | 'sarkac';
+type ReadingType = 'tarot' | 'kahve' | 'yildiz' | 'sarkac';
 
 interface ReadingTypeDef {
     key: ReadingType;
@@ -22,9 +22,14 @@ interface ReadingTypeDef {
     color: string;
     /** Credit cost of the Valeria (AI) reading. 0 = free/local. */
     cost: number;
+    /** Kart üzerinde gösterilecek ücret etiketi (cost yerine geçer). */
+    costLabel?: string;
     route: string;
     /** Whether this type can be handed to a human advisor. */
     usesAdvisor: boolean;
+    /** Danışmansız türlerde aksiyon panelinde gösterilecek metinler. */
+    panelDesc?: string;
+    panelCta?: string;
 }
 
 const READING_TYPES: ReadingTypeDef[] = [
@@ -49,6 +54,19 @@ const READING_TYPES: ReadingTypeDef[] = [
         usesAdvisor: true,
     },
     {
+        key: 'yildiz',
+        name: 'Yıldızlara Sor',
+        description: 'Horary: doğum haritana göre tek soruna net yanıt.',
+        icon: 'telescope',
+        color: '#C084FC',
+        cost: 0,
+        costLabel: 'Günlük ücretsiz',
+        route: '/ask-question',
+        usesAdvisor: false,
+        panelDesc: 'Horary astroloji, tek bir sorunun cevabını gökyüzünde arar. Valeria doğum haritanı — burcunu, yükselenini, evlerini — ve şu anki transitleri okuyarak sana net bir hüküm verir: olumlu, olumsuz ya da koşullu.',
+        panelCta: 'Yıldızlara Sor',
+    },
+    {
         key: 'sarkac',
         name: 'Sarkaç',
         description: 'Evet/hayır sorularına anında yanıt al.',
@@ -57,6 +75,8 @@ const READING_TYPES: ReadingTypeDef[] = [
         cost: 0,
         route: '/pendulum',
         usesAdvisor: false,
+        panelDesc: 'Sarkaç yalnızca senin enerjinle çalışır — falcı gerekmez. Evet/hayır ile yanıtlanabilecek bir soru sor, sarkaç senin için dönsün.',
+        panelCta: 'Sarkaca Sor',
     },
 ];
 
@@ -199,7 +219,7 @@ export default function ReadingScreen() {
     const getAdvisorName = (id: string) =>
         roster.find((a) => a.id === id)?.name ?? 'Falcı';
 
-    const costLabel = (cost: number) => (cost === 0 ? 'Ücretsiz' : `${cost} kredi`);
+    const costLabel = (cost: number, label?: string) => label || (cost === 0 ? 'Ücretsiz' : `${cost} kredi`);
 
     return (
         <Screen edges={['top']} keyboard>
@@ -216,7 +236,7 @@ export default function ReadingScreen() {
                         <Card
                             key={t.key}
                             onPress={() => selectType(t.key)}
-                            accessibilityLabel={`${t.name}, ${costLabel(t.cost)}`}
+                            accessibilityLabel={`${t.name}, ${costLabel(t.cost, t.costLabel)}`}
                             style={[styles.tile, isActive && { borderColor: t.color }]}
                         >
                             <View style={styles.tileRow}>
@@ -241,7 +261,7 @@ export default function ReadingScreen() {
                                             color={t.cost === 0 ? Colors.success : Colors.accentYellow}
                                             style={styles.costText}
                                         >
-                                            {costLabel(t.cost)}
+                                            {costLabel(t.cost, t.costLabel)}
                                         </AppText>
                                     </View>
                                     <Ionicons
@@ -379,16 +399,21 @@ export default function ReadingScreen() {
                         </View>
                         <AppText variant="h2" center>{activeDef.name}</AppText>
                         <AppText variant="body" center style={styles.actionDesc}>
-                            Sarkaç yalnızca senin enerjinle çalışır — falcı gerekmez. Evet/hayır ile
-                            yanıtlanabilecek bir soru sor, sarkaç senin için dönsün.
+                            {activeDef.panelDesc}
                         </AppText>
                         <View style={[styles.costPill, styles.costPillFree]}>
-                            <Ionicons name="leaf-outline" size={14} color={Colors.success} />
+                            <Ionicons
+                                name={activeType === 'yildiz' ? 'gift-outline' : 'leaf-outline'}
+                                size={14}
+                                color={Colors.success}
+                            />
                             <AppText variant="caption" color={Colors.success} style={styles.costPillText}>
-                                Ücretsiz • Cihazında çalışır
+                                {activeType === 'yildiz'
+                                    ? 'Günlük ücretsiz hak • Sonrası kredi ile'
+                                    : 'Ücretsiz • Cihazında çalışır'}
                             </AppText>
                         </View>
-                        <Button title="Sarkaca Sor" onPress={startValeriaReading} style={styles.actionBtn} />
+                        <Button title={activeDef.panelCta || 'Başla'} onPress={startValeriaReading} style={styles.actionBtn} />
                     </Card>
                 </View>
             )}

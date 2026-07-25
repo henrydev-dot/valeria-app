@@ -74,23 +74,47 @@ export default function AskQuestionScreen() {
         doAsk();
     };
 
+    const profile = useUserStore((s) => s.profile);
+    const natalChips = [
+        profile.sunSign ? `☉ ${profile.sunSign}` : null,
+        profile.moonSign ? `☽ ${profile.moonSign}` : null,
+        profile.risingSign ? `↑ ${profile.risingSign}` : null,
+        profile.element ? `◆ ${profile.element}` : null,
+    ].filter(Boolean) as string[];
+
     return (
         <Screen keyboard>
-            <Header title="Soru Sor" />
+            <Header title="Yıldızlara Sor" />
 
             {!answer ? (
                 <View style={styles.section}>
                     <Card glow style={styles.introCard}>
                         <View style={styles.introIcon}>
                             <Ionicons
-                                name="chatbubble-ellipses-outline"
+                                name="telescope-outline"
                                 size={36}
                                 color={Colors.accentYellow}
                             />
                         </View>
+                        <View style={styles.horaryTag}>
+                            <AppText variant="label" color={Colors.purpleLight}>HORARY ASTROLOJİ</AppText>
+                        </View>
                         <AppText variant="h1" center>
-                            Kozmik Soru
+                            Yıldızlara Sor
                         </AppText>
+                        <AppText variant="callout" center color={Colors.textSecondary}>
+                            Sorunu yaz; Valeria doğum haritanı — burcunu, yükselenini, evlerini —
+                            ve şu anki gökyüzünü birlikte okuyarak sana özel net bir yanıt versin.
+                        </AppText>
+                        {natalChips.length > 0 && (
+                            <View style={styles.natalChips}>
+                                {natalChips.map((c) => (
+                                    <View key={c} style={styles.natalChip}>
+                                        <AppText variant="caption" color={Colors.textPrimary}>{c}</AppText>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
                         {isFree ? (
                             <>
                                 <AppText variant="body" center>
@@ -132,7 +156,7 @@ export default function AskQuestionScreen() {
                     </AppText>
                     <TextInput
                         style={styles.input}
-                        placeholder="Merak ettiklerinizi sorun..."
+                        placeholder="Örn: Bu ay kariyerimde beklediğim gelişme olacak mı?"
                         placeholderTextColor={Colors.textMuted}
                         value={question}
                         onChangeText={setQuestion}
@@ -196,6 +220,29 @@ export default function AskQuestionScreen() {
 const styles = StyleSheet.create({
     section: { gap: Spacing.lg },
     introCard: { alignItems: 'center', gap: Spacing.sm },
+    horaryTag: {
+        backgroundColor: Colors.purpleA15,
+        borderRadius: BorderRadius.full,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: 3,
+        borderWidth: 1,
+        borderColor: Colors.purpleA25,
+    },
+    natalChips: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        gap: Spacing.xs,
+        marginTop: Spacing.xs,
+    },
+    natalChip: {
+        backgroundColor: Colors.whiteA08,
+        borderRadius: BorderRadius.full,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: 3,
+        borderWidth: 1,
+        borderColor: Colors.border,
+    },
     introIcon: {
         width: 68,
         height: 68,

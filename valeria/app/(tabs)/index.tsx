@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View, Image } from 'react-native';
+import { StyleSheet, View, Image, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
     Screen,
     AppText,
@@ -17,6 +18,7 @@ import { useContentStore } from '../../src/stores/useContentStore';
 import { Colors } from '../../src/theme/colors';
 import { Spacing, BorderRadius, FontWeight } from '../../src/theme/spacing';
 import { fillTemplate, pickRandom } from '../../src/utils/templateEngine';
+import { calculateAll } from '../../src/utils/numerology';
 import * as api from '../../src/api';
 import { API_HOST } from '../../src/api';
 
@@ -39,7 +41,6 @@ const zodiacUri = (sign?: string) =>
     `${API_HOST}/images/burclar/${ZODIAC_ICONS[sign || ''] || 'icons8-aries-100.png'}`;
 
 // Element → real element artwork served from the backend (/images/elementler).
-// Earth has no dedicated element asset, so it falls back to the planet glyph.
 const ELEMENT_IMAGE: Record<string, string> = {
     'Ateş': `${API_HOST}/images/elementler/icons8-fire-100.png`,
     'Hava': `${API_HOST}/images/elementler/icons8-air-100.png`,
@@ -47,6 +48,13 @@ const ELEMENT_IMAGE: Record<string, string> = {
     'Toprak': `${API_HOST}/images/elementler/icons8-europe-100.png`,
 };
 const elementUri = (el?: string) => ELEMENT_IMAGE[el || ''] || ELEMENT_IMAGE['Su'];
+
+const NUMEROLOGY_DEFS = [
+    { key: 'lifePath', label: 'Yaşam Yolu', color: '#F5C842' },
+    { key: 'expression', label: 'Kader', color: '#A78BFA' },
+    { key: 'soulUrge', label: 'Ruh Arzusu', color: '#60A5FA' },
+    { key: 'personality', label: 'Kişilik', color: '#F472B6' },
+] as const;
 
 /** A section heading with an optional "Tümünü Gör" affordance. */
 function SectionTitle({
@@ -114,7 +122,7 @@ function StatPill({
     value: string | number;
 }) {
     return (
-        <View style={styles.statPill}>
+        <View style={[styles.statPill, { borderColor: color + '44', backgroundColor: color + '14' }]}>
             <Ionicons name={icon} size={14} color={color} />
             <AppText variant="bodyStrong" color={Colors.textPrimary} style={styles.statValue}>
                 {value}
@@ -141,6 +149,7 @@ export default function HomeScreen() {
     const [refreshing, setRefreshing] = useState(false);
 
     const firstName = (profile.name || '').trim().split(' ')[0] || 'Yolcu';
+    const numbers = calculateAll(profile.name || '', profile.birthDate || '');
 
     const vars = {
         name: profile.name,
@@ -190,7 +199,7 @@ export default function HomeScreen() {
         <Screen edges={['top']} refreshing={refreshing} onRefresh={onRefresh}>
             {/* Greeting */}
             <View style={styles.greetingBlock}>
-                <AppText variant="title">Merhaba, {firstName}</AppText>
+                <AppText variant="title">Merhaba, {firstName} ✨</AppText>
                 <AppText variant="body" color={Colors.textSecondary} style={styles.greetingSub}>
                     Yıldızlar bugün senin için ne fısıldıyor?
                 </AppText>
@@ -252,7 +261,68 @@ export default function HomeScreen() {
                 </Card>
             </View>
 
-            {/* 2 — Günlük Tarot */}
+            {/* 2 — Yıldızlara Sor (Horary) — öne çıkan kart */}
+            <View style={styles.section}>
+                <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => router.push('/ask-question')}
+                    accessibilityRole="button"
+                    accessibilityLabel="Yıldızlara Sor: doğum haritana göre tek soruna yanıt al"
+                >
+                    <LinearGradient
+                        colors={['#4C1D95', '#7C3AED', '#2D1B69']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.horaryCard}
+                    >
+                        <View style={styles.horaryBadge}>
+                            <Ionicons name="telescope-outline" size={12} color={Colors.accentYellow} />
+                            <AppText variant="label" color={Colors.accentYellow} style={styles.horaryBadgeText}>
+                                HORARY ASTROLOJİ
+                            </AppText>
+                        </View>
+                        <AppText variant="h1" style={styles.horaryTitle}>Yıldızlara Sor</AppText>
+                        <AppText variant="body" color={Colors.textSecondary} style={styles.horaryDesc}>
+                            Aklındaki TEK soruyu yaz; Valeria doğum haritanı, evlerini ve günün
+                            gökyüzünü okuyarak net bir yanıt versin.
+                        </AppText>
+                        <View style={styles.horaryChips}>
+                            {[profile.sunSign, profile.risingSign, profile.element]
+                                .filter(Boolean)
+                                .map((t) => (
+                                    <View key={t} style={styles.horaryChip}>
+                                        <AppText variant="caption" color={Colors.textPrimary}>{t}</AppText>
+                                    </View>
+                                ))}
+                        </View>
+                        <View style={styles.horaryFooter}>
+                            <View style={styles.horaryFree}>
+                                <Ionicons
+                                    name={dailyQuestionsRemaining > 0 ? 'gift' : 'diamond'}
+                                    size={13}
+                                    color={dailyQuestionsRemaining > 0 ? Colors.success : Colors.accentYellow}
+                                />
+                                <AppText
+                                    variant="caption"
+                                    color={dailyQuestionsRemaining > 0 ? Colors.success : Colors.accentYellow}
+                                >
+                                    {dailyQuestionsRemaining > 0
+                                        ? `${dailyQuestionsRemaining} ücretsiz soru hakkın var`
+                                        : 'Kredi ile sorabilirsin'}
+                                </AppText>
+                            </View>
+                            <View style={styles.horaryCta}>
+                                <AppText variant="callout" color={Colors.textOnAccent} style={styles.horaryCtaText}>
+                                    Soru Sor
+                                </AppText>
+                                <Ionicons name="arrow-forward" size={15} color={Colors.textOnAccent} />
+                            </View>
+                        </View>
+                    </LinearGradient>
+                </TouchableOpacity>
+            </View>
+
+            {/* 3 — Günlük Tarot */}
             <View style={styles.section}>
                 <SectionTitle
                     icon="layers"
@@ -263,13 +333,47 @@ export default function HomeScreen() {
                 <DailyTarot />
             </View>
 
-            {/* 3 — Tanrı Arketipin */}
+            {/* 4 — Numeroloji */}
+            <View style={styles.section}>
+                <SectionTitle
+                    icon="calculator"
+                    iconColor={Colors.info}
+                    title="Numeroloji"
+                    onSeeAll={() => router.push('/numerology')}
+                />
+                <Card
+                    onPress={() => router.push('/numerology')}
+                    accessibilityLabel="Numeroloji haritanı aç"
+                >
+                    <View style={styles.numRow}>
+                        {NUMEROLOGY_DEFS.map((d) => (
+                            <View key={d.key} style={styles.numItem}>
+                                <View style={[styles.numCircle, { borderColor: d.color }]}>
+                                    <AppText variant="h2" color={d.color}>{numbers[d.key]}</AppText>
+                                </View>
+                                <AppText variant="label" color={Colors.textMuted} style={styles.numLabel}>
+                                    {d.label}
+                                </AppText>
+                            </View>
+                        ))}
+                    </View>
+                    <View style={styles.numFooter}>
+                        <Ionicons name="sparkles-outline" size={14} color={Colors.accentYellow} />
+                        <AppText variant="caption" color={Colors.textSecondary} style={styles.numFooterText}>
+                            İsmin ve doğum tarihinden hesaplandı — anlamlarını keşfet
+                        </AppText>
+                        <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+                    </View>
+                </Card>
+            </View>
+
+            {/* 5 — Tanrı Arketipin */}
             <View style={styles.section}>
                 <SectionTitle icon="sparkles" iconColor={Colors.purpleLight} title="Tanrı Arketipin" />
                 <DeityArchetype />
             </View>
 
-            {/* 4 — Ay Döngüsü */}
+            {/* 6 — Ay Döngüsü */}
             {profile.currentMoon && (
                 <View style={styles.section}>
                     <SectionTitle icon="moon" iconColor={Colors.info} title="Ay Döngüsü" />
@@ -293,27 +397,7 @@ export default function HomeScreen() {
                 </View>
             )}
 
-            {/* 5 — Soru Sor CTA */}
-            <View style={styles.section}>
-                <Card glow>
-                    <View style={styles.ctaHeader}>
-                        <Ionicons name="chatbubble-ellipses" size={22} color={Colors.purpleLight} />
-                        <AppText variant="h3">Yıldızlara Soru Sor</AppText>
-                    </View>
-                    <AppText variant="body" color={Colors.textSecondary} style={styles.ctaDesc}>
-                        {dailyQuestionsRemaining > 0
-                            ? `Bugün ${dailyQuestionsRemaining} ücretsiz sorun var. Aklındakini yaz, gökyüzü yanıtlasın.`
-                            : 'Bugünkü ücretsiz hakların bitti — ekstra soru için kredi kullanabilirsin.'}
-                    </AppText>
-                    <Button
-                        title="Soru Sor"
-                        onPress={() => router.push('/ask-question')}
-                        icon={<Ionicons name="send" size={16} color={Colors.textOnAccent} />}
-                    />
-                </Card>
-            </View>
-
-            {/* 6 — Detaylı Astroloji (deep jargon lives here) */}
+            {/* 7 — Detaylı Astroloji */}
             <View style={styles.section}>
                 <Card onPress={goAstrology} accessibilityLabel="Detaylı astroloji analizini aç">
                     <View style={styles.detailRow}>
@@ -323,7 +407,7 @@ export default function HomeScreen() {
                         <View style={styles.detailInfo}>
                             <AppText variant="h3">Detaylı Astroloji</AppText>
                             <AppText variant="caption" color={Colors.textMuted}>
-                                Evler, gezegenler, retrolar ve numeroloji
+                                Natal harita, evler, gezegenler ve retrolar
                             </AppText>
                         </View>
                         <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
@@ -350,30 +434,44 @@ export default function HomeScreen() {
 
             {/* Quick actions */}
             <View style={[styles.section, styles.quickRow]}>
-                <Card
+                <TouchableOpacity
                     style={styles.quickCard}
+                    activeOpacity={0.85}
                     onPress={() => router.push('/tarot-reading')}
+                    accessibilityRole="button"
                     accessibilityLabel="Tarot kartı çek"
                 >
-                    <View style={styles.quickInner}>
+                    <LinearGradient
+                        colors={['#3B2A7A', '#1A1145']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.quickInner}
+                    >
                         <Ionicons name="albums-outline" size={24} color={Colors.accentYellow} />
                         <AppText variant="callout" color={Colors.textPrimary} center>
                             Tarot Kartı Çek
                         </AppText>
-                    </View>
-                </Card>
-                <Card
+                    </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
                     style={styles.quickCard}
+                    activeOpacity={0.85}
                     onPress={() => router.push('/coffee-reading')}
+                    accessibilityRole="button"
                     accessibilityLabel="Fal baktır"
                 >
-                    <View style={styles.quickInner}>
-                        <Ionicons name="cafe-outline" size={24} color={Colors.purpleLight} />
+                    <LinearGradient
+                        colors={['#4A2545', '#1A1145']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.quickInner}
+                    >
+                        <Ionicons name="cafe-outline" size={24} color={'#F472B6'} />
                         <AppText variant="callout" color={Colors.textPrimary} center>
                             Fal Baktır
                         </AppText>
-                    </View>
-                </Card>
+                    </LinearGradient>
+                </TouchableOpacity>
             </View>
         </Screen>
     );
@@ -396,10 +494,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: Spacing.xs,
-        backgroundColor: Colors.surface1,
         borderRadius: BorderRadius.pill,
         borderWidth: 1,
-        borderColor: Colors.border,
         paddingVertical: Spacing.sm,
         paddingHorizontal: Spacing.md,
     },
@@ -435,12 +531,6 @@ const styles = StyleSheet.create({
         width: 30,
         height: 30,
     },
-    natalIconBox: {
-        width: 30,
-        height: 30,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
     natalLabel: {
         marginTop: 2,
     },
@@ -459,6 +549,103 @@ const styles = StyleSheet.create({
     summaryText: {
         lineHeight: 24,
     },
+    // Horary kartı
+    horaryCard: {
+        borderRadius: BorderRadius.xl,
+        padding: Spacing.xl,
+        borderWidth: 1,
+        borderColor: Colors.purpleA25,
+    },
+    horaryBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        alignSelf: 'flex-start',
+        backgroundColor: 'rgba(10, 10, 26, 0.45)',
+        borderRadius: BorderRadius.full,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: 4,
+        marginBottom: Spacing.md,
+    },
+    horaryBadgeText: {
+        letterSpacing: 1.2,
+    },
+    horaryTitle: {
+        marginBottom: Spacing.xs,
+    },
+    horaryDesc: {
+        lineHeight: 21,
+        marginBottom: Spacing.md,
+    },
+    horaryChips: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: Spacing.xs,
+        marginBottom: Spacing.lg,
+    },
+    horaryChip: {
+        backgroundColor: Colors.whiteA12,
+        borderRadius: BorderRadius.full,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: 3,
+    },
+    horaryFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    horaryFree: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        flex: 1,
+    },
+    horaryCta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: Colors.accentYellow,
+        borderRadius: BorderRadius.pill,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.sm,
+    },
+    horaryCtaText: {
+        fontWeight: FontWeight.bold,
+    },
+    // Numeroloji
+    numRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    numItem: {
+        alignItems: 'center',
+        flex: 1,
+    },
+    numCircle: {
+        width: 54,
+        height: 54,
+        borderRadius: 27,
+        borderWidth: 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: Colors.surface2,
+    },
+    numLabel: {
+        marginTop: Spacing.sm,
+        letterSpacing: 0.4,
+    },
+    numFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
+        marginTop: Spacing.lg,
+        paddingTop: Spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: Colors.border,
+    },
+    numFooterText: {
+        flex: 1,
+    },
     // Ay Döngüsü
     moonRow: {
         flexDirection: 'row',
@@ -472,17 +659,6 @@ const styles = StyleSheet.create({
     moonInfo: {
         flex: 1,
         gap: 2,
-    },
-    // Soru Sor CTA
-    ctaHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.sm,
-        marginBottom: Spacing.sm,
-    },
-    ctaDesc: {
-        marginBottom: Spacing.lg,
-        lineHeight: 22,
     },
     // Detaylı Astroloji
     detailRow: {
@@ -517,9 +693,16 @@ const styles = StyleSheet.create({
     },
     quickCard: {
         flex: 1,
+        borderRadius: BorderRadius.xl,
+        overflow: 'hidden',
     },
     quickInner: {
         alignItems: 'center',
         gap: Spacing.sm,
+        paddingVertical: Spacing.xl,
+        paddingHorizontal: Spacing.md,
+        borderRadius: BorderRadius.xl,
+        borderWidth: 1,
+        borderColor: Colors.border,
     },
 });

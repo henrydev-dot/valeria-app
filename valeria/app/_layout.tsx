@@ -1,15 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
+import * as SplashScreen from 'expo-splash-screen';
 import { useUserStore } from '../src/stores/useUserStore';
 import { useEntitlementsStore } from '../src/stores/useEntitlementsStore';
 import { useContentStore } from '../src/stores/useContentStore';
 import { Colors } from '../src/theme/colors';
 import * as api from '../src/api';
+
+// Native splash, uygulama gerçekten hazır olana kadar ekranda kalır.
+// (Aksi halde splash → boş koyu ekran + spinner → uygulama şeklinde
+// "ikon belirip kayboluyor" hissi veren bir titreme oluşuyordu.)
+SplashScreen.preventAutoHideAsync().catch(() => { /* zaten gizlenmişse sorun değil */ });
+SplashScreen.setOptions?.({ fade: true, duration: 250 });
 
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -74,18 +81,16 @@ export default function RootLayout() {
                 console.warn('Bootstrap error:', e);
             } finally {
                 setIsReady(true);
+                // Veriler yüklendi — native splash yumuşak geçişle kalksın.
+                SplashScreen.hideAsync().catch(() => { });
             }
         }
         bootstrap();
     }, []);
 
     if (!isReady) {
-        return (
-            <View style={styles.loading}>
-                <ActivityIndicator size="large" color={Colors.accentYellow} />
-                <StatusBar style="light" />
-            </View>
-        );
+        // Native splash hâlâ görünür durumda; altında boş ekran çizmeye gerek yok.
+        return <View style={styles.loading} />;
     }
 
     return (
@@ -108,6 +113,7 @@ export default function RootLayout() {
                     <Stack.Screen name="learning-card" />
                     <Stack.Screen name="buy-credits" options={{ presentation: 'modal' }} />
                     <Stack.Screen name="ask-question" options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="numerology" options={{ presentation: 'modal' }} />
                     <Stack.Screen name="pendulum" options={{ presentation: 'modal' }} />
                     <Stack.Screen name="delete-account" />
                 </Stack>
