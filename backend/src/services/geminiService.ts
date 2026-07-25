@@ -1,5 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { AnalysisResult, NumerologyData, PlanetPosition, TransitData, UserInput } from '../types';
+import { aiGenerate } from './aiClient';
+import { buildNatalBlock, buildHistoryBlock } from './promptContext';
 import { ZODIAC_DATA } from '../constants';
 import {
     AI_BYPASS,
@@ -70,16 +72,10 @@ export const generateInterpretation = async (
   `;
 
     try {
-        const response = await getAI().models.generateContent({
-            model: AI_MODEL,
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json"
-            }
-        });
+        const responseText = await aiGenerate(prompt, { json: true });
 
-        if (response.text) {
-            let cleanText = response.text.trim();
+        if (responseText) {
+            let cleanText = responseText.trim();
             if (cleanText.startsWith("```json")) {
                 cleanText = cleanText.slice(7);
             } else if (cleanText.startsWith("```")) {
@@ -128,28 +124,50 @@ export const askHoraryQuestion = async (
     question: string,
     transits: TransitData[],
     currentPlanets: PlanetPosition[],
-    userContext: UserInput
+    userContext: UserInput,
+    natal?: { sun?: PlanetPosition; moon?: PlanetPosition; rising?: PlanetPosition },
+    historyBlock?: string
 ): Promise<string> => {
     if (AI_BYPASS) return cannedHorary(question, userContext.name);
     const today = new Date().toISOString().split('T')[0];
+
+    // Natal harita özeti — horary yorumu kişinin gerçek haritasına oturur.
+    const natalLine = natal?.sun
+        ? `Güneş ${natal.sun.sign} (${natal.sun.house}. ev), Ay ${natal.moon?.sign || '?'} (${natal.moon?.house || '?'}. ev), Yükselen ${natal.rising?.sign || '?'}`
+        : 'bilinmiyor';
+    const planetLines = currentPlanets
+        .slice(0, 10)
+        .map(p => `${p.planetNameTR}: ${p.sign} ${p.degree.toFixed(0)}° (${p.house}. ev${p.retrograde ? ', retro' : ''})`)
+        .join('; ');
+    const transitLines = transits
+        .slice(0, 5)
+        .map(t => `Transit ${t.transitPlanet} ${t.type === 'Conjunction' ? 'kavuşum' : t.type === 'Square' ? 'kare' : t.type === 'Trine' ? 'üçgen' : 'karşıt'} natal ${t.natalPlanet}`)
+        .join('; ');
+
     const prompt = `
     Bugünün Tarihi: ${today}
 
-    Senin adın Valeria. Sezgileri çok güçlü, mistik yeteneklere sahip spiritüel bir rehbersin. ASLA yapay zeka olduğunu söyleme. Karşındaki kişiyle doğrudan, samimi ve "Sen" diliyle konuş.
-    
-    Soru: "${question}"
-    Bağlam: Kullanıcı adı ${userContext.name}, Cinsiyet/Yönelim: ${userContext.gender}, İlişki Durumu: ${userContext.relationshipStatus}, İş/Kariyer: ${userContext.jobStatus}.
-    Transitler: ${transits.slice(0, 3).map(t => t.transitPlanet).join(', ')} gezegenleri gökyüzünde.
-    
-    Bu soruya astrolojik, mistik ve net bir cevap ver (maksimum 3 cümle). Kullanıcının mevcut kişisel durumunu (iş/ilişki) hesaba kat.
+    Senin adın Valeria. Horary (soru astrolojisi) konusunda uzman, sezgileri çok güçlü spiritüel bir rehbersin. ASLA yapay zeka olduğunu söyleme. Karşındaki kişiyle doğrudan, samimi ve "Sen" diliyle konuş.
+
+    SORU: "${question}"
+
+    SORAN KİŞİ: ${userContext.name} — Cinsiyet/Yönelim: ${userContext.gender}, İlişki: ${userContext.relationshipStatus}, İş: ${userContext.jobStatus}
+    NATAL HARİTA: ${natalLine}
+    GEZEGEN YERLEŞİMLERİ: ${planetLines}
+    AKTİF TRANSİTLER: ${transitLines || 'önemli transit yok'}
+    ${historyBlock ? `\n    ${historyBlock}\n` : ''}
+
+    GÖREV — Horary tarzında yanıt ver (4-6 cümle):
+    1. Sorunun temasını hangi evin/gezegenin yönettiğini bir cümleyle söyle (ör. aşk → 5.-7. ev/Venüs, kariyer → 10. ev/Satürn, para → 2. ev).
+    2. Kişinin haritasındaki İLGİLİ yerleşimi ve aktif transitleri yorumla — genel geçer değil, yukarıdaki gerçek verilere dayan.
+    3. NET bir hüküm ver: olumlu / olumsuz / koşullu — ve koşulu söyle.
+    4. Mümkünse kabaca bir zamanlama ipucu ekle (ör. "Ay bir sonraki dolunaya yaklaşırken", "birkaç hafta içinde").
+    Mistik ama somut ol; astrolojik gerekçeni kişinin anlayacağı dilde ver. Türkçe yaz.
     `;
 
     try {
-        const response = await getAI().models.generateContent({
-            model: AI_MODEL,
-            contents: prompt,
-        });
-        return response.text || "Yıldızlar sessiz.";
+        const text = await aiGenerate(prompt);
+        return text || "Yıldızlar sessiz.";
     } catch (error) {
         console.error('[AI] askHoraryQuestion failed, using fallback:', error);
         return "Yıldızlar şu an bu sorunun cevabını saklı tutuyor. (API Hatası)";
@@ -166,32 +184,27 @@ export const generateTarotInterpretation = async (
     if (AI_BYPASS) return cannedTarot(cardName, isReversed, user);
     const direction = isReversed ? "ters" : "düz";
     const today = new Date().toISOString().split('T')[0];
+    const historyBlock = await buildHistoryBlock(user?._id?.toString?.() || '');
     const prompt = `
     Bugünün Tarihi: ${today}
-    
-    Senin adın Valeria. Sezgileri çok güçlü, mistik yeteneklere sahip deneyimli bir tarot okuyucususun. ASLA yapay zeka olduğunu söyleme. Karşındaki kişiyle samimi, doğrudan ve "Sen" diliyle, gerçek bir falcı gibi konuş. 
-    
-    Kart: ${cardName} (${direction} pozisyon)
-    Kullanıcı Detayları:
-    - Burç: ${user?.sunSign || 'Bilinmiyor'}
-    - İsim: ${user?.name || 'Bilinmiyor'}
-    - Cinsiyet/Yönelim: ${user?.gender || 'Bilinmiyor'}
-    - İlişki Durumu: ${user?.relationshipStatus || 'Bilinmiyor'}
-    - İş Durumu: ${user?.workStatus || 'Bilinmiyor'}
-    
-    ${question ? `Soru: "${question}"` : 'Genel bir okuma.'}
-    
-    Bu kart için mistik, derin ve kişisel bir yorum yap. Kullanıcının ilişki ve iş durumunu dikkate alarak 
-    aşk, kariyer ve ruhsal rehberlik konularında somut mesajlar ver. 
-    Kişinin burcunu ve yönelim/ilişki detaylarını yorumuna sezgisel olarak kat. Maksimum 4-5 cümle. En içten halinle, Valeria olarak yanıtla. Türkçe yaz.
+
+    Deneyimli bir tarot okuyucusu olarak bu çekimi yorumla.
+
+    ÇEKİLEN KART: ${cardName} (${direction} pozisyon)
+
+    SORAN KİŞİ:
+    ${buildNatalBlock(user || {})}
+
+    ${question ? `SORU: "${question}"` : 'Genel bir okuma.'}
+    ${historyBlock ? `\n    ${historyBlock}\n` : ''}
+    Bu kart için mistik, derin ve kişisel bir yorum yap. Kişinin doğum haritasını (Güneş/Ay/Yükselen), ilişki ve iş durumunu dikkate alarak aşk, kariyer ve ruhsal rehberlik konularında somut mesajlar ver.
+    Geçmiş fallarında çıkan kartlar veya sorularla bağ kurabiliyorsan kur — yorumların birbirini tamamlasın.
+    Maksimum 4-5 cümle. En içten halinle, Valeria olarak yanıtla. Türkçe yaz.
   `;
 
     try {
-        const response = await getAI().models.generateContent({
-            model: AI_MODEL,
-            contents: prompt,
-        });
-        return response.text || "Kartlar şu an sessiz...";
+        const responseText = await aiGenerate(prompt);
+        return responseText || "Kartlar şu an sessiz...";
     } catch (error) {
         console.error('[AI] generateTarotInterpretation failed, using fallback:', error);
         return "Bu kart derin bir mesaj taşıyor. Sezgilerinize güvenin.";
@@ -206,16 +219,13 @@ export const generateCoffeeReading = async (
 ): Promise<{ soruCevabi: string; askHayati: string; kariyer: string; aile: string }> => {
     if (AI_BYPASS) return cannedCoffee(user, question);
 
+    const coffeeHistory = await buildHistoryBlock(user?._id?.toString?.() || '');
     const userContext = `
     Bugünün Tarihi: ${new Date().toISOString().split('T')[0]}
-    
+
     Kullanıcı Detayları:
-    - Burç: ${user?.sunSign || 'Bilinmiyor'}
-    - İsim: ${user?.name || 'Bilinmiyor'}
-    - Cinsiyet/Yönelim: ${user?.gender || 'Bilinmiyor'}
-    - İlişki Durumu: ${user?.relationshipStatus || 'Bilinmiyor'}
-    - İş Durumu: ${user?.workStatus || 'Bilinmiyor'}
-    `;
+    ${buildNatalBlock(user || {})}
+    ${coffeeHistory ? `\n    ${coffeeHistory}\n` : ''}`;
 
     const prompt = `
     Senin adın Valeria. Sezgileri çok güçlü, gerçek, usta ve geveze bir Türk kahve falcısısın. Asla yapay zeka olduğunu söyleme, bilgisayardan bahsetme. Karşındaki kişiyle doğrudan, samimi, içten ve "Sen", "Tatlım", "Canım" gibi sıcak bir dille konuş. Tıpkı gerçek bir falcı gibi kalabalık, uzun ve detaylı yorumlar yapacaksın.
@@ -259,11 +269,23 @@ export const generateCoffeeReading = async (
     }
 
     try {
-        const response = await getAI().models.generateContent({
-            model: AI_MODEL,
-            contents: parts,
-        });
-        let text = response.text || '';
+        // Fincan fotoğrafı doğrulaması görüntü işleme gerektirir → Gemini (vision).
+        // GEMINI_API_KEY yoksa (yalnız DeepSeek yapılandırılmışsa) metin-tabanlı
+        // yoruma düşülür; görsel doğrulama atlanır.
+        // TODO(deepseek-docs): DeepSeek vision ucu netleşince buraya bağlanacak.
+        let text = '';
+        if (process.env.GEMINI_API_KEY) {
+            const response = await getAI().models.generateContent({
+                model: AI_MODEL,
+                contents: parts,
+            });
+            text = response.text || '';
+        } else {
+            text = await aiGenerate(
+                `${prompt}\n\nNOT: Fotoğraflar teknik olarak iletilemedi; fincanı GÖRMÜŞSÜN gibi, sezgisel bir kahve falı yorumu üret. Fotoğraf reddetme senaryosunu KULLANMA — doğrudan fal bak.`,
+                { json: true }
+            );
+        }
         if (text.startsWith("```json")) text = text.slice(7);
         if (text.startsWith("```")) text = text.slice(3);
         if (text.endsWith("```")) text = text.slice(0, -3);
@@ -327,14 +349,10 @@ export const generateDailyHoroscope = async (sign: string): Promise<{
   `;
 
     try {
-        const response = await getAI().models.generateContent({
-            model: AI_MODEL,
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-        });
+        const responseText = await aiGenerate(prompt, { json: true });
 
-        if (response.text) {
-            let cleanText = response.text.trim();
+        if (responseText) {
+            let cleanText = responseText.trim();
             if (cleanText.startsWith("```json")) cleanText = cleanText.slice(7);
             if (cleanText.startsWith("```")) cleanText = cleanText.slice(3);
             if (cleanText.endsWith("```")) cleanText = cleanText.slice(0, -3);
@@ -379,14 +397,10 @@ export const generateWeeklyHoroscope = async (sign: string): Promise<{
   `;
 
     try {
-        const response = await getAI().models.generateContent({
-            model: AI_MODEL,
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-        });
+        const responseText = await aiGenerate(prompt, { json: true });
 
-        if (response.text) {
-            let cleanText = response.text.trim();
+        if (responseText) {
+            let cleanText = responseText.trim();
             if (cleanText.startsWith("```json")) cleanText = cleanText.slice(7);
             if (cleanText.startsWith("```")) cleanText = cleanText.slice(3);
             if (cleanText.endsWith("```")) cleanText = cleanText.slice(0, -3);
@@ -434,14 +448,10 @@ export const generateCompatibility = async (sign1: string, sign2: string): Promi
   `;
 
     try {
-        const response = await getAI().models.generateContent({
-            model: AI_MODEL,
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-        });
+        const responseText = await aiGenerate(prompt, { json: true });
 
-        if (response.text) {
-            let cleanText = response.text.trim();
+        if (responseText) {
+            let cleanText = responseText.trim();
             if (cleanText.startsWith("```json")) cleanText = cleanText.slice(7);
             if (cleanText.startsWith("```")) cleanText = cleanText.slice(3);
             if (cleanText.endsWith("```")) cleanText = cleanText.slice(0, -3);
@@ -480,11 +490,8 @@ export const generateDailyTarotMessage = async (
     `;
 
     try {
-        const response = await getAI().models.generateContent({
-            model: AI_MODEL,
-            contents: prompt,
-        });
-        return response.text || `Bugün ${cardName} kartı sizinle. Evrenin mesajlarına kulak verin.`;
+        const responseText = await aiGenerate(prompt);
+        return responseText || `Bugün ${cardName} kartı sizinle. Evrenin mesajlarına kulak verin.`;
     } catch (error) {
         return `Bugün ${cardName} kartı sizinle. Evrenin mesajlarına kulak verin.`;
     }
@@ -497,18 +504,20 @@ export const generateNumerologyReading = async (
     lifePath: number,
     expression: number,
     soulUrge: number,
-    personality: number
+    personality: number,
+    user?: any
 ): Promise<{ lifePath: string; expression: string; soulUrge: string; personality: string; genel: string }> => {
     if (AI_BYPASS) return cannedNumerology(name, lifePath, expression, soulUrge, personality);
     const today = new Date().toISOString().split('T')[0];
     const prompt = `
     Bugünün Tarihi: ${today}
-    
-    Senin adın Valeria. Sezgileri çok güçlü bir Numerolog ve mistik rehbersin. Asla yapay zeka olduğunu söyleme. Karşındaki kişiyle samimi ve "Sen" diliyle konuş. Pisagor sistemine göre analiz yap.
-    
+
+    Pisagor sistemine göre usta bir numerolog olarak analiz yap.
+
     Kişi: ${name}
     Doğum Tarihi: ${birthDate}
-    
+    ${user ? `Doğum haritası bağlamı:\n    ${buildNatalBlock(user)}\n    (Numeroloji yorumlarını burç/element enerjileriyle harmanla — ör. Yaşam Yolu ${lifePath} ile ${user.sunSign || ''} Güneşi'nin ortak teması.)` : ''}
+
     Sayıları:
     - Yaşam Yolu (Life Path): ${lifePath}
     - Kader/İfade Sayısı (Expression): ${expression}
@@ -530,12 +539,8 @@ export const generateNumerologyReading = async (
   `;
 
     try {
-        const response = await getAI().models.generateContent({
-            model: AI_MODEL,
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-        });
-        const text = response.text || '';
+        const responseText = await aiGenerate(prompt, { json: true });
+        const text = responseText || '';
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             try {

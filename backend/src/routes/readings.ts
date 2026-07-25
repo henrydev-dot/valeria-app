@@ -6,6 +6,7 @@ import { FalReading } from '../models/FalReading';
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware';
 import { performCalculations } from '../utils/calculations';
 import { generateTarotInterpretation, generateCoffeeReading, askHoraryQuestion, generateNumerologyReading } from '../services/geminiService';
+import { buildHistoryBlock } from '../services/promptContext';
 import { TAROT_CARDS } from '../data/seedData';
 import { UserInput, TransitData, PlanetPosition } from '../types';
 
@@ -185,6 +186,8 @@ router.post('/question', authMiddleware, async (req: AuthRequest, res: Response)
             birthDate: user.birthDate || '1990-01-01',
             birthTime: user.birthTime || '12:00',
             birthCity: user.birthCity || 'İstanbul',
+            birthDistrict: user.birthDistrict || undefined,
+            birthCountry: user.birthCountry || 'Türkiye',
             latitude: user.latitude || '41.0082',
             longitude: user.longitude || '28.9784',
             gender: user.gender,
@@ -194,11 +197,20 @@ router.post('/question', authMiddleware, async (req: AuthRequest, res: Response)
 
         const calcData = performCalculations(inputData);
 
+        // Geçmiş fallar (tarot kartları dahil) horary yorumuna bağlam olarak gider.
+        const historyBlock = await buildHistoryBlock(user._id.toString());
+
         const answer = await askHoraryQuestion(
             question,
             calcData.astrology.transits,
             calcData.astrology.planets,
-            inputData
+            inputData,
+            {
+                sun: calcData.astrology.sun,
+                moon: calcData.astrology.moon,
+                rising: calcData.astrology.rising,
+            },
+            historyBlock
         );
 
         // Ücretsiz hak varsa düş, yoksa kredi düş
@@ -292,7 +304,8 @@ router.post('/numerology-ai', authMiddleware, async (req: AuthRequest, res: Resp
         const result = await generateNumerologyReading(
             user.name,
             user.birthDate || '',
-            lifePath, expression, soulUrge, personality
+            lifePath, expression, soulUrge, personality,
+            user
         );
 
         user.credits -= 45;
