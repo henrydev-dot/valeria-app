@@ -9,6 +9,7 @@ import { generateTarotInterpretation, generateTarotSpreadReading, generateCoffee
 import { buildHistoryBlock } from '../services/promptContext';
 import { TAROT_CARDS } from '../data/seedData';
 import { UserInput, TransitData, PlanetPosition } from '../types';
+import { ZODIAC_DATA } from '../constants';
 
 const router = Router();
 
@@ -65,14 +66,14 @@ router.post('/tarot', authMiddleware, async (req: AuthRequest, res: Response) =>
         user.credits -= 30;
         await user.save();
 
-        // Okuma kaydet (sentez, geçmiş özetlerinde kullanılmak üzere result'ta)
+        // Okuma kaydet (cevap+sentez, geçmiş özetlerinde kullanılmak üzere result'ta)
         const reading = new Reading({
             userId: user._id.toString(),
             type: 'tarot',
             question: question || '',
             date: new Date(),
             cards: drawnCards,
-            result: spread.synthesis || undefined
+            result: [spread.answer, spread.synthesis].filter(Boolean).join(' — ') || undefined
         });
         await reading.save();
 
@@ -82,6 +83,7 @@ router.post('/tarot', authMiddleware, async (req: AuthRequest, res: Response) =>
             question: reading.question,
             type: 'tarot',
             cards: drawnCards,
+            answer: spread.answer,
             synthesis: spread.synthesis
         });
     } catch (error: any) {
@@ -223,6 +225,33 @@ router.post('/question', authMiddleware, async (req: AuthRequest, res: Response)
 
         const calcData = performCalculations(inputData);
 
+        // SORU ANI HARİTASI (gerçek horary): sorunun sorulduğu an, kişinin
+        // koordinatlarında yükselen/Ay/gezegenler + radikallik (erken/geç ASC) notu.
+        let momentBlock = '';
+        try {
+            const isTr = /t[uü]rk|turkey/i.test(user.birthCountry || 'Türkiye');
+            const tzOffset = isTr ? 3 : Math.round((parseFloat(user.longitude || '29') || 29) / 15);
+            const local = new Date(Date.now() + tzOffset * 3600 * 1000);
+            const momentCalc = performCalculations({
+                ...inputData,
+                birthDate: local.toISOString().slice(0, 10),
+                birthTime: local.toISOString().slice(11, 16),
+            });
+            const asc = momentCalc.astrology.rising;
+            const moonNow = momentCalc.astrology.moon;
+            const trSign = (x: string) => ZODIAC_DATA[x]?.name || x;
+            const radikallik = asc.degree < 3
+                ? ' — erken yükselen: konu henüz olgunlaşmamış olabilir'
+                : asc.degree > 27
+                    ? ' — geç yükselen: konu büyük ölçüde sonuçlanmış olabilir'
+                    : '';
+            const klasikGezegenler = momentCalc.astrology.planets
+                .slice(0, 7) // Güneş..Satürn — horary'de yalnız geleneksel yedili yönetici olur
+                .map(p => `${p.planetNameTR} ${trSign(p.sign)} ${p.degree.toFixed(0)}°${p.retrograde ? ' R' : ''}`)
+                .join(', ');
+            momentBlock = `Yükselen ${trSign(asc.sign)} ${asc.degree.toFixed(1)}°${radikallik}; Ay ${trSign(moonNow.sign)} ${moonNow.degree.toFixed(1)}°; ${klasikGezegenler}`;
+        } catch { /* an haritası hesaplanamazsa natal+transit ile devam */ }
+
         // Geçmiş fallar (tarot kartları dahil) horary yorumuna bağlam olarak gider.
         const historyBlock = await buildHistoryBlock(user._id.toString());
 
@@ -236,7 +265,8 @@ router.post('/question', authMiddleware, async (req: AuthRequest, res: Response)
                 moon: calcData.astrology.moon,
                 rising: calcData.astrology.rising,
             },
-            historyBlock
+            historyBlock,
+            momentBlock
         );
         // Geçmiş kayıtları için birleşik metin; UI ayrı alanları kullanır.
         const answer = horary.comment ? `${horary.verdict}\n\n${horary.comment}` : horary.verdict;
