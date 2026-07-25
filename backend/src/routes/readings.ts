@@ -131,6 +131,20 @@ router.post('/coffee', authMiddleware, async (req: AuthRequest, res: Response) =
 
         const result = await generateCoffeeReading(images || [], user, question || '');
 
+        // Fincan doğrulanamadıysa fal YOK ve kredi KESİLMEZ.
+        if (result.rejected) {
+            return res.status(400).json({
+                error: result.soruCevabi,
+                code: 'INVALID_CUP_PHOTOS'
+            });
+        }
+        if (result.unavailable) {
+            return res.status(503).json({
+                error: result.soruCevabi,
+                code: 'READING_UNAVAILABLE'
+            });
+        }
+
         user.credits -= 20;
         await user.save();
 
