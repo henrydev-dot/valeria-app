@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
@@ -12,11 +12,11 @@ import { useContentStore } from '../src/stores/useContentStore';
 import { Colors } from '../src/theme/colors';
 import * as api from '../src/api';
 
-// Native splash, uygulama gerçekten hazır olana kadar ekranda kalır.
-// (Aksi halde splash → boş koyu ekran + spinner → uygulama şeklinde
-// "ikon belirip kayboluyor" hissi veren bir titreme oluşuyordu.)
+// Açılış akışı: native splash artık İKONSUZ, sadece düz koyu renk (app.json).
+// JS yüklenir yüklenmez splash bırakılır ve yerini marka gradyanı + spinner'lı
+// sade bir yükleme ekranı alır — ikon belirip kaybolma efekti tamamen yok.
 SplashScreen.preventAutoHideAsync().catch(() => { /* zaten gizlenmişse sorun değil */ });
-SplashScreen.setOptions?.({ fade: true, duration: 250 });
+SplashScreen.setOptions?.({ fade: true, duration: 200 });
 
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -81,16 +81,20 @@ export default function RootLayout() {
                 console.warn('Bootstrap error:', e);
             } finally {
                 setIsReady(true);
-                // Veriler yüklendi — native splash yumuşak geçişle kalksın.
-                SplashScreen.hideAsync().catch(() => { });
             }
         }
         bootstrap();
+        // JS hazır — düz renkli native splash'tan kendi yükleme ekranımıza geç.
+        SplashScreen.hideAsync().catch(() => { });
     }, []);
 
     if (!isReady) {
-        // Native splash hâlâ görünür durumda; altında boş ekran çizmeye gerek yok.
-        return <View style={styles.loading} />;
+        return (
+            <View style={styles.loading}>
+                <ActivityIndicator size="large" color={Colors.accentYellow} />
+                <StatusBar style="light" />
+            </View>
+        );
     }
 
     return (
