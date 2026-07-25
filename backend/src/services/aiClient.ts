@@ -7,11 +7,19 @@
  *   - boş:        DEEPSEEK_API_KEY tanımlıysa deepseek, değilse gemini.
  *
  * DeepSeek entegrasyonu için ek paket gerekmez — OpenAI-uyumlu REST ucu
- * doğrudan fetch ile çağrılır. Key geldiğinde .env'e şunları eklemek yeterli:
+ * doğrudan fetch ile çağrılır. .env örneği:
  *   AI_PROVIDER=deepseek
  *   DEEPSEEK_API_KEY=sk-...
- *   DEEPSEEK_MODEL=deepseek-chat        (opsiyonel, varsayılan bu)
- *   DEEPSEEK_BASE_URL=https://api.deepseek.com   (opsiyonel)
+ *   DEEPSEEK_MODEL_QUALITY=deepseek-v4-pro    (fallar, horary, numeroloji)
+ *   DEEPSEEK_MODEL_FAST=deepseek-v4-flash     (günlük/haftalık burç, uyum)
+ *   DEEPSEEK_BASE_URL=https://api.deepseek.com
+ *
+ * Notlar (API testleriyle doğrulandı):
+ *   - v4 modellerinde "thinking" varsayılan AÇIK gelebilir ve düşük
+ *     max_tokens'ta içerik boş kalır → thinking'i açıkça yönetiyoruz.
+ *   - DeepSeek chat API görsel (image_url) DESTEKLEMEZ — kahve falı
+ *     fotoğrafları Gemini vision ile sembole çevrilir (geminiService).
+ *   - deepseek-chat / deepseek-reasoner 2026-07-24'te kullanımdan kalktı.
  */
 import { GoogleGenAI } from '@google/genai';
 
@@ -47,11 +55,26 @@ export interface AIGenerateOptions {
     system?: string;
     temperature?: number;
     maxTokens?: number;
+    /**
+     * Model kademesi: 'quality' → v4-pro (fallar, horary, numeroloji),
+     * 'fast' → v4-flash (günlük burç, uyum gibi hafif işler). Varsayılan 'quality'.
+     */
+    tier?: 'quality' | 'fast';
+    /**
+     * Derin akıl yürütme (yalnız DeepSeek). Horary gibi hüküm gerektiren
+     * işlerde açılır; varsayılan kapalı (hız + maliyet).
+     */
+    thinking?: boolean;
 }
 
 async function deepseekGenerate(prompt: string, opts: AIGenerateOptions): Promise<string> {
     const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
-    const model = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
+    const model = opts.tier === 'fast'
+        ? (process.env.DEEPSEEK_MODEL_FAST || 'deepseek-v4-flash')
+        : (process.env.DEEPSEEK_MODEL_QUALITY || 'deepseek-v4-pro');
+    // Thinking açıkken içerik bütçesi de büyümeli — reasoning token'ları
+    // max_tokens'tan yer, yoksa content boş dönebilir.
+    const maxTokens = opts.maxTokens ?? (opts.thinking ? 4000 : 2000);
     const res = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -65,7 +88,8 @@ async function deepseekGenerate(prompt: string, opts: AIGenerateOptions): Promis
                 { role: 'user', content: prompt },
             ],
             temperature: opts.temperature ?? 1.1,
-            max_tokens: opts.maxTokens ?? 1600,
+            max_tokens: maxTokens,
+            thinking: { type: opts.thinking ? 'enabled' : 'disabled' },
             ...(opts.json ? { response_format: { type: 'json_object' } } : {}),
         }),
     });

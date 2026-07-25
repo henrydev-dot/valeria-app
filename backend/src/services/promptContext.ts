@@ -58,7 +58,8 @@ export async function buildHistoryBlock(userId: string, limit = 5): Promise<stri
                     .map((c: any) => `${c?.card?.nameTR || '?'} (${c?.isReversed ? 'ters' : 'düz'})`)
                     .join(', ');
                 const q = r.question ? ` Soru: "${clip(r.question, 80)}".` : '';
-                return `- [${when}] Tarot: ${cards}.${q}`;
+                const synth = r.result ? ` Sentez: ${clip(String(r.result), 140)}` : '';
+                return `- [${when}] Tarot: ${cards}.${q}${synth}`;
             }
             if (r.type === 'coffee') {
                 return `- [${when}] Kahve falı.${r.question ? ` Soru: "${clip(r.question, 80)}".` : ''} Özet: ${clip(String(r.result || ''), 160)}`;

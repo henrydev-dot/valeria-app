@@ -5,7 +5,7 @@ import { ReadingRequest } from '../models/ReadingRequest';
 import { FalReading } from '../models/FalReading';
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware';
 import { performCalculations } from '../utils/calculations';
-import { generateTarotInterpretation, generateCoffeeReading, askHoraryQuestion, generateNumerologyReading } from '../services/geminiService';
+import { generateTarotInterpretation, generateTarotSpreadReading, generateCoffeeReading, askHoraryQuestion, generateNumerologyReading } from '../services/geminiService';
 import { buildHistoryBlock } from '../services/promptContext';
 import { TAROT_CARDS } from '../data/seedData';
 import { UserInput, TransitData, PlanetPosition } from '../types';
@@ -34,34 +34,45 @@ router.post('/tarot', authMiddleware, async (req: AuthRequest, res: Response) =>
             return deck.splice(idx, 1)[0];
         });
 
-        const drawnCards = await Promise.all(
-            randomPicks.map(async (card) => {
-                const isReversed = Math.random() > 0.5;
-                const interpretation = await generateTarotInterpretation(
-                    card.nameTR,
-                    isReversed,
-                    question || '',
-                    user
-                );
-                return {
-                    card: { ...card },
-                    isReversed,
-                    interpretation
-                };
-            })
+        // Açılım TEK AI çağrısıyla bütün olarak yorumlanır: kartlar pozisyonlarını
+        // (Geçmiş/Şimdi/Gelecek) bilir, birbirine ve kişinin haritasına bağlanır.
+        const POSITIONS = ['Geçmiş', 'Şimdi', 'Gelecek'];
+        const picks = randomPicks.map((card, i) => ({
+            card,
+            isReversed: Math.random() > 0.5,
+            position: POSITIONS[i],
+        }));
+
+        const spread = await generateTarotSpreadReading(
+            picks.map((p) => ({
+                nameTR: p.card.nameTR,
+                isReversed: p.isReversed,
+                position: p.position,
+                keywordsTR: p.card.keywordsTR,
+            })),
+            question || '',
+            user
         );
+
+        const drawnCards = picks.map((p, i) => ({
+            card: { ...p.card },
+            isReversed: p.isReversed,
+            position: p.position,
+            interpretation: spread.interpretations[i] || ''
+        }));
 
         // Kredi düş
         user.credits -= 30;
         await user.save();
 
-        // Okuma kaydet
+        // Okuma kaydet (sentez, geçmiş özetlerinde kullanılmak üzere result'ta)
         const reading = new Reading({
             userId: user._id.toString(),
             type: 'tarot',
             question: question || '',
             date: new Date(),
-            cards: drawnCards
+            cards: drawnCards,
+            result: spread.synthesis || undefined
         });
         await reading.save();
 
@@ -70,7 +81,8 @@ router.post('/tarot', authMiddleware, async (req: AuthRequest, res: Response) =>
             date: reading.date,
             question: reading.question,
             type: 'tarot',
-            cards: drawnCards
+            cards: drawnCards,
+            synthesis: spread.synthesis
         });
     } catch (error: any) {
         console.error('Tarot reading error:', error);
