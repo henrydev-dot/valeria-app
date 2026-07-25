@@ -120,6 +120,13 @@ export const generateInterpretation = async (
 };
 
 // ==================== HORARY QUESTION ====================
+export interface HoraryAnswer {
+    /** Soruya tek cümlelik NET cevap (Evet/Hayır/Koşullu). */
+    verdict: string;
+    /** En fazla 3-4 cümlelik kısa astrolojik yorum. */
+    comment: string;
+}
+
 export const askHoraryQuestion = async (
     question: string,
     transits: TransitData[],
@@ -127,8 +134,8 @@ export const askHoraryQuestion = async (
     userContext: UserInput,
     natal?: { sun?: PlanetPosition; moon?: PlanetPosition; rising?: PlanetPosition },
     historyBlock?: string
-): Promise<string> => {
-    if (AI_BYPASS) return cannedHorary(question, userContext.name);
+): Promise<HoraryAnswer> => {
+    if (AI_BYPASS) return { verdict: cannedHorary(question, userContext.name), comment: '' };
     const today = new Date().toISOString().split('T')[0];
 
     // Natal harita özeti — horary yorumu kişinin gerçek haritasına oturur.
@@ -164,23 +171,36 @@ export const askHoraryQuestion = async (
     AKTİF TRANSİTLER: ${transitLines || 'önemli transit yok'}
     ${historyBlock ? `\n    ${historyBlock}\n` : ''}
 
-    GÖREV — Horary tarzında yanıt ver (4-6 cümle):
-    1. Sorunun temasını hangi evin/gezegenin yönettiğini bir cümleyle söyle (ör. aşk → 5.-7. ev/Venüs, kariyer → 10. ev/Satürn, para → 2. ev).
-    2. Kişinin haritasındaki İLGİLİ yerleşimi ve aktif transitleri yorumla — genel geçer değil, yukarıdaki gerçek verilere dayan.
-    3. NET bir hüküm ver: olumlu / olumsuz / koşullu — ve koşulu söyle.
-    4. Mümkünse kabaca bir zamanlama ipucu ekle (ör. "Ay bir sonraki dolunaya yaklaşırken", "birkaç hafta içinde").
-    5. Yorumunu kişinin YAŞINA, cinsiyetine/yönelimine ve ilişki-iş durumuna göre uyarla — ör. aynı aşk sorusu
-       bekar bir öğrenciyle evli bir çalışana aynı cevabı almaz; hitabın ve örneklerin bu kişiye özel olsun.
-    Mistik ama somut ol; astrolojik gerekçeni kişinin anlayacağı dilde ver. Türkçe yaz.
+    GÖREV — Horary hükmü ver. Analizini içinden yap (ev/gezegen belirle, ilgili
+    yerleşim ve transitleri değerlendir, yaş/cinsiyet/ilişki-iş durumuna uyarla)
+    ama kullanıcıya SADECE damıtılmış sonucu göster:
+
+    - "netYanit": Soruya DOĞRUDAN, tek cümlelik net cevap (Evet / Hayır / Koşullu
+      açıkça belli olsun). Ör: "Evet — bu ay dönüşün mümkün görünüyor."
+    - "yorum": EN FAZLA 3-4 KISA cümle: en güçlü 1-2 astrolojik gerekçe + varsa
+      koşul ve zamanlama ipucu. Uzun paragraf, ev/açı listesi dökümü YASAK —
+      kişinin anlayacağı sade dil.
+
+    SADECE geçerli JSON döndür:
+    { "netYanit": "...", "yorum": "..." }
+    Türkçe yaz.
     `;
 
     try {
         // Horary bir "hüküm" işi — derin akıl yürütme açık, kaliteli model.
-        const text = await aiGenerate(prompt, { tier: 'quality', thinking: true, maxTokens: 4000 });
-        return text || "Yıldızlar sessiz.";
+        let text = await aiGenerate(prompt, { tier: 'quality', thinking: true, json: true, maxTokens: 4000 });
+        text = text.replace(/```json|```/g, '').trim();
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (parsed.netYanit) {
+                return { verdict: String(parsed.netYanit), comment: String(parsed.yorum || '') };
+            }
+        }
+        return { verdict: text || 'Yıldızlar sessiz.', comment: '' };
     } catch (error) {
         console.error('[AI] askHoraryQuestion failed, using fallback:', error);
-        return "Yıldızlar şu an bu sorunun cevabını saklı tutuyor. (API Hatası)";
+        return { verdict: 'Yıldızlar şu an bu sorunun cevabını saklı tutuyor. Birazdan tekrar dener misin?', comment: '' };
     }
 };
 

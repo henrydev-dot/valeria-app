@@ -15,7 +15,7 @@ const QUESTION_COST = 150;
 export default function AskQuestionScreen() {
     const params = useLocalSearchParams<{ q?: string }>();
     const [question, setQuestion] = useState(params.q || '');
-    const [answer, setAnswer] = useState<string | null>(null);
+    const [answer, setAnswer] = useState<{ verdict: string; comment: string } | null>(null);
     const [loading, setLoading] = useState(false);
     const remaining = useEntitlementsStore((s) => s.dailyQuestionsRemaining);
     const credits = useEntitlementsStore((s) => s.credits);
@@ -30,7 +30,10 @@ export default function AskQuestionScreen() {
         setLoading(true);
         try {
             const result = await api.readings.question(question.trim());
-            setAnswer(result.answer || 'Yıldızlar şu an sessiz...');
+            setAnswer({
+                verdict: result.verdict || result.answer || 'Yıldızlar şu an sessiz...',
+                comment: result.comment || '',
+            });
             await refreshEnt();
         } catch (e: any) {
             Alert.alert('Hata', e.message || 'Soru gönderilemedi');
@@ -187,15 +190,29 @@ export default function AskQuestionScreen() {
                         </AppText>
                     </Card>
 
+                    {/* Net yanıt — soruya doğrudan tek cümlelik hüküm */}
                     <Card glow style={styles.answerCard}>
                         <View style={styles.answerHeader}>
-                            <Ionicons name="sparkles" size={18} color={Colors.accentYellow} />
+                            <Ionicons name="checkmark-circle" size={18} color={Colors.accentYellow} />
                             <AppText variant="label" color={Colors.accentYellow}>
-                                Kozmik Yanıt
+                                Net Yanıt
                             </AppText>
                         </View>
-                        <AppText variant="body">{answer}</AppText>
+                        <AppText variant="h2" style={styles.verdictText}>{answer.verdict}</AppText>
                     </Card>
+
+                    {/* Kısa astrolojik yorum */}
+                    {answer.comment ? (
+                        <Card style={styles.answerCard}>
+                            <View style={styles.answerHeader}>
+                                <Ionicons name="sparkles" size={16} color={Colors.purpleLight} />
+                                <AppText variant="label" color={Colors.purpleLight}>
+                                    Valeria'nın Yorumu
+                                </AppText>
+                            </View>
+                            <AppText variant="body" style={styles.commentText}>{answer.comment}</AppText>
+                        </Card>
+                    ) : null}
 
                     <View style={styles.actions}>
                         <Button
@@ -285,6 +302,8 @@ const styles = StyleSheet.create({
     cta: { marginTop: Spacing.sm },
     questionCard: { gap: Spacing.xs },
     answerCard: { gap: Spacing.sm },
+    verdictText: { lineHeight: 28 },
+    commentText: { lineHeight: 23 },
     answerHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
     actions: { gap: Spacing.md, marginTop: Spacing.sm },
 });

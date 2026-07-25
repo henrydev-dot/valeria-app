@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View, Image, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     Screen,
@@ -60,17 +60,19 @@ const NUMEROLOGY_DEFS = [
 function SectionTitle({
     icon,
     iconColor,
+    iconNode,
     title,
     onSeeAll,
 }: {
-    icon: keyof typeof Ionicons.glyphMap;
-    iconColor: string;
+    icon?: keyof typeof Ionicons.glyphMap;
+    iconColor?: string;
+    iconNode?: React.ReactNode;
     title: string;
     onSeeAll?: () => void;
 }) {
     return (
         <View style={styles.sectionTitleRow}>
-            <Ionicons name={icon} size={18} color={iconColor} />
+            {iconNode || (icon ? <Ionicons name={icon} size={18} color={iconColor} /> : null)}
             <AppText variant="h3" style={styles.sectionTitleText}>
                 {title}
             </AppText>
@@ -147,6 +149,7 @@ export default function HomeScreen() {
     const [analysisData, setAnalysisData] = useState<any>(null);
     const [analysisLoading, setAnalysisLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [summaryExpanded, setSummaryExpanded] = useState(false);
 
     const firstName = (profile.name || '').trim().split(' ')[0] || 'Yolcu';
     const numbers = calculateAll(profile.name || '', profile.birthDate || '');
@@ -199,7 +202,7 @@ export default function HomeScreen() {
         <Screen edges={['top']} refreshing={refreshing} onRefresh={onRefresh}>
             {/* Greeting */}
             <View style={styles.greetingBlock}>
-                <AppText variant="title">Merhaba, {firstName} ✨</AppText>
+                <AppText variant="title">Merhaba, {firstName}</AppText>
                 <AppText variant="body" color={Colors.textSecondary} style={styles.greetingSub}>
                     Yıldızlar bugün senin için ne fısıldıyor?
                 </AppText>
@@ -238,7 +241,57 @@ export default function HomeScreen() {
                 </View>
             </Card>
 
-            {/* 1 — Günün Özeti */}
+            {/* 1 — Numeroloji */}
+            <View style={styles.section}>
+                <SectionTitle
+                    iconNode={<MaterialCommunityIcons name="star-four-points-outline" size={18} color={Colors.info} />}
+                    title="Numeroloji"
+                    onSeeAll={() => router.push('/numerology')}
+                />
+                <Card
+                    onPress={() => router.push('/numerology')}
+                    accessibilityLabel="Numeroloji haritanı aç"
+                >
+                    <View style={styles.numRow}>
+                        {NUMEROLOGY_DEFS.map((d) => (
+                            <View key={d.key} style={styles.numItem}>
+                                <View style={[styles.numCircle, { borderColor: d.color }]}>
+                                    <AppText variant="h2" color={d.color}>{numbers[d.key]}</AppText>
+                                </View>
+                                <AppText variant="label" color={Colors.textMuted} style={styles.numLabel}>
+                                    {d.label}
+                                </AppText>
+                            </View>
+                        ))}
+                    </View>
+                    <View style={styles.numFooter}>
+                        <Ionicons name="sparkles-outline" size={14} color={Colors.accentYellow} />
+                        <AppText variant="caption" color={Colors.textSecondary} style={styles.numFooterText}>
+                            İsmin ve doğum tarihinden hesaplandı — anlamlarını keşfet
+                        </AppText>
+                        <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+                    </View>
+                </Card>
+            </View>
+
+            {/* 2 — Günlük Tarot */}
+            <View style={styles.section}>
+                <SectionTitle
+                    icon="layers"
+                    iconColor={Colors.accentYellow}
+                    title="Günlük Tarot"
+                    onSeeAll={() => router.push('/tarot-reading')}
+                />
+                <DailyTarot />
+            </View>
+
+            {/* 3 — Tanrı Arketipin */}
+            <View style={styles.section}>
+                <SectionTitle icon="sparkles" iconColor={Colors.purpleLight} title="Tanrı Arketipin" />
+                <DeityArchetype />
+            </View>
+
+            {/* 4 — Günün Özeti (kısa — Devamını Oku) */}
             <View style={styles.section}>
                 <SectionTitle
                     icon="sunny"
@@ -254,14 +307,31 @@ export default function HomeScreen() {
                             <Skeleton height={14} width="78%" />
                         </View>
                     ) : (
-                        <AppText variant="body" style={styles.summaryText}>
-                            {dailySummary || 'Bugünkü rehberliğin hazırlanıyor. Biraz sonra tekrar bak.'}
-                        </AppText>
+                        <>
+                            <AppText
+                                variant="body"
+                                style={styles.summaryText}
+                                numberOfLines={summaryExpanded ? undefined : 2}
+                            >
+                                {dailySummary || 'Bugünkü rehberliğin hazırlanıyor. Biraz sonra tekrar bak.'}
+                            </AppText>
+                            {!!dailySummary && dailySummary.length > 90 && (
+                                <AppText
+                                    variant="callout"
+                                    color={Colors.textAccent}
+                                    onPress={() => setSummaryExpanded((e) => !e)}
+                                    style={styles.readMore}
+                                    accessibilityRole="button"
+                                >
+                                    {summaryExpanded ? 'Gizle' : 'Devamını Oku'}
+                                </AppText>
+                            )}
+                        </>
                     )}
                 </Card>
             </View>
 
-            {/* 2 — Yıldızlara Sor (Horary) — öne çıkan kart */}
+            {/* 5 — Yıldızlara Sor (Horary) */}
             <View style={styles.section}>
                 <TouchableOpacity
                     activeOpacity={0.9}
@@ -320,57 +390,6 @@ export default function HomeScreen() {
                         </View>
                     </LinearGradient>
                 </TouchableOpacity>
-            </View>
-
-            {/* 3 — Günlük Tarot */}
-            <View style={styles.section}>
-                <SectionTitle
-                    icon="layers"
-                    iconColor={Colors.accentYellow}
-                    title="Günlük Tarot"
-                    onSeeAll={() => router.push('/tarot-reading')}
-                />
-                <DailyTarot />
-            </View>
-
-            {/* 4 — Numeroloji */}
-            <View style={styles.section}>
-                <SectionTitle
-                    icon="calculator"
-                    iconColor={Colors.info}
-                    title="Numeroloji"
-                    onSeeAll={() => router.push('/numerology')}
-                />
-                <Card
-                    onPress={() => router.push('/numerology')}
-                    accessibilityLabel="Numeroloji haritanı aç"
-                >
-                    <View style={styles.numRow}>
-                        {NUMEROLOGY_DEFS.map((d) => (
-                            <View key={d.key} style={styles.numItem}>
-                                <View style={[styles.numCircle, { borderColor: d.color }]}>
-                                    <AppText variant="h2" color={d.color}>{numbers[d.key]}</AppText>
-                                </View>
-                                <AppText variant="label" color={Colors.textMuted} style={styles.numLabel}>
-                                    {d.label}
-                                </AppText>
-                            </View>
-                        ))}
-                    </View>
-                    <View style={styles.numFooter}>
-                        <Ionicons name="sparkles-outline" size={14} color={Colors.accentYellow} />
-                        <AppText variant="caption" color={Colors.textSecondary} style={styles.numFooterText}>
-                            İsmin ve doğum tarihinden hesaplandı — anlamlarını keşfet
-                        </AppText>
-                        <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
-                    </View>
-                </Card>
-            </View>
-
-            {/* 5 — Tanrı Arketipin */}
-            <View style={styles.section}>
-                <SectionTitle icon="sparkles" iconColor={Colors.purpleLight} title="Tanrı Arketipin" />
-                <DeityArchetype />
             </View>
 
             {/* 6 — Ay Döngüsü */}
@@ -548,6 +567,10 @@ const styles = StyleSheet.create({
     },
     summaryText: {
         lineHeight: 24,
+    },
+    readMore: {
+        marginTop: Spacing.sm,
+        alignSelf: 'flex-start',
     },
     // Horary kartı
     horaryCard: {

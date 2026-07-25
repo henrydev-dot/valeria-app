@@ -18,7 +18,7 @@ export const AI_BYPASS = (process.env.AI_BYPASS ?? 'true').toLowerCase() !== 'fa
 
 // Corrected, current Gemini model id (old 'gemini-3-flash-preview' was invalid,
 // which silently routed every call to the fallback text). Override with GEMINI_MODEL.
-export const AI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-latest';
+export const AI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
 
 const firstName = (name?: string) => (name || '').trim().split(/\s+/)[0] || 'canım';
 const signOf = (s?: string) => s && s !== 'Bilinmiyor' ? s : 'burcun';
