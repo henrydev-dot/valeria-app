@@ -2,6 +2,8 @@ import { GoogleGenAI } from '@google/genai';
 import { AnalysisResult, NumerologyData, PlanetPosition, TransitData, UserInput } from '../types';
 import { aiGenerate } from './aiClient';
 import { buildNatalBlock, buildHistoryBlock } from './promptContext';
+import { IMA_KURALLARI, KAHVE_BOLGE_REHBERI, KAHVE_SEMBOL_SOZLUGU, TAROT_OKUMA_REHBERI, HORARY_REHBERI } from './falBilgisi';
+import { TAROT_CARDS } from '../data/seedData';
 import { ZODIAC_DATA } from '../constants';
 import {
     AI_BYPASS,
@@ -171,8 +173,12 @@ export const askHoraryQuestion = async (
     AKTİF TRANSİTLER: ${transitLines || 'önemli transit yok'}
     ${historyBlock ? `\n    ${historyBlock}\n` : ''}
 
-    GÖREV — Horary hükmü ver. Analizini içinden yap (ev/gezegen belirle, ilgili
-    yerleşim ve transitleri değerlendir, yaş/cinsiyet/ilişki-iş durumuna uyarla)
+    ${HORARY_REHBERI}
+    ${IMA_KURALLARI}
+
+    GÖREV — Yukarıdaki horary usulüyle hükmü ver. Analizini içinden yap (konunun
+    evini ve niteleyicisini belirle, Ay'ın durumuna bak, yaklaşan açıları değerlendir,
+    zamanlamayı derece farkından çıkar; kişinin hayat evresine örtük biçimde uyarla)
     ama kullanıcıya SADECE damıtılmış sonucu göster:
 
     - "netYanit": Soruya DOĞRUDAN, tek cümlelik net cevap (Evet / Hayır / Koşullu
@@ -220,15 +226,18 @@ export const generateTarotInterpretation = async (
 
     Deneyimli bir tarot okuyucusu olarak bu çekimi yorumla.
 
-    ÇEKİLEN KART: ${cardName} (${direction} pozisyon)
+    ÇEKİLEN KART: ${tarotCardLine(cardName, isReversed)}
+
+    TERS KART DOKTRİNİ: Ters kart felaket değildir — enerji tıkanmış, içe dönmüş ya da gölge yüzü aktif demektir; "nerede tıkanıklık var?" gözüyle oku.
+    ${IMA_KURALLARI}
 
     SORAN KİŞİ:
     ${buildNatalBlock(user || {})}
 
     ${question ? `SORU: "${question}"` : 'Genel bir okuma.'}
     ${historyBlock ? `\n    ${historyBlock}\n` : ''}
-    Bu kart için mistik, derin ve kişisel bir yorum yap. Kişinin doğum haritasını (Güneş/Ay/Yükselen), yaşını, cinsiyetini/yönelimini, ilişki ve iş durumunu dikkate alarak aşk, kariyer ve ruhsal rehberlik konularında somut mesajlar ver.
-    Geçmiş fallarında çıkan kartlar veya sorularla bağ kurabiliyorsan kur — yorumların birbirini tamamlasın.
+    Bu kart için, verilen kart anlamının dışına çıkmadan mistik, derin ve kişisel bir yorum yap. Kişinin doğum
+    haritasını (Güneş/Ay/Yükselen) dokuya işleyebilirsin; profil ve geçmiş bilgileri yalnız örtük yön versin.
     Maksimum 4-5 cümle. En içten halinle, Valeria olarak yanıtla. Türkçe yaz.
   `;
 
@@ -239,6 +248,15 @@ export const generateTarotInterpretation = async (
         console.error('[AI] generateTarotInterpretation failed, using fallback:', error);
         return "Bu kart derin bir mesaj taşıyor. Sezgilerinize güvenin.";
     }
+};
+
+/** Kart adına göre destedeki tam anlam verisini (düz/ters/arketip/tavsiye) bulur. */
+const tarotCardData = (nameTR: string) => TAROT_CARDS.find(c => c.nameTR === nameTR);
+
+const tarotCardLine = (nameTR: string, isReversed: boolean): string => {
+    const c = tarotCardData(nameTR);
+    if (!c) return `${nameTR} (${isReversed ? 'ters' : 'düz'})`;
+    return `${c.nameTR} (${isReversed ? 'TERS' : 'düz'}) — arketip: ${c.archetypeTR}; anahtar: ${c.keywordsTR.join(', ')}; düz anlam: ${c.uprightTR}; ters anlam: ${c.reversedTR}; tavsiye: ${c.adviceTR}`;
 };
 
 // ==================== TAROT SPREAD (3 KART, TEK ÇAĞRI) ====================
@@ -268,7 +286,7 @@ export const generateTarotSpreadReading = async (
     const today = new Date().toISOString().split('T')[0];
 
     const cardLines = cards
-        .map((c, i) => `${i + 1}. ${c.position}: ${c.nameTR} (${c.isReversed ? 'ters' : 'düz'})${c.keywordsTR?.length ? ` — anahtar kelimeler: ${c.keywordsTR.join(', ')}` : ''}`)
+        .map((c, i) => `${i + 1}. ${c.position}: ${tarotCardLine(c.nameTR, c.isReversed)}`)
         .join('\n    ');
 
     const prompt = `
@@ -284,12 +302,12 @@ export const generateTarotSpreadReading = async (
     ${historyBlock ? `\n    ${historyBlock}\n` : ''}
     ${question ? `SORU: "${question}" — tüm yorumları bu soruya odakla.` : 'Soru yok — kişinin hayatının genel akışına (aşk, iş, ruhsal durum) odaklan.'}
 
-    KURALLAR:
-    - Her kartı KENDİ POZİSYONUNDA yorumla (Geçmiş: yaşanmış etkiler; Şimdi: mevcut enerji; Gelecek: olası gidişat).
-    - Kartları birbirine bağla — ör. geçmiş kartındaki tema, şimdi kartında nasıl evriliyor?
-    - Kişinin burcunu/yükselenini/element enerjisini ve ilişki-iş durumunu yorumlara dokundur.
-    - Yorumları kişinin YAŞINA, cinsiyetine/yönelimine ve hayat evresine göre uyarla (öğrenci/çalışan, bekar/evli farkı hissedilsin).
-    - Geçmiş fallarıyla anlam bütünlüğü kur; çelişme.
+    ${TAROT_OKUMA_REHBERI}
+    ${IMA_KURALLARI}
+
+    EK KURALLAR:
+    - Kişinin burcunu/yükselenini/element enerjisini yorumun dokusuna işle (astrolojik veri gizli değildir, anılabilir).
+    - Yaş, cinsiyet, ilişki-iş durumu ve geçmiş fallar yalnızca ÖRTÜK yön versin (yukarıdaki kurallar).
     - Her kart yorumu 4-6 cümle; sentez 3-5 cümle, net bir mesajla bitsin.
 
     SADECE geçerli JSON döndür:
@@ -358,7 +376,7 @@ const extractCupSymbols = async (imagesBase64: string[]): Promise<CupExtraction>
     Sen bir Türk kahvesi falı için görüntü analiz asistanısın. Sana içilmiş kahve fincanı/tabağı fotoğrafları verilecek.
 
     GÖREV 1 — Doğrulama: Fotoğrafların TÜMÜ içilmiş kahve fincanı veya kahve tabağı mı? Alakasız bir görüntü (kedi, selfie, araba vb.) varsa isCoffeeCup=false döndür.
-    GÖREV 2 — Sembol çıkarımı: Fincan geçerliyse telvedeki şekilleri fal geleneğindeki gibi tespit et: kuş, yol, kalp, dağ, harf, sayı, insan silüeti, ağaç, yılan, balık, kapı, göz vb. Her sembol için fincandaki konumu (ağız kenarı / orta / dip / tabak) ve klasik fal çağrışımını yaz.
+    GÖREV 2 — Sembol çıkarımı: Fincan geçerliyse telvedeki şekilleri fal geleneğindeki gibi tespit et: kuş, yol, kalp, dağ, harf, sayı, insan silüeti, ağaç, yılan, balık, kapı, göz, yüzük, merdiven, köprü vb. Her sembol için fincandaki konumu ŞU SEÇENEKLERDEN biriyle ver: "ağız kenarı", "orta", "dip", "kulp tarafı", "kulpun karşısı", "tabak". Ayrıca telvenin genel aydınlık/karanlık dengesini not et.
 
     SADECE geçerli JSON döndür:
     {
@@ -446,6 +464,9 @@ export const generateCoffeeReading = async (
     Bugünün Tarihi: ${new Date().toISOString().split('T')[0]}
 
     Usta ve geveze bir Türk kahve falcısı olarak fal bak. "Sen", "Tatlım", "Canım" gibi sıcak bir dille, kalabalık, uzun ve detaylı yorumlar yap.
+    ${KAHVE_BOLGE_REHBERI}
+    ${KAHVE_SEMBOL_SOZLUGU}
+    ${IMA_KURALLARI}
 
     SORAN KİŞİ:
     ${buildNatalBlock(user || {})}
@@ -454,9 +475,9 @@ export const generateCoffeeReading = async (
 
     ${question ? `KULLANICININ SORUSU: "${question}" — soruCevabi bölümünde bu soruya odaklan.` : 'Soru sorulmadı — soruCevabi bölümünde falın en çarpıcı ana mesajını yaz.'}
 
-    Yorumlarında kişinin burcunu/elementini ve ilişki-iş durumunu sembollerle harmanla; geçmiş fallarıyla çelişme, gerekirse atıf yap.
-    Falı kişinin YAŞINA, cinsiyetine/yönelimine ve hayat evresine göre uyarla — genç bir öğrenciye okul/heyecan dilinden,
-    evli bir çalışana yuva/istikrar dilinden konuş.
+    Her sembolü hem BÖLGESİYLE (zamanlama) hem SÖZLÜK anlamıyla oku; sembolleri fincanda görüyormuş gibi tasvir et.
+    Kişinin burcunu/elementini yorumun dokusuna işleyebilirsin; yaş, cinsiyet, ilişki-iş durumu ve geçmiş fallar
+    ise SADECE örtük yön versin (yukarıdaki kurallar — "bekar olduğun için" gibi kalıplar kesinlikle YASAK).
     Tamamen Türkçe yaz — İngilizce kelime (cup, love, career vb.) KULLANMA; "fincan", "aşk", "kariyer" de.
 
     SADECE geçerli JSON döndür (markdown işaretleri OLMADAN):
@@ -665,10 +686,11 @@ export const generateDailyTarotMessage = async (
     const prompt = `
     Bugünün Tarihi: ${today}
 
-    ${cardName} kartı (${direction}) bugün ${userSign} burcu için çekildi.
+    Bugünün kartı (${userSign} burcu için): ${tarotCardLine(cardName, isReversed)}
     ${user ? `Kişi:\n    ${buildNatalBlock(user)}` : ''}
-    Bu kartın bugünkü enerjisini ve kişiye özel mesajını GÜNLÜK TAROT YORUMU olarak aktar.
-    Kişinin burcunu, yaşını ve ilişki-iş durumunu dikkate alarak sadece ve tam olarak 3 (üç) cümle kur.
+    Bu kartın bugünkü enerjisini ve kişiye özel mesajını GÜNLÜK TAROT YORUMU olarak, verilen kart anlamına
+    sadık kalarak aktar. Profil bilgileri yalnız örtük yön versin — asla açıkça geri söyleme ("bekar olduğun
+    için" gibi kalıplar YASAK). Sadece ve tam olarak 3 (üç) cümle kur.
     Sıcak ve mistik bir üslupla, doğrudan Valeria olarak hitap et.
     `;
 
