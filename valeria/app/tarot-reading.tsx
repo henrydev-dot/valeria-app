@@ -85,6 +85,7 @@ export default function TarotReadingScreen() {
     const [loading, setLoading] = useState(false);
     const [cards, setCards] = useState<DrawnCard[]>([]);
     const [summary, setSummary] = useState<string>('');
+    const [directAnswer, setDirectAnswer] = useState<string>('');
     const credits = useEntitlementsStore((s) => s.credits);
     const refreshEnt = useEntitlementsStore((s) => s.refresh);
 
@@ -109,15 +110,18 @@ export default function TarotReadingScreen() {
                 interpretation: c.interpretation || '',
             }));
             const overall =
-                typeof result.summary === 'string'
-                    ? result.summary
-                    : typeof result.overall === 'string'
-                      ? result.overall
-                      : typeof result.interpretation === 'string'
-                        ? result.interpretation
-                        : '';
+                typeof result.synthesis === 'string' && result.synthesis
+                    ? result.synthesis
+                    : typeof result.summary === 'string'
+                        ? result.summary
+                        : typeof result.overall === 'string'
+                            ? result.overall
+                            : typeof result.interpretation === 'string'
+                                ? result.interpretation
+                                : '';
             setCards(mapped);
             setSummary(overall);
+            setDirectAnswer(typeof result.answer === 'string' ? result.answer : '');
             setPhase('reveal');
 
             const animations = anims.map((anim) =>
@@ -171,6 +175,7 @@ export default function TarotReadingScreen() {
         anims.forEach((a) => a.setValue(0));
         setCards([]);
         setSummary('');
+        setDirectAnswer('');
         setQuestion('');
         setPhase('question');
     };
@@ -317,6 +322,21 @@ export default function TarotReadingScreen() {
                         </AppText>
                     </View>
 
+                    {/* Soru sorulduysa önce sorunun NET yanıtı */}
+                    {directAnswer ? (
+                        <Card glow style={styles.readingCard}>
+                            <View style={styles.answerHeader}>
+                                <Ionicons name="checkmark-circle" size={16} color={Colors.accentYellow} />
+                                <AppText variant="label" color={Colors.accentYellow}>
+                                    Sorunun Yanıtı
+                                </AppText>
+                            </View>
+                            <AppText variant="bodyStrong" style={styles.answerText}>
+                                {directAnswer}
+                            </AppText>
+                        </Card>
+                    ) : null}
+
                     {cards.map((card, idx) =>
                         card.interpretation ? (
                             <Card key={idx} style={styles.readingCard}>
@@ -421,6 +441,8 @@ const styles = StyleSheet.create({
         gap: Spacing.sm,
         marginTop: Spacing.sm,
     },
+    answerHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs },
+    answerText: { lineHeight: 24 },
     readingCard: { gap: Spacing.xs },
     readingName: { marginTop: 2, marginBottom: Spacing.xs },
     richText: { gap: Spacing.md, marginTop: Spacing.xs },
