@@ -66,14 +66,19 @@ router.post('/tarot', authMiddleware, async (req: AuthRequest, res: Response) =>
         user.credits -= 30;
         await user.save();
 
-        // Okuma kaydet (cevap+sentez, geçmiş özetlerinde kullanılmak üzere result'ta)
+        // Sorunun cevabı falın kendi akışında verilir: cevap + sentez tek metin
+        // olarak birleşir ve uygulamanın zaten gösterdiği "Genel Değerlendirme"
+        // (result.summary) alanından akar — istemci değişikliği gerektirmez.
+        const genelYorum = [spread.answer, spread.synthesis].filter(Boolean).join('\n\n');
+
+        // Okuma kaydet (geçmiş özetlerinde kullanılmak üzere result'ta)
         const reading = new Reading({
             userId: user._id.toString(),
             type: 'tarot',
             question: question || '',
             date: new Date(),
             cards: drawnCards,
-            result: [spread.answer, spread.synthesis].filter(Boolean).join(' — ') || undefined
+            result: genelYorum || undefined
         });
         await reading.save();
 
@@ -83,8 +88,7 @@ router.post('/tarot', authMiddleware, async (req: AuthRequest, res: Response) =>
             question: reading.question,
             type: 'tarot',
             cards: drawnCards,
-            answer: spread.answer,
-            synthesis: spread.synthesis
+            summary: genelYorum
         });
     } catch (error: any) {
         console.error('Tarot reading error:', error);
