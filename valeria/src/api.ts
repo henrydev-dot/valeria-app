@@ -107,19 +107,13 @@ export const profile = {
     onboarding: (data: Record<string, any>) =>
         apiFetch<any>('/profile/onboarding', { method: 'POST', body: JSON.stringify(data) }),
 
-    uploadAvatar: async (formData: FormData) => {
-        const token = await getToken();
-        const res = await fetch(`${API_BASE}/profile/avatar`, {
+    // Avatar sunucuda (MongoDB) kalıcı saklanır; dönen avatarUrl'i
+    // API_HOST ile birleştirip <Image>'e ver.
+    uploadAvatar: (imageBase64: string, mime = 'image/jpeg') =>
+        apiFetch<{ avatarUrl: string; success: boolean }>('/profile/avatar', {
             method: 'POST',
-            headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-            body: formData,
-        });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({ error: 'Upload failed' }));
-            throw new Error(err.error || `HTTP ${res.status}`);
-        }
-        return res.json();
-    },
+            body: JSON.stringify({ imageBase64, mime }),
+        }),
 
     // Permanent account + data deletion (App Store 5.1.1(v)).
     deleteAccount: () => apiFetch<any>('/profile', { method: 'DELETE' }),

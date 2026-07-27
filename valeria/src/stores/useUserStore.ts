@@ -23,6 +23,7 @@ interface UserProfile {
     energyScore: number;
     onboardingComplete: boolean;
     membershipType?: string;
+    avatarUrl?: string | null; // sunucudaki kalıcı avatar yolu (API_HOST ile birleştir)
     currentMoon?: { phase: string; image: string; illumination: number };
 }
 
@@ -93,6 +94,7 @@ export const useUserStore = create<UserState>((set, get) => ({
                 energyScore: user.energyScore || 0,
                 onboardingComplete: user.onboardingComplete || false,
                 membershipType: user.membershipType,
+                avatarUrl: user.avatarUrl || null,
                 currentMoon: user.currentMoon,
             };
             set({ profile: p, isAuthenticated: true, isLoading: false });

@@ -72,6 +72,16 @@ export default function ProfileScreen() {
     const xpInLevel = xp % 100;
     const [avatarUri, setAvatarUri] = useState<string | null>(null);
 
+    // Sunucuda kayıtlı avatarı yükle (uygulama yeniden açılınca da görünsün).
+    // Yerel önizleme (yeni seçilen fotoğraf) varsa üzerine yazma.
+    const remoteAvatar = (profile as any).avatarUrl as string | null | undefined;
+    useEffect(() => {
+        if (remoteAvatar && !avatarUri) {
+            setAvatarUri(`${api.API_HOST}${remoteAvatar}`);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [remoteAvatar]);
+
     // Premium modal
     const [premiumVisible, setPremiumVisible] = useState(false);
 
@@ -156,24 +166,25 @@ export default function ProfileScreen() {
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             aspect: [1, 1],
-            quality: 0.7,
+            quality: 0.5,
+            base64: true, // sunucuya kalıcı kayıt için base64 gerekli
         });
         if (!result.canceled && result.assets[0]) {
-            const uri = result.assets[0].uri;
-            setAvatarUri(uri); // local preview kept regardless of upload result
+            const asset = result.assets[0];
+            setAvatarUri(asset.uri); // anında yerel önizleme
+            if (!asset.base64) {
+                Alert.alert('Hata', 'Fotoğraf okunamadı, lütfen tekrar dene.');
+                return;
+            }
             try {
-                const formData = new FormData();
-                const ext = uri.split('.').pop() || 'jpg';
-                formData.append('avatar', {
-                    uri,
-                    name: `avatar.${ext}`,
-                    type: `image/${ext}`,
-                } as any);
-                await api.profile.uploadAvatar(formData);
-            } catch {
+                const mime = asset.mimeType || 'image/jpeg';
+                const res = await api.profile.uploadAvatar(asset.base64, mime);
+                // Sunucu URL'ine geç: bir sonraki açılışta da aynı kaynaktan gelir.
+                if (res?.avatarUrl) setAvatarUri(`${api.API_HOST}${res.avatarUrl}`);
+            } catch (e: any) {
                 Alert.alert(
                     'Yükleme Başarısız',
-                    'Profil fotoğrafın sunucuya yüklenemedi. Önizleme gösteriliyor; bağlantını kontrol edip tekrar dene.'
+                    e?.message || 'Profil fotoğrafın sunucuya yüklenemedi. Önizleme gösteriliyor; bağlantını kontrol edip tekrar dene.'
                 );
             }
         }

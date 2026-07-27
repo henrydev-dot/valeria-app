@@ -41,7 +41,9 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
             energyScore: user.energyScore,
             onboardingComplete: user.onboardingComplete,
             membershipType: user.membershipType,
-            avatarUrl: user.avatarUrl || null,
+            // Eski demo kayıtları URL değil placeholder metin içeriyordu — sadece
+            // gerçek yol ('/api/...') olanları döndür ki istemci kırık resim göstermesin.
+            avatarUrl: user.avatarUrl && user.avatarUrl.startsWith('/') ? user.avatarUrl : null,
             numerologyAI: user.numerologyAI || null,
             currentMoon: getCurrentMoonPhase()
         });
@@ -196,18 +198,69 @@ router.put('/push-token', authMiddleware, async (req: AuthRequest, res: Response
     }
 });
 
-// POST /profile/avatar 🔐 (demo — stores placeholder; real app would use S3/cloudinary)
+// POST /profile/avatar 🔐 — resmi base64 olarak MongoDB'de kalıcı saklar.
+// İstek gövdesi: { imageBase64: string, mime?: 'image/jpeg' | 'image/png' | 'image/webp' }
+const AVATAR_MIMES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
+const AVATAR_MAX_BASE64 = 8_000_000; // ~6MB görüntü — Mongo 16MB belge sınırının güvenli altında
+
 router.post('/avatar', authMiddleware, async (req: AuthRequest, res: Response) => {
     try {
         const user = await User.findById(req.user!._id);
         if (!user) return res.status(404).json({ error: 'Kullanıcı bulunamadı', code: 'NOT_FOUND' });
 
-        // Demo: just mark that an avatar was uploaded
-        user.avatarUrl = `avatar_${user._id}_${Date.now()}`;
+        let { imageBase64, mime } = req.body as { imageBase64?: string; mime?: string };
+        if (!imageBase64 || typeof imageBase64 !== 'string') {
+            return res.status(400).json({ error: 'Görüntü verisi eksik', code: 'MISSING_IMAGE' });
+        }
+
+        // "data:image/jpeg;base64,...." biçiminde geldiyse ayrıştır
+        const dataUriMatch = imageBase64.match(/^data:(image\/[a-z]+);base64,(.+)$/i);
+        if (dataUriMatch) {
+            mime = mime || dataUriMatch[1].toLowerCase();
+            imageBase64 = dataUriMatch[2];
+        }
+        mime = (mime || 'image/jpeg').toLowerCase();
+        if (mime === 'image/jpg') mime = 'image/jpeg';
+
+        if (!AVATAR_MIMES.has(mime)) {
+            return res.status(400).json({ error: 'Desteklenmeyen görüntü türü', code: 'BAD_MIME' });
+        }
+        if (imageBase64.length > AVATAR_MAX_BASE64) {
+            return res.status(413).json({ error: 'Görüntü çok büyük (en fazla ~6MB)', code: 'IMAGE_TOO_LARGE' });
+        }
+        // Geçerli base64 mi? (bozuk veri saklamayalım)
+        if (!/^[A-Za-z0-9+/=\s]+$/.test(imageBase64)) {
+            return res.status(400).json({ error: 'Geçersiz görüntü verisi', code: 'BAD_IMAGE' });
+        }
+
+        user.avatarData = imageBase64.replace(/\s/g, '');
+        user.avatarMime = mime;
+        // v parametresi istemci tarafında önbellek kırmak için (yeni yüklemede URL değişir)
+        user.avatarUrl = `/api/profile/avatar/${user._id}?v=${Date.now()}`;
         await user.save();
 
         return res.json({ avatarUrl: user.avatarUrl, success: true });
     } catch (error: any) {
+        console.error('Avatar upload error:', error);
+        return res.status(500).json({ error: 'Sunucu hatası', code: 'SERVER_ERROR' });
+    }
+});
+
+// GET /profile/avatar/:userId — avatar görüntüsünü servis eder (auth'suz;
+// URL tahmin edilemez ObjectId içerir, RN <Image> bileşeni header gönderemez).
+router.get('/avatar/:userId', async (req, res: Response) => {
+    try {
+        const user = await User.findById(req.params.userId).select('+avatarData avatarMime');
+        if (!user || !user.avatarData) {
+            return res.status(404).json({ error: 'Avatar bulunamadı', code: 'NOT_FOUND' });
+        }
+        const buf = Buffer.from(user.avatarData, 'base64');
+        res.setHeader('Content-Type', user.avatarMime || 'image/jpeg');
+        res.setHeader('Content-Length', buf.length);
+        // URL her yüklemede değiştiği (?v=) için agresif önbellek güvenli
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        return res.end(buf);
+    } catch {
         return res.status(500).json({ error: 'Sunucu hatası', code: 'SERVER_ERROR' });
     }
 });

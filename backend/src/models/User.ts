@@ -34,6 +34,8 @@ export interface IUser extends Document {
     onboardingComplete: boolean;
     membershipType: string; // "free" | "premium"
     avatarUrl: string;
+    avatarData: string; // base64 görüntü verisi (select:false — sadece avatar endpoint'i okur)
+    avatarMime: string;
     pushToken: string;
 
     // Entitlements
@@ -87,6 +89,10 @@ const UserSchema = new Schema<IUser>({
     onboardingComplete: { type: Boolean, default: false },
     membershipType: { type: String, default: 'free' },
     avatarUrl: { type: String, default: '' },
+    // select:false → normal kullanıcı sorguları bu büyük alanı ÇEKMEZ (performans);
+    // yalnızca GET /profile/avatar/:id rotası .select('+avatarData') ile okur.
+    avatarData: { type: String, default: '', select: false },
+    avatarMime: { type: String, default: 'image/jpeg' },
     pushToken: { type: String, default: '' },
 
     // Entitlements
