@@ -43,6 +43,8 @@ export interface IUser extends Document {
     streakDays: number;
     dailyQuestionsRemaining: number;
     freeQuestionUsed: boolean;
+    lastDailyRewardAt?: Date | null;
+    processedTransactionIds: string[];
     unlockedContentIds: string[];
     lastResetDate: Date;
     lastLoginDate: Date;
@@ -88,12 +90,14 @@ const UserSchema = new Schema<IUser>({
     pushToken: { type: String, default: '' },
 
     // Entitlements
-    credits: { type: Number, default: 999 },
+    credits: { type: Number, default: 500 },
     xp: { type: Number, default: 0 },
     level: { type: Number, default: 1 },
     streakDays: { type: Number, default: 0 },
     dailyQuestionsRemaining: { type: Number, default: 0 },
     freeQuestionUsed: { type: Boolean, default: false },
+    lastDailyRewardAt: { type: Date, default: null },
+    processedTransactionIds: { type: [String], default: [] },
     unlockedContentIds: [{ type: String }],
     lastResetDate: { type: Date, default: Date.now },
     lastLoginDate: { type: Date, default: Date.now }

@@ -26,6 +26,7 @@ export const Config = {
  * IAP + server-side receipt validation are wired.
  */
 export const Features = {
-    purchasesEnabled: false, // hide "Kredi Yükle" / premium purchase (no real IAP yet)
-    adsEnabled: false,       // no real ad SDK — hide "reklam izle"; use honest daily reward instead
+    // Gerçek StoreKit IAP + sunucu tarafı makbuz doğrulama devrede (v1.2).
+    purchasesEnabled: true,
+    adsEnabled: false, // no real ad SDK — hide "reklam izle"; use honest daily reward instead
 } as const;

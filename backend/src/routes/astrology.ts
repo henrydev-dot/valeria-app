@@ -3,11 +3,127 @@ import { User } from '../models/User';
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware';
 import { performCalculations } from '../utils/calculations';
 import { generateDailyHoroscope, generateWeeklyHoroscope, generateCompatibility, generateInterpretation } from '../services/geminiService';
-import { ZODIAC_DATA, TURKISH_CITIES, HOUSE_MEANINGS } from '../constants';
+import { aiGenerate } from '../services/aiClient';
+import { buildNatalBlock } from '../services/promptContext';
+import { ZODIAC_DATA, TURKISH_CITIES, HOUSE_MEANINGS, RETROGRADE_CALENDAR_2026, NATAL_RETROGRADE_MEANINGS } from '../constants';
 import { ZODIAC_SIGNS } from '../data/seedData';
 import { UserInput } from '../types';
+import * as Astronomy from 'astronomy-engine';
 
 const router = Router();
+
+/** Verilen gövde şu an geriliyor mu (bugün vs dün, geosantrik boylam). */
+const isRetroNow = (body: string): boolean => {
+    try {
+        const now = new Date();
+        const yesterday = new Date(now.getTime() - 86400000);
+        const lon = (d: Date) => Astronomy.Ecliptic(Astronomy.GeoVector(body as Astronomy.Body, Astronomy.MakeTime(d), true)).elon;
+        let diff = lon(now) - lon(yesterday);
+        if (diff > 300) diff -= 360;
+        if (diff < -300) diff += 360;
+        return diff < 0;
+    } catch { return false; }
+};
+
+// GET /astrology/retro-calendar 🔐 — 2026 retro takvimi + şu an retro olanlar
+router.get('/retro-calendar', authMiddleware, async (_req: AuthRequest, res: Response) => {
+    try {
+        const bodies: Array<{ body: string; name: string }> = [
+            { body: 'Mercury', name: 'Merkür' }, { body: 'Venus', name: 'Venüs' },
+            { body: 'Mars', name: 'Mars' }, { body: 'Jupiter', name: 'Jüpiter' },
+            { body: 'Saturn', name: 'Satürn' }, { body: 'Uranus', name: 'Uranüs' },
+            { body: 'Neptune', name: 'Neptün' }, { body: 'Pluto', name: 'Plüton' },
+        ];
+        const currentlyRetro = bodies.filter(b => isRetroNow(b.body)).map(b => b.name);
+        return res.json({
+            currentlyRetro,
+            calendar: RETROGRADE_CALENDAR_2026,
+            natalRetroMeanings: NATAL_RETROGRADE_MEANINGS,
+        });
+    } catch (error: any) {
+        return res.status(500).json({ error: 'Retro takvimi hatası', code: 'SERVER_ERROR' });
+    }
+});
+
+// POST /astrology/house-insight 🔐 — bir ev+burç yerleşimi için AI yorumu (10 kredi)
+// body: { house: 1-12, question?: string }
+const HOUSE_INSIGHT_COST = 10;
+router.post('/house-insight', authMiddleware, async (req: AuthRequest, res: Response) => {
+    try {
+        const house = parseInt(req.body?.house, 10);
+        const question = (req.body?.question || '').toString().slice(0, 300);
+        if (!house || house < 1 || house > 12) {
+            return res.status(400).json({ error: 'Geçerli ev numarası (1-12) gerekli', code: 'MISSING_FIELDS' });
+        }
+
+        const user = await User.findById(req.user!._id);
+        if (!user) return res.status(404).json({ error: 'Kullanıcı bulunamadı', code: 'NOT_FOUND' });
+        if (!user.birthDate || !user.birthTime) {
+            return res.status(400).json({ error: 'Doğum bilgileri eksik.', code: 'MISSING_DATA' });
+        }
+        if (user.credits < HOUSE_INSIGHT_COST) {
+            return res.status(400).json({
+                error: 'Yetersiz kredi',
+                code: 'INSUFFICIENT_CREDITS',
+                details: { required: HOUSE_INSIGHT_COST, available: user.credits }
+            });
+        }
+
+        const inputData: UserInput = {
+            name: user.name,
+            birthDate: user.birthDate,
+            birthTime: user.birthTime,
+            birthCity: user.birthCity || 'İstanbul',
+            birthDistrict: user.birthDistrict || undefined,
+            birthCountry: user.birthCountry || 'Türkiye',
+            latitude: user.latitude || '41.0082',
+            longitude: user.longitude || '28.9784',
+            gender: user.gender,
+            relationshipStatus: user.relationshipStatus,
+            jobStatus: user.workStatus
+        };
+        const calc = performCalculations(inputData);
+        const houseData = calc.astrology.houses.find(h => h.houseNumber === house)!;
+        const signTR = ZODIAC_DATA[houseData.sign]?.name || houseData.sign;
+        const planetsInHouse = calc.astrology.planets
+            .filter(p => p.house === house)
+            .map(p => `${p.planetNameTR} ${ZODIAC_DATA[p.sign]?.name || p.sign} ${p.degree.toFixed(0)}°${p.retrograde ? ' (retro)' : ''}`)
+            .join(', ');
+
+        const prompt = `
+    KİŞİ:
+    ${buildNatalBlock(user)}
+
+    İNCELENEN YERLEŞİM: ${house}. ev — ${signTR} burcunda.
+    Evin konusu: ${HOUSE_MEANINGS[house]}
+    Bu evdeki gezegenler: ${planetsInHouse || 'yok'}
+    ${question ? `KİŞİNİN SORUSU: "${question}" — yanıtın merkezine bu soruyu al.` : ''}
+
+    GÖREV: Bu kişiye ${house}. evindeki ${signTR} yerleşiminin ne anlama geldiğini anlat:
+    1) Bu ev + bu burç birleşimi hayatında nasıl görünür (2-3 cümle, kişiye özel),
+    2) Evdeki gezegenler varsa etkileri (1-2 cümle),
+    3) Dikkat etmesi gereken 1-2 nokta ve bu enerjiyi iyi kullanmanın yolu.
+    Toplam 5-8 cümle, samimi "Sen" dili, teknik jargonu sadeleştir. Türkçe yaz.`;
+
+        const insight = await aiGenerate(prompt, { tier: 'quality', maxTokens: 1500 });
+        if (!insight) throw new Error('Boş yanıt');
+
+        user.credits -= HOUSE_INSIGHT_COST;
+        await user.save();
+
+        return res.json({
+            house,
+            sign: signTR,
+            meaning: HOUSE_MEANINGS[house],
+            planets: planetsInHouse,
+            insight,
+            credits: user.credits
+        });
+    } catch (error: any) {
+        console.error('House insight error:', error);
+        return res.status(500).json({ error: 'Ev yorumu hatası', code: 'SERVER_ERROR' });
+    }
+});
 
 // GET /astrology/daily 🔐
 router.get('/daily', authMiddleware, async (req: AuthRequest, res: Response) => {

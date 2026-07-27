@@ -2,7 +2,7 @@
   "expo": {
     "name": "Valeria",
     "slug": "valeria",
-    "version": "1.1",
+    "version": "1.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -51,7 +51,8 @@
           "cameraPermission": "Kahve falı için fincan fotoğrafı çekmek amacıyla kameraya erişim gereklidir."
         }
       ],
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      "react-native-iap"
     ],
     "extra": {
       "eas": {

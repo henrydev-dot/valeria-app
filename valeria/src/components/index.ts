@@ -22,3 +22,4 @@ export { ListItemRow } from './ListItemRow';
 export { PaywallTag } from './PaywallTag';
 export { DailyTarot } from './DailyTarot';
 export { DeityArchetype } from './DeityArchetype';
+export { AstroDeepDive } from './AstroDeepDive';

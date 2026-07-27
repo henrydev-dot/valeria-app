@@ -8,12 +8,13 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Screen, Card, AppText, Button, ProgressBar } from '../../src/components';
+import { Screen, Card, AppText, Button, ProgressBar, Chip } from '../../src/components';
 import { useUserStore } from '../../src/stores/useUserStore';
 import { useEntitlementsStore } from '../../src/stores/useEntitlementsStore';
 import { Colors } from '../../src/theme/colors';
 import { Spacing, BorderRadius } from '../../src/theme/spacing';
 import { getTimeUntilReset } from '../../src/utils/dailyReset';
+import { RELATIONSHIP_OPTIONS, WORK_OPTIONS } from '../../src/data/onboardingOptions';
 import { Config, Features } from '../../src/config';
 import * as api from '../../src/api';
 import { registerForPushNotificationsAsync } from '../_layout';
@@ -73,6 +74,27 @@ export default function ProfileScreen() {
 
     // Premium modal
     const [premiumVisible, setPremiumVisible] = useState(false);
+
+    // Bilgilerimi Düzenle (ilişki + iş durumu)
+    const [editVisible, setEditVisible] = useState(false);
+    const [editRelationship, setEditRelationship] = useState('');
+    const [editWork, setEditWork] = useState('');
+    const [savingEdit, setSavingEdit] = useState(false);
+
+    const saveProfileEdit = async () => {
+        if (!editRelationship || !editWork) return;
+        setSavingEdit(true);
+        try {
+            await api.profile.update({ relationshipStatus: editRelationship, workStatus: editWork });
+            await loadProfile();
+            setEditVisible(false);
+            Alert.alert('Kaydedildi', 'Bilgilerin güncellendi — bundan sonraki fallar yeni durumuna göre kişiselleşecek.');
+        } catch (e: any) {
+            Alert.alert('Hata', e?.message || 'Bilgiler güncellenemedi');
+        } finally {
+            setSavingEdit(false);
+        }
+    };
     const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
     const [purchasing, setPurchasing] = useState(false);
 
@@ -259,44 +281,42 @@ export default function ProfileScreen() {
             {/* Günlük Ücretsiz Kredi (ads disabled → honest free daily reward; no ad plays) */}
             <Card
                 onPress={async () => {
-                    try {
-                        const watchAd = useEntitlementsStore.getState().watchAd;
-                        const success = await watchAd();
-                        Alert.alert(
-                            success ? 'Tebrikler!' : 'Hata',
-                            success
-                                ? '10 kredi kazandınız!'
-                                : Features.adsEnabled
-                                    ? 'Reklam izlenemedi, tekrar deneyin.'
-                                    : 'Günlük ödül alınamadı, tekrar deneyin.'
-                        );
-                    } catch (e: any) {
-                        Alert.alert('Hata', e.message || (Features.adsEnabled ? 'Reklam izlenemedi' : 'Günlük ödül alınamadı'));
-                    }
+                    const watchAd = useEntitlementsStore.getState().watchAd;
+                    const result = await watchAd();
+                    Alert.alert(
+                        result.ok ? 'Tebrikler!' : 'Günlük Ödül',
+                        result.ok
+                            ? `${result.rewarded ?? 25} kredi kazandınız! Yarın tekrar gel.`
+                            : result.message || 'Günlük ödül alınamadı, tekrar deneyin.'
+                    );
                 }}
-                accessibilityLabel={Features.adsEnabled ? 'Reklam izle, 10 kredi kazan' : 'Günlük ücretsiz kredini al, 10 kredi kazan'}
+                accessibilityLabel="Günlük ücretsiz kredini al, 25 kredi kazan"
                 style={styles.adWatchCard}
             >
                 <View style={styles.adWatchLeft}>
-                    <Ionicons
-                        name={Features.adsEnabled ? 'play-circle-outline' : 'gift-outline'}
-                        size={28}
-                        color={Colors.accentYellow}
-                    />
+                    <Ionicons name="gift-outline" size={28} color={Colors.accentYellow} />
                     <View style={styles.adWatchTexts}>
-                        <AppText variant="bodyStrong">
-                            {Features.adsEnabled ? 'Reklam İzle, Kredi Kazan' : 'Günlük Ücretsiz Kredi'}
-                        </AppText>
-                        <AppText variant="caption">
-                            {Features.adsEnabled
-                                ? 'Kısa bir reklam izleyerek 10 kredi kazanın'
-                                : 'Günlük ödülünü alarak 10 kredi kazan'}
-                        </AppText>
+                        <AppText variant="bodyStrong">Günlük Ücretsiz Kredi</AppText>
+                        <AppText variant="caption">24 saatte bir 25 kredi kazan</AppText>
                     </View>
                 </View>
                 <View style={styles.adWatchBadge}>
-                    <AppText variant="bodyStrong" color={Colors.textOnAccent}>+10</AppText>
+                    <AppText variant="bodyStrong" color={Colors.textOnAccent}>+25</AppText>
                 </View>
+            </Card>
+
+            {/* Bilgilerimi Düzenle — ilişki & iş durumu */}
+            <Card style={styles.section} padded={false}>
+                <Row
+                    icon="create-outline"
+                    title="Bilgilerimi Düzenle"
+                    subtitle="İlişki durumu ve iş durumu — fallar bu bilgilere göre kişiselleşir"
+                    onPress={() => {
+                        setEditRelationship(profile.relationshipStatus || '');
+                        setEditWork(profile.workStatus || '');
+                        setEditVisible(true);
+                    }}
+                />
             </Card>
 
             {/* Premium Upgrade / Active
@@ -451,6 +471,48 @@ export default function ProfileScreen() {
                 <AppText variant="caption" style={styles.disclaimerText}>{Config.disclaimer}</AppText>
             </View>
 
+            {/* Bilgilerimi Düzenle Modal */}
+            <Modal visible={editVisible} animationType="slide" transparent onRequestClose={() => setEditVisible(false)}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <TouchableOpacity
+                            style={styles.modalClose}
+                            onPress={() => setEditVisible(false)}
+                            accessibilityRole="button"
+                            accessibilityLabel="Kapat"
+                        >
+                            <Ionicons name="close" size={22} color={Colors.textSecondary} />
+                        </TouchableOpacity>
+                        <AppText variant="h2" style={styles.editTitle}>Bilgilerimi Düzenle</AppText>
+                        <AppText variant="caption" color={Colors.textMuted} style={styles.editSub}>
+                            Fallar ve yorumlar bu bilgilere göre kişiselleşir.
+                        </AppText>
+
+                        <AppText variant="label" color={Colors.purpleLight} style={styles.editLabel}>İlişki durumun</AppText>
+                        <View style={styles.editGrid}>
+                            {RELATIONSHIP_OPTIONS.map((o) => (
+                                <Chip key={o.id} label={o.label} selected={editRelationship === o.id} onPress={() => setEditRelationship(o.id)} />
+                            ))}
+                        </View>
+
+                        <AppText variant="label" color={Colors.purpleLight} style={styles.editLabel}>Çalışma durumun</AppText>
+                        <View style={styles.editGrid}>
+                            {WORK_OPTIONS.map((o) => (
+                                <Chip key={o.id} label={o.label} selected={editWork === o.id} onPress={() => setEditWork(o.id)} />
+                            ))}
+                        </View>
+
+                        <Button
+                            title="Kaydet"
+                            onPress={saveProfileEdit}
+                            loading={savingEdit}
+                            disabled={!editRelationship || !editWork}
+                            style={styles.editSave}
+                        />
+                    </View>
+                </View>
+            </Modal>
+
             {/* Premium Modal */}
             <Modal visible={premiumVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
@@ -580,6 +642,7 @@ const styles = StyleSheet.create({
     },
 
     // Ad Watch
+    section: { marginBottom: Spacing.lg },
     adWatchCard: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
         borderColor: Colors.borderAccent, marginBottom: Spacing.md,
@@ -645,6 +708,12 @@ const styles = StyleSheet.create({
     },
     disclaimerText: { flex: 1 },
 
+    // Bilgilerimi Düzenle
+    editTitle: { marginTop: Spacing.sm },
+    editSub: { marginTop: 2, marginBottom: Spacing.lg },
+    editLabel: { marginBottom: Spacing.sm, marginTop: Spacing.md },
+    editGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+    editSave: { marginTop: Spacing.xl },
     // Modal
     modalOverlay: { flex: 1, backgroundColor: Colors.scrim, justifyContent: 'flex-end' },
     modalContent: {

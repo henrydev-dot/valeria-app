@@ -13,7 +13,7 @@ interface EntitlementsState {
     spendCredits: (amount: number, reason?: string, contentId?: string) => Promise<boolean>;
     earnXP: (xp: number) => Promise<void>;
     addCredits: (amount: number) => void;
-    watchAd: () => Promise<boolean>;
+    watchAd: () => Promise<{ ok: boolean; rewarded?: number; message?: string }>;
     refresh: () => Promise<void>;
 }
 
@@ -82,10 +82,10 @@ export const useEntitlementsStore = create<EntitlementsState>((set, get) => ({
         try {
             const res = await api.entitlements.adWatch();
             set({ credits: res.credits });
-            return true;
+            return { ok: true as const, rewarded: res.rewarded ?? 25 };
         } catch (e: any) {
-            console.error('Ad watch failed:', e.message);
-            return false;
+            // 429 REWARD_COOLDOWN: sunucu kalan süreyi insan diliyle söylüyor
+            return { ok: false as const, message: e?.message || 'Günlük ödül alınamadı' };
         }
     },
 }));

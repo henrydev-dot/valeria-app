@@ -3,7 +3,7 @@ import { StyleSheet, View, Image, Dimensions, Modal, TouchableOpacity } from 're
 import Svg, { Circle, Line, Text as SvgText, G, Image as SvgImage } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import {
-    Screen, AppText, Button, Card, EmptyState, LoadingView, Skeleton,
+    Screen, AppText, Button, Card, EmptyState, LoadingView, Skeleton, AstroDeepDive,
 } from '../../src/components';
 import { useUserStore } from '../../src/stores/useUserStore';
 import { useContentStore } from '../../src/stores/useContentStore';
@@ -608,6 +608,9 @@ export default function AstrologyScreen() {
                     </View>
                 );
             })}
+
+            {/* Evler + Retrolar + Retro Takvimi */}
+            <AstroDeepDive analysis={analysis} />
 
             {/* Info sheet */}
             <Modal visible={!!selected} transparent animationType="fade" onRequestClose={() => setSelected(null)}>

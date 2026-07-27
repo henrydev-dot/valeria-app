@@ -108,11 +108,11 @@ export const SUBSCRIPTION_PLANS = [
 ];
 
 // ==================== CREDIT PACKAGES ====================
+// Apple App Store consumable ürünleriyle birebir eşleşir (productId → kredi).
 export const CREDIT_PACKAGES = [
-    { id: "credit_150", name: "Başlangıç", credits: 150, price: 10, currency: "TRY" },
-    { id: "credit_1000", name: "Standart", credits: 1000, price: 50, currency: "TRY", popular: true },
-    { id: "credit_2500", name: "Premium", credits: 2500, price: 100, currency: "TRY" },
-    { id: "credit_6000", name: "Mega", credits: 6000, price: 500, currency: "TRY" },
+    { id: "valeria_credits_250", name: "Başlangıç", credits: 250, price: 39, currency: "TRY" },
+    { id: "valeria_credits_500", name: "Standart", credits: 500, price: 99, currency: "TRY", popular: true },
+    { id: "valeria_credits_1000", name: "Premium", credits: 1000, price: 179, currency: "TRY" },
 ];
 
 // ==================== CREDIT COSTS ====================

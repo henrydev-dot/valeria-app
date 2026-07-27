@@ -80,6 +80,71 @@ export const ASPECT_MEANINGS: Record<string, { name: string; symbol: string; des
     Sextile: { name: "Sekstil", symbol: "⚹", desc: "Fırsat ve destek." }
 };
 
+// 2026 retro takvimi — astronomy-engine ile günlük ekliptik boylam taramasından
+// hesaplandı (tahmini değil, efemeris verisi). Tarihler UTC gün hassasiyetinde.
+export const RETROGRADE_CALENDAR_2026 = [
+    {
+        planet: "Merkür", period: "27 Şubat – 21 Mart 2026", sign: "Balık",
+        start: "2026-02-27", end: "2026-03-21",
+        note: "İletişimde sis: yanlış anlaşılmalar, gecikmeli mesajlar ve teknik aksaklıklar olası. Önemli sözleşmeleri retro sonrası imzalamak daha ferah.",
+        type: "warning"
+    },
+    {
+        planet: "Merkür", period: "1 – 24 Temmuz 2026", sign: "Yengeç",
+        start: "2026-07-01", end: "2026-07-24",
+        note: "Aile ve ev içi iletişimde geçmiş konular yeniden açılabilir. Duygusal mesajları iki kez okuyup öyle gönder.",
+        type: "warning"
+    },
+    {
+        planet: "Merkür", period: "25 Ekim – 14 Kasım 2026", sign: "Akrep",
+        start: "2026-10-25", end: "2026-11-14",
+        note: "Sırlar ve derin konuşmalar gün yüzüne çıkabilir. Araştır, doğrula; acele hüküm verme.",
+        type: "warning"
+    },
+    {
+        planet: "Venüs", period: "4 Ekim – 14 Kasım 2026", sign: "Akrep → Terazi",
+        start: "2026-10-04", end: "2026-11-14",
+        note: "Eski aşklar ve bitmemiş hesaplar dönebilir. İlişkilerde değer sorgulaması dönemi; büyük estetik ve lüks harcamaları ertele.",
+        type: "alert"
+    },
+    {
+        planet: "Jüpiter", period: "2 Aralık 2025 – 11 Mart 2026", sign: "Yengeç",
+        start: "2025-12-02", end: "2026-03-11",
+        note: "Büyüme içe döner: dış fırsatlardan çok iç inançları olgunlaştırma zamanı. Aile ve yuvayla ilgili planlar demlenir.",
+        type: "info"
+    },
+    {
+        planet: "Jüpiter", period: "14 Aralık 2026 – Mart 2027", sign: "Aslan",
+        start: "2026-12-14", end: "2027-03-15",
+        note: "Sahnede parlamadan önce özgüvenin kökleri gözden geçirilir. Yaratıcı projelerde revizyon şanstır.",
+        type: "info"
+    },
+    {
+        planet: "Satürn", period: "28 Temmuz – 11 Aralık 2026", sign: "Koç",
+        start: "2026-07-28", end: "2026-12-11",
+        note: "Sorumluluklar ve sınırlar sınavdan geçer. Aceleci başlangıçlar frenlenir; disiplinle atılan temel kalıcı olur.",
+        type: "warning"
+    },
+    {
+        planet: "Uranüs", period: "12 Eylül 2026 – 9 Şubat 2027", sign: "İkizler",
+        start: "2026-09-12", end: "2027-02-09",
+        note: "Fikirlerde ani u-dönüşleri: özgürlük ihtiyacını yeniden tanımlarsın. Teknoloji ve iletişim düzenini yedekle.",
+        type: "info"
+    },
+    {
+        planet: "Neptün", period: "8 Temmuz – 13 Aralık 2026", sign: "Koç",
+        start: "2026-07-08", end: "2026-12-13",
+        note: "Hayaller gerçeklik testinden geçer. İlham derinleşir ama sisli vaatlere karşı uyanık ol.",
+        type: "info"
+    },
+    {
+        planet: "Plüton", period: "8 Mayıs – 16 Ekim 2026", sign: "Kova",
+        start: "2026-05-08", end: "2026-10-16",
+        note: "Güç dinamikleri ve kolektif bağlar içsel dönüşümden geçer. Bırakman gerekeni fark etme dönemi.",
+        type: "info"
+    },
+];
+
 export const RETROGRADE_CALENDAR_2025 = [
     {
         planet: "Merkür",

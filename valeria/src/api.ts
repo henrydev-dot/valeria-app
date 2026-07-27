@@ -146,6 +146,15 @@ export const entitlements = {
             method: 'POST',
             body: JSON.stringify({ amount, packageName }),
         }),
+
+    // Gerçek Apple IAP: makbuz sunucuda doğrulanır, krediyi sunucu belirler.
+    verifyPurchase: (receiptData: string, productId: string, transactionId?: string) =>
+        apiFetch<any>('/entitlements/verify-purchase', {
+            method: 'POST',
+            body: JSON.stringify({ receiptData, productId, transactionId }),
+        }),
+
+    packages: () => apiFetch<any[]>('/entitlements/packages'),
 };
 
 // ─── CONTENT ──────────────────────────────────────
@@ -227,6 +236,12 @@ export const astrology = {
         }),
     transits: () => apiFetch<any>('/transits'),
     fullAnalysis: () => apiFetch<any>('/astrology/full-analysis'),
+    retroCalendar: () => apiFetch<any>('/astrology/retro-calendar'),
+    houseInsight: (house: number, question?: string) =>
+        apiFetch<any>('/astrology/house-insight', {
+            method: 'POST',
+            body: JSON.stringify({ house, question }),
+        }),
 };
 
 // ─── DAILY TAROT ──────────────────────────────────
