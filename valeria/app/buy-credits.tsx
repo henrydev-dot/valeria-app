@@ -2,9 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Alert, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Header, Card, Button, AppText } from '../src/components';
+import { Screen, Header, Card, Button, AppText, EmptyState } from '../src/components';
 import { useEntitlementsStore } from '../src/stores/useEntitlementsStore';
 import * as api from '../src/api';
+import { Features } from '../src/config';
 import { Colors } from '../src/theme/colors';
 import { Spacing, BorderRadius } from '../src/theme/spacing';
 
@@ -44,7 +45,9 @@ export default function BuyCreditsScreen() {
     const [storePrices, setStorePrices] = useState<Record<string, string>>({});
     const listenersRef = useRef<any[]>([]);
 
-    const iapAvailable = !!RNIap && Platform.OS === 'ios';
+    // Paid Apps sözleşmesi tamamlanana kadar satın alma kapalı (Features bayrağı).
+    // Bayrak kapalıyken IAP bağlantısı hiç kurulmaz ve paket listesi gösterilmez.
+    const iapAvailable = !!Features.purchasesEnabled && !!RNIap && Platform.OS === 'ios';
 
     useEffect(() => {
         if (!iapAvailable) return;
@@ -134,6 +137,44 @@ export default function BuyCreditsScreen() {
             }
         }
     };
+
+    // Satın alma bayrağı kapalıyken zarif bir "çok yakında" ekranı göster;
+    // IAP kodu aşağıda hazır bekler, bayrak açılınca yeni build ile aktifleşir.
+    if (!Features.purchasesEnabled) {
+        return (
+            <Screen>
+                <Header
+                    title="Kredi Yükle"
+                    showBack={false}
+                    right={
+                        <Ionicons
+                            name="close"
+                            size={28}
+                            color={Colors.textPrimary}
+                            onPress={() => router.back()}
+                            accessibilityRole="button"
+                            accessibilityLabel="Kapat"
+                        />
+                    }
+                />
+
+                <Card glow style={styles.balanceCard}>
+                    <AppText variant="label" center>Mevcut Bakiye</AppText>
+                    <AppText variant="hero" center color={Colors.accentYellow} style={styles.balanceValue}>
+                        {credits} Kredi
+                    </AppText>
+                </Card>
+
+                <EmptyState
+                    icon={<Ionicons name="sparkles" size={40} color={Colors.accentYellow} />}
+                    title="Kredi satın alma çok yakında"
+                    message="Şimdilik tüm krediler ücretsiz kazanılıyor: her gün profil sayfandan günlük hediyeni topla."
+                    actionLabel="Anladım"
+                    onAction={() => router.back()}
+                />
+            </Screen>
+        );
+    }
 
     return (
         <Screen>
