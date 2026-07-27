@@ -26,8 +26,13 @@ import type { TarotCard } from '../types';
 import * as api from '../api';
 
 const { width } = Dimensions.get('window');
-const CARD_W = (width - 80) / 3;
-const CARD_H = CARD_W * 1.6;
+// Kullanılabilir iç genişlik: ekran − Screen yatay padding (20×2) − Card padding
+// (20×2) − kartlar arası 2 boşluk (12×2). Boşluklar düşülmezse satır taşar ve
+// kenar kartlar kırpılır (ortadaki kart "büyük" görünür).
+const CARD_GAP = Spacing.md;
+const CARD_W = Math.floor((width - 80 - CARD_GAP * 2) / 3);
+// Kart görselleri 600×1066 (1:1.777) — çerçeve aynı oranda olmalı ki görsel kırpılmasın.
+const CARD_H = Math.round(CARD_W * 1.777);
 
 // Card images from backend static server
 import { API_HOST } from '../api';
@@ -505,7 +510,7 @@ const styles = StyleSheet.create({
     cardsRow: {
         flexDirection: 'row',
         justifyContent: 'center',
-        gap: Spacing.md,
+        gap: CARD_GAP,
     },
     cardWrapper: {
         width: CARD_W,
@@ -615,7 +620,7 @@ const styles = StyleSheet.create({
     },
     modalImage: {
         width: width * 0.45,
-        height: width * 0.45 * 1.6,
+        height: width * 0.45 * 1.777,
         borderRadius: BorderRadius.xl,
     },
     modalName: {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StyleSheet, View, ScrollView, TextInput, Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -97,7 +97,7 @@ interface RosterAdvisor {
 const VALERIA: RosterAdvisor = {
     id: VALERIA_ID,
     name: 'Valeria',
-    subtitle: 'Yapay Zekâ Rehber • Anında',
+    subtitle: 'Yapay Zekâ Rehber • Birkaç saniyede',
     icon: 'sparkles',
     color: Colors.accentYellow,
     isAI: true,
@@ -114,6 +114,9 @@ export default function ReadingScreen() {
 
     const [pendingRequests, setPendingRequests] = useState<any[]>([]);
     const [requestsLoading, setRequestsLoading] = useState(true);
+    // Uzun cevapları aç/kapa (istek id → açık mı)
+    const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
+    const hasPendingRef = useRef(false);
 
     const refreshEnt = useEntitlementsStore((s) => s.refresh);
 
@@ -151,9 +154,15 @@ export default function ReadingScreen() {
     }, []);
 
     // Load pending requests every time the screen comes into focus.
+    // Bekleyen istek varken 8 sn'de bir tazele — Valeria'nın cevabı 10-15 sn
+    // içinde düşer, kullanıcı sayfadayken kendiliğinden görünür.
     useFocusEffect(
         useCallback(() => {
             loadRequests();
+            const interval = setInterval(() => {
+                if (hasPendingRef.current) loadRequests();
+            }, 8000);
+            return () => clearInterval(interval);
         }, [])
     );
 
@@ -161,6 +170,7 @@ export default function ReadingScreen() {
         try {
             const reqs = await api.readings.advisorRequests();
             setPendingRequests(reqs);
+            hasPendingRef.current = (reqs || []).some((r: any) => r.status === 'pending');
         } catch {
             // Swallow — surfaced via the empty state below.
         } finally {
@@ -214,10 +224,16 @@ export default function ReadingScreen() {
 
     const getStatusColor = (status: string) =>
         status === 'answered' ? Colors.success : Colors.warning;
-    const getStatusText = (status: string) =>
-        status === 'answered' ? 'Cevaplandı' : 'Beklemede';
-    const getAdvisorName = (id: string) =>
-        roster.find((a) => a.id === id)?.name ?? 'Falcı';
+    const getStatusText = (status: string, advisorId?: string) =>
+        status === 'answered'
+            ? 'Cevaplandı'
+            : advisorId === VALERIA_ID
+                ? 'Yorumlanıyor...'
+                : 'Beklemede';
+    const getAdvisorName = (req: any) =>
+        req.advisorName || roster.find((a) => a.id === req.advisorId)?.name || 'Falcı';
+    const toggleExpanded = (id: string) =>
+        setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }));
 
     const costLabel = (cost: number, label?: string) => label || (cost === 0 ? 'Ücretsiz' : `${cost} kredi`);
 
@@ -440,44 +456,84 @@ export default function ReadingScreen() {
                         />
                     </Card>
                 ) : (
-                    pendingRequests.map((req: any) => (
-                        <Card key={req._id} style={styles.requestCard}>
-                            <View style={styles.requestRow}>
-                                <Ionicons
-                                    name={req.type === 'tarot' ? 'albums-outline' : 'cafe-outline'}
-                                    size={20}
-                                    color={Colors.purpleLight}
-                                />
-                                <View style={styles.requestContent}>
-                                    <View style={styles.requestHeader}>
-                                        <AppText variant="bodyStrong">{getAdvisorName(req.advisorId)}</AppText>
-                                        <View
-                                            style={[
-                                                styles.statusBadge,
-                                                { backgroundColor: getStatusColor(req.status) + '20' },
-                                            ]}
-                                        >
-                                            <View style={[styles.statusDot, { backgroundColor: getStatusColor(req.status) }]} />
-                                            <AppText variant="caption" color={getStatusColor(req.status)} style={styles.statusText}>
-                                                {getStatusText(req.status)}
-                                            </AppText>
+                    pendingRequests.map((req: any) => {
+                        const expanded = !!expandedIds[req._id];
+                        const longAnswer = (req.answer || '').length > 260;
+                        return (
+                            <Card key={req._id} style={styles.requestCard}>
+                                <View style={styles.requestRow}>
+                                    <Ionicons
+                                        name={req.type === 'tarot' ? 'albums-outline' : 'cafe-outline'}
+                                        size={20}
+                                        color={Colors.purpleLight}
+                                    />
+                                    <View style={styles.requestContent}>
+                                        <View style={styles.requestHeader}>
+                                            <AppText variant="bodyStrong">{getAdvisorName(req)}</AppText>
+                                            <View
+                                                style={[
+                                                    styles.statusBadge,
+                                                    { backgroundColor: getStatusColor(req.status) + '20' },
+                                                ]}
+                                            >
+                                                <View style={[styles.statusDot, { backgroundColor: getStatusColor(req.status) }]} />
+                                                <AppText variant="caption" color={getStatusColor(req.status)} style={styles.statusText}>
+                                                    {getStatusText(req.status, req.advisorId)}
+                                                </AppText>
+                                            </View>
                                         </View>
-                                    </View>
-                                    <AppText variant="body" numberOfLines={2} style={styles.requestQuestion}>
-                                        {req.question}
-                                    </AppText>
-                                    {req.status === 'answered' && req.answer && (
-                                        <AppText variant="callout" color={Colors.textPrimary} style={styles.requestAnswer}>
-                                            {req.answer}
+                                        {req.question && req.question !== '-' ? (
+                                            <AppText variant="body" numberOfLines={2} style={styles.requestQuestion}>
+                                                {req.question}
+                                            </AppText>
+                                        ) : null}
+                                        {req.cards?.length > 0 && (
+                                            <View style={styles.requestCards}>
+                                                {req.cards.map((c: any, i: number) => (
+                                                    <View key={i} style={styles.cardChip}>
+                                                        <AppText variant="caption" color={Colors.accentYellow}>
+                                                            {c.position}: {c.name}{c.isReversed ? ' (Ters)' : ''}
+                                                        </AppText>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        )}
+                                        {req.status === 'pending' && req.advisorId === VALERIA_ID && (
+                                            <AppText variant="caption" color={Colors.textMuted} style={styles.requestQuestion}>
+                                                Valeria falını yorumluyor — birkaç saniye içinde burada.
+                                            </AppText>
+                                        )}
+                                        {req.status === 'answered' && req.answer && (
+                                            <>
+                                                <AppText
+                                                    variant="callout"
+                                                    color={Colors.textPrimary}
+                                                    style={styles.requestAnswer}
+                                                    numberOfLines={expanded ? undefined : 6}
+                                                >
+                                                    {req.answer}
+                                                </AppText>
+                                                {longAnswer && (
+                                                    <AppText
+                                                        variant="callout"
+                                                        color={Colors.accentYellow}
+                                                        onPress={() => toggleExpanded(req._id)}
+                                                        accessibilityRole="button"
+                                                        style={styles.expandLink}
+                                                    >
+                                                        {expanded ? 'Küçült' : 'Devamını Oku'}
+                                                    </AppText>
+                                                )}
+                                            </>
+                                        )}
+                                        <AppText variant="caption" style={styles.requestDate}>
+                                            {new Date(req.createdAt).toLocaleDateString('tr-TR')}
                                         </AppText>
-                                    )}
-                                    <AppText variant="caption" style={styles.requestDate}>
-                                        {new Date(req.createdAt).toLocaleDateString('tr-TR')}
-                                    </AppText>
+                                    </View>
                                 </View>
-                            </View>
-                        </Card>
-                    ))
+                            </Card>
+                        );
+                    })
                 )}
             </View>
         </Screen>
@@ -556,6 +612,13 @@ const styles = StyleSheet.create({
     statusDot: { width: 6, height: 6, borderRadius: 3 },
     statusText: { fontWeight: FontWeight.semibold },
     requestQuestion: { marginBottom: Spacing.xs },
+    requestCards: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.xs },
+    cardChip: {
+        backgroundColor: Colors.goldA12, borderRadius: BorderRadius.full,
+        paddingHorizontal: Spacing.sm, paddingVertical: 3,
+        borderWidth: 1, borderColor: Colors.borderAccent,
+    },
+    expandLink: { fontWeight: FontWeight.bold, marginBottom: Spacing.xs },
     requestAnswer: {
         marginTop: Spacing.xs, marginBottom: Spacing.xs,
         backgroundColor: Colors.surface2, padding: Spacing.md,

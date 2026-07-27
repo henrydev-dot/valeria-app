@@ -24,12 +24,14 @@ import { Spacing, BorderRadius, Shadows } from '../src/theme/spacing';
 import * as api from '../src/api';
 import { API_HOST } from '../src/api';
 import { Features } from '../src/config';
+import TAROT_DATA from '../content/tarot_major_arcana_tr.json';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_GAP = Spacing.sm;
 const H_PADDING = Spacing.xl * 2;
 const CARD_W = Math.floor((SCREEN_W - H_PADDING - CARD_GAP * 2) / 3);
-const CARD_H = Math.round(CARD_W * 1.55);
+// Kart görselleri 600×1066 (1:1.777) — aynı oran, kırpılma yok.
+const CARD_H = Math.round(CARD_W * 1.777);
 
 const TAROT_COST = 30;
 const POSITIONS = ['Geçmiş', 'Şimdi', 'Gelecek'];
@@ -94,30 +96,31 @@ export default function TarotReadingScreen() {
         new Animated.Value(0),
     ]).current;
 
+    // ASENKRON AKIŞ: istek anında gönderilir, kartlar hemen açılır; Valeria'nın
+    // yorumu arka planda hazırlanıp Fal sekmesindeki "Fal İstekleriniz"e düşer
+    // ve push bildirimi gelir — kullanıcı bu ekranda BEKLEMEZ.
     const runDraw = async () => {
         setLoading(true);
         anims.forEach((a) => a.setValue(0));
         try {
-            const result = await api.readings.tarot(question.trim() || undefined);
+            const result = await api.readings.advisorRequest(
+                'valeria',
+                'tarot',
+                question.trim()
+            );
             const rawCards: any[] = result.cards || [];
+            const localByName = (name: string) =>
+                (TAROT_DATA as any[]).find((t) => t.nameTR === name);
             const mapped: DrawnCard[] = rawCards.map((c: any, idx: number) => ({
-                nameTR: c.card?.nameTR || c.nameTR || `Kart ${idx + 1}`,
-                nameEN: c.card?.nameEN || c.nameEN || '',
-                id: c.card?.id ?? null,
+                nameTR: c.name || `Kart ${idx + 1}`,
+                nameEN: localByName(c.name)?.nameEN || '',
+                id: localByName(c.name)?.id ?? null,
                 isReversed: c.isReversed || false,
-                position: POSITIONS[idx] || `Kart ${idx + 1}`,
-                interpretation: c.interpretation || '',
+                position: c.position || POSITIONS[idx] || `Kart ${idx + 1}`,
+                interpretation: '',
             }));
-            const overall =
-                typeof result.summary === 'string'
-                    ? result.summary
-                    : typeof result.overall === 'string'
-                      ? result.overall
-                      : typeof result.interpretation === 'string'
-                        ? result.interpretation
-                        : '';
             setCards(mapped);
-            setSummary(overall);
+            setSummary('');
             setPhase('reveal');
 
             const animations = anims.map((anim) =>
@@ -310,41 +313,27 @@ export default function TarotReadingScreen() {
                         })}
                     </View>
 
-                    <View style={styles.readingHeader}>
-                        <Ionicons name="sparkles" size={18} color={Colors.accentYellow} />
-                        <AppText variant="h2" color={Colors.accentYellow}>
-                            Valeria'nın Yorumu
+                    {/* Yorum arka planda hazırlanır — kullanıcı burada bekletilmez. */}
+                    <Card glow style={styles.sentCard}>
+                        <View style={styles.sentIcon}>
+                            <Ionicons name="checkmark-circle" size={44} color={Colors.success} />
+                        </View>
+                        <AppText variant="h2" center>Falınız Valeria'ya Ulaştı</AppText>
+                        <AppText variant="body" center style={styles.sentText}>
+                            Kartların çekildi. Valeria yorumunu hazırlıyor — sonuç birkaç saniye
+                            içinde Fal sekmesindeki "Fal İstekleriniz" bölümüne düşecek ve
+                            bildirim alacaksın. Beklemene gerek yok.
                         </AppText>
-                    </View>
-
-                    {cards.map((card, idx) =>
-                        card.interpretation ? (
-                            <Card key={idx} style={styles.readingCard}>
-                                <AppText variant="label" color={Colors.purpleLight}>
-                                    {card.position}
-                                </AppText>
-                                <AppText variant="bodyStrong" style={styles.readingName}>
-                                    {card.nameTR}
-                                    {card.isReversed ? ' (Ters)' : ''}
-                                </AppText>
-                                <RichText text={card.interpretation} />
-                            </Card>
-                        ) : null
-                    )}
-
-                    {summary ? (
-                        <Card glow style={styles.readingCard}>
-                            <AppText variant="label" color={Colors.accentYellow}>
-                                Genel Değerlendirme
-                            </AppText>
-                            <RichText text={summary} />
-                        </Card>
-                    ) : null}
+                    </Card>
 
                     <View style={styles.actions}>
-                        <Button title="Yeni Okuma" onPress={reset} />
                         <Button
-                            title="Geri Dön"
+                            title="Fal İsteklerime Git"
+                            onPress={() => router.replace('/(tabs)/reading' as any)}
+                            icon={<Ionicons name="eye" size={16} color={Colors.textOnAccent} />}
+                        />
+                        <Button
+                            title="Kapat"
                             variant="secondary"
                             onPress={() => router.back()}
                         />
@@ -421,6 +410,9 @@ const styles = StyleSheet.create({
         gap: Spacing.sm,
         marginTop: Spacing.sm,
     },
+    sentCard: { alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.sm },
+    sentIcon: { marginBottom: Spacing.xs },
+    sentText: { lineHeight: 22 },
     readingCard: { gap: Spacing.xs },
     readingName: { marginTop: 2, marginBottom: Spacing.xs },
     richText: { gap: Spacing.md, marginTop: Spacing.xs },

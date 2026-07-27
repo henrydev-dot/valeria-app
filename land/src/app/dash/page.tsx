@@ -24,11 +24,13 @@ interface ReadingRequest {
     _id: string;
     userId: string;
     advisorId: string;
+    advisorName?: string;
     type: string;
     question: string;
     status: string;
     createdAt: string;
     images?: string[];
+    cards?: Array<{ name: string; isReversed: boolean; position: string }>;
 }
 
 export default function AdminDashboard() {
@@ -38,9 +40,11 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    // Auth state
+    // Auth state — girilen şifre, backend'in ADMIN_API_KEY değeriyle
+    // x-admin-key başlığı olarak doğrulanır (panelde sabit şifre YOK).
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState("");
+    const [adminKey, setAdminKey] = useState("");
     const [authError, setAuthError] = useState("");
 
     // Push notification state
@@ -54,13 +58,15 @@ export default function AdminDashboard() {
     const [replyText, setReplyText] = useState("");
     const [sendingReply, setSendingReply] = useState(false);
 
-    const fetchDashboardData = async () => {
+    const authHeaders = (key: string): Record<string, string> => ({ "x-admin-key": key });
+
+    const fetchDashboardData = async (key: string = adminKey) => {
         try {
             setLoading(true);
             const [statsRes, readingsRes, requestsRes] = await Promise.all([
-                fetch("/api/admin/stats"),
-                fetch("/api/admin/readings?limit=10"),
-                fetch("/api/admin/requests"),
+                fetch("/api/admin/stats", { headers: authHeaders(key) }),
+                fetch("/api/admin/readings?limit=10", { headers: authHeaders(key) }),
+                fetch("/api/admin/requests", { headers: authHeaders(key) }),
             ]);
 
             if (!statsRes.ok || !readingsRes.ok || !requestsRes.ok) throw new Error("Veri çekilemedi.");
@@ -87,13 +93,24 @@ export default function AdminDashboard() {
         return () => clearInterval(interval);
     }, [isAuthenticated]);
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (password === "valeria2026") {
-            setIsAuthenticated(true);
-            setAuthError("");
-        } else {
-            setAuthError("Hatalı şifre!");
+        setAuthError("");
+        try {
+            // Şifre = backend ADMIN_API_KEY; sunucu doğrularsa panel açılır.
+            const res = await fetch("/api/admin/stats", { headers: authHeaders(password) });
+            if (res.ok) {
+                setAdminKey(password);
+                setIsAuthenticated(true);
+            } else if (res.status === 403) {
+                setAuthError("Hatalı şifre!");
+            } else if (res.status === 503) {
+                setAuthError("Panel devre dışı: backend'de ADMIN_API_KEY tanımlı değil.");
+            } else {
+                setAuthError("Sunucuya ulaşılamadı.");
+            }
+        } catch {
+            setAuthError("Sunucuya ulaşılamadı.");
         }
     };
 
@@ -106,7 +123,7 @@ export default function AdminDashboard() {
         try {
             const res = await fetch("/api/admin/notifications", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...authHeaders(adminKey) },
                 body: JSON.stringify({ title: pushTitle, body: pushBody }),
             });
             const data = await res.json();
@@ -132,7 +149,7 @@ export default function AdminDashboard() {
         try {
             const res = await fetch(`/api/admin/requests/${selectedRequest._id}/answer`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...authHeaders(adminKey) },
                 body: JSON.stringify({ answer: replyText }),
             });
             const data = await res.json();
@@ -210,7 +227,7 @@ export default function AdminDashboard() {
                             <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
                             API: {stats?.status.toUpperCase()}
                         </div>
-                        <button onClick={fetchDashboardData} className="p-2 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 transition-colors">
+                        <button onClick={() => fetchDashboardData()} className="p-2 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 transition-colors">
                             🔄 Yenile
                         </button>
                     </div>
@@ -335,7 +352,12 @@ export default function AdminDashboard() {
                                                         <div className="font-medium text-white mb-1">
                                                             {r.question.length > 50 ? r.question.substring(0, 50) + "..." : r.question}
                                                         </div>
-                                                        <div className="text-xs text-purple-400 uppercase">{r.type} - Danışman: {r.advisorId}</div>
+                                                        <div className="text-xs text-purple-400 uppercase">{r.type} - Danışman: {r.advisorName || r.advisorId}</div>
+                                                        {r.cards && r.cards.length > 0 && (
+                                                            <div className="text-xs text-[#f5c842] mt-1">
+                                                                {r.cards.map(c => `${c.position}: ${c.name}${c.isReversed ? " (Ters)" : ""}`).join(" • ")}
+                                                            </div>
+                                                        )}
                                                     </td>
                                                     <td className="px-6 py-4 text-purple-400">
                                                         {new Date(r.createdAt).toLocaleString('tr-TR')}
@@ -425,18 +447,39 @@ export default function AdminDashboard() {
                             <div className="flex gap-4 text-sm text-purple-400 mb-2 font-medium capitalize">
                                 <span>Tip: {selectedRequest.type}</span>
                                 <span>•</span>
-                                <span>Danışman: {selectedRequest.advisorId}</span>
+                                <span>Danışman: {selectedRequest.advisorName || selectedRequest.advisorId}</span>
                                 <span>•</span>
                                 <span>Tarih: {new Date(selectedRequest.createdAt).toLocaleString('tr-TR')}</span>
                             </div>
                             <p className="text-white text-lg leading-relaxed">{selectedRequest.question}</p>
 
+                            {/* Tarot isteklerinde sunucuda çekilen kartlar */}
+                            {selectedRequest.cards && selectedRequest.cards.length > 0 && (
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                    {selectedRequest.cards.map((c, idx) => (
+                                        <span key={idx} className="bg-[#f5c842]/10 border border-[#f5c842]/30 text-[#f5c842] text-xs font-semibold px-3 py-1.5 rounded-full">
+                                            {c.position}: {c.name}{c.isReversed ? " (Ters)" : " (Düz)"}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Kahve fincanı fotoğrafları (base64 data URI — düz <img> gerekir).
+                                Tıklayınca yeni sekmede büyük açılır. */}
                             {selectedRequest.images && selectedRequest.images.length > 0 && (
                                 <div className="mt-4 flex gap-4 overflow-x-auto pb-2">
                                     {selectedRequest.images.map((img, idx) => (
-                                        <div key={idx} className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden border border-purple-500/30">
-                                            <Image src={img} alt="Fal Görseli" fill className="object-cover" />
-                                        </div>
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            key={idx}
+                                            src={img}
+                                            alt={`Fal Görseli ${idx + 1}`}
+                                            onClick={() => {
+                                                const w = window.open();
+                                                if (w) w.document.write(`<body style="margin:0;background:#000"><img src="${img}" style="max-width:100%"/></body>`);
+                                            }}
+                                            className="w-32 h-32 flex-shrink-0 rounded-lg object-cover border border-purple-500/30 cursor-zoom-in"
+                                        />
                                     ))}
                                 </div>
                             )}

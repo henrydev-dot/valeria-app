@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
     StyleSheet,
     View,
@@ -28,48 +28,16 @@ const COFFEE_COST = 20;
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024; // ~6MB guard
 const IMAGE_LABELS = ['Fincan İçi (Üst)', 'Fincan İçi (Yan)', 'Tabak', 'Fincan Dibi'];
 
-const LOADING_MESSAGES = [
-    'Fincanınız okunuyor...',
-    'Telve şekilleri yorumlanıyor...',
-    'Sembollerin anlamı çözülüyor...',
-    'Yorumunuz hazırlanıyor, birkaç saniye...',
-];
-
-interface CoffeeResult {
-    soruCevabi?: string;
-    askHayati?: string;
-    kariyer?: string;
-    aile?: string;
-}
-
 export default function CoffeeReadingScreen() {
     const { advisorId } = useLocalSearchParams<{ advisorId?: string }>();
     const [question, setQuestion] = useState('');
     const [images, setImages] = useState<(string | null)[]>([null, null, null, null]);
-    const [result, setResult] = useState<CoffeeResult | null>(null);
+    // ASENKRON AKIŞ: fal gönderilir, kullanıcı beklemez; sonuç Fal sekmesindeki
+    // "Fal İstekleriniz"e düşer ve push bildirimi gelir.
+    const [sent, setSent] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0]);
     const credits = useEntitlementsStore((s) => s.credits);
     const refreshEnt = useEntitlementsStore((s) => s.refresh);
-
-    // Rotate reassuring copy while the (long-running) AI reading runs.
-    const msgTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-    useEffect(() => {
-        if (loading && !advisorId) {
-            let i = 0;
-            setLoadingMsg(LOADING_MESSAGES[0]);
-            msgTimer.current = setInterval(() => {
-                i = (i + 1) % LOADING_MESSAGES.length;
-                setLoadingMsg(LOADING_MESSAGES[i]);
-            }, 3000);
-        }
-        return () => {
-            if (msgTimer.current) {
-                clearInterval(msgTimer.current);
-                msgTimer.current = null;
-            }
-        };
-    }, [loading, advisorId]);
 
     const pickImage = async (index: number) => {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -149,55 +117,28 @@ export default function CoffeeReadingScreen() {
 
         setLoading(true);
         try {
-            if (isAdvisor) {
-                await api.readings.advisorRequest(
-                    advisorId as string,
-                    'kahve',
-                    question.trim(),
-                    images as string[]
-                );
-                await refreshEnt();
-                Alert.alert(
-                    'Başarılı',
-                    'Kahve falınız yorumcuya iletildi. Yanıtlandığında bildirim alacaksınız.',
-                    [{ text: 'Tamam', onPress: () => router.back() }]
-                );
-            } else {
-                const res = await api.readings.coffee(question.trim(), images as string[]);
-                if (typeof res.result === 'object' && res.result !== null) {
-                    setResult(res.result as CoffeeResult);
-                } else {
-                    setResult({
-                        soruCevabi: res.result || res.answer || 'Fincanınız okundu.',
-                    });
-                }
-                await refreshEnt();
-            }
+            // Valeria da insan yorumcu da aynı asenkron kuyruğu kullanır:
+            // istek anında gider, cevap hazır olunca bildirim + Fal sekmesi.
+            await api.readings.advisorRequest(
+                isAdvisor ? (advisorId as string) : 'valeria',
+                'kahve',
+                question.trim(),
+                images as string[]
+            );
+            await refreshEnt();
+            setSent(true);
         } catch (e: any) {
-            Alert.alert('Hata', e.message || 'Kahve falı yapılamadı');
+            Alert.alert('Hata', e.message || 'Kahve falı gönderilemedi');
         } finally {
             setLoading(false);
         }
     };
 
-    const reset = () => {
-        setResult(null);
-        setQuestion('');
-        setImages([null, null, null, null]);
-    };
-
-    const sections = [
-        { key: 'soruCevabi', title: 'Sorunuzun Cevabı', icon: 'help-circle-outline', color: Colors.accentYellow },
-        { key: 'askHayati', title: 'Aşk Hayatı', icon: 'heart-outline', color: Colors.purpleLight },
-        { key: 'kariyer', title: 'Kariyer & İş Hayatı', icon: 'briefcase-outline', color: Colors.info },
-        { key: 'aile', title: 'Aile & Yakınlar', icon: 'people-outline', color: Colors.success },
-    ] as const;
-
     return (
         <Screen keyboard>
             <Header title={isAdvisor ? 'Kahve Falı (Yorumcu)' : 'Kahve Falı'} />
 
-            {!result ? (
+            {!sent ? (
                 <View style={styles.section}>
                     <Card glow style={styles.introCard}>
                         <View style={styles.introIcon}>
@@ -298,7 +239,7 @@ export default function CoffeeReadingScreen() {
                     </View>
 
                     {loading ? (
-                        <LoadingView text={isAdvisor ? 'Yorumcuya iletiliyor...' : loadingMsg} />
+                        <LoadingView text="Falınız gönderiliyor..." />
                     ) : (
                         <Button
                             title={isAdvisor ? 'Yorumcuya Gönder' : 'Fal Baktır'}
@@ -311,35 +252,23 @@ export default function CoffeeReadingScreen() {
             ) : (
                 <View style={styles.section}>
                     <Card glow style={styles.resultHeader}>
-                        <Ionicons name="cafe" size={32} color={Colors.accentYellow} />
-                        <AppText variant="h1" color={Colors.accentYellow} center>
-                            Fal Sonucunuz
-                        </AppText>
-                        <AppText variant="bodyStrong" center color={Colors.purpleLight}>
-                            “{question.trim()}”
+                        <Ionicons name="checkmark-circle" size={44} color={Colors.success} />
+                        <AppText variant="h1" center>Falınız Ulaştı</AppText>
+                        <AppText variant="body" center>
+                            {isAdvisor
+                                ? 'Fincan fotoğrafların ve sorun yorumcuya iletildi. Yorumu hazır olduğunda bildirim alacaksın; cevabı Fal sekmesindeki "Fal İstekleriniz" bölümünde görebilirsin.'
+                                : 'Valeria fincanını okumaya başladı. Yorumun birkaç saniye içinde Fal sekmesindeki "Fal İstekleriniz" bölümüne düşecek ve bildirim alacaksın. Beklemene gerek yok.'}
                         </AppText>
                     </Card>
 
-                    {sections.map((section) => {
-                        const text = result[section.key];
-                        if (!text) return null;
-                        return (
-                            <Card key={section.key} style={styles.sectionCard}>
-                                <View style={styles.sectionHeader}>
-                                    <Ionicons name={section.icon} size={20} color={section.color} />
-                                    <AppText variant="h3" color={section.color}>
-                                        {section.title}
-                                    </AppText>
-                                </View>
-                                <AppText variant="body">{text}</AppText>
-                            </Card>
-                        );
-                    })}
-
                     <View style={styles.actions}>
-                        <Button title="Yeni Fal" onPress={reset} />
                         <Button
-                            title="Geri Dön"
+                            title="Fal İsteklerime Git"
+                            onPress={() => router.replace('/(tabs)/reading' as any)}
+                            icon={<Ionicons name="eye" size={16} color={Colors.textOnAccent} />}
+                        />
+                        <Button
+                            title="Kapat"
                             variant="secondary"
                             onPress={() => router.back()}
                         />

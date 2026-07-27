@@ -3,6 +3,8 @@ import { User } from '../models/User';
 import { Reading } from '../models/Reading';
 import { ReadingRequest } from '../models/ReadingRequest';
 import { FalReading } from '../models/FalReading';
+import { Advisor } from '../models/Advisor';
+import { sendPushToUser } from '../services/push';
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware';
 import { performCalculations } from '../utils/calculations';
 import { generateTarotInterpretation, generateTarotSpreadReading, generateCoffeeReading, askHoraryQuestion, generateNumerologyReading } from '../services/geminiService';
@@ -383,12 +385,163 @@ router.post('/numerology-ai', authMiddleware, async (req: AuthRequest, res: Resp
     }
 });
 
-// POST /readings/advisor-request 🔐 (queue for real fortune tellers)
+// POST /readings/advisor-request 🔐
+// Tek asenkron fal kuyruğu: advisorId 'valeria' ise falı arka planda yapay
+// zeka yorumlar (istek ANINDA döner, cevap 10-15 sn içinde isteğe yazılır ve
+// push bildirimi gider); insan danışmansa panelden cevaplanana dek bekler.
+const VALERIA_ADVISOR_ID = 'valeria';
+const VALERIA_COSTS: Record<string, number> = { tarot: 30, kahve: 20 };
+const HUMAN_REQUEST_COST = 10;
+const SPREAD_POSITIONS = ['Geçmiş', 'Şimdi', 'Gelecek'];
+
+function drawSpreadCards() {
+    const deck = [...TAROT_CARDS];
+    return [0, 1, 2].map((i) => {
+        const idx = Math.floor(Math.random() * deck.length);
+        const card = deck.splice(idx, 1)[0];
+        return {
+            card,
+            name: card.nameTR,
+            isReversed: Math.random() > 0.5,
+            position: SPREAD_POSITIONS[i],
+        };
+    });
+}
+
+/** Valeria isteğini arka planda yorumlar; hata/red durumunda krediyi iade eder. */
+async function processValeriaRequest(requestId: string): Promise<void> {
+    const request = await ReadingRequest.findById(requestId);
+    if (!request || request.status !== 'pending') return;
+    const user = await User.findById(request.userId);
+    if (!user) return;
+
+    const refund = async (message: string) => {
+        if (request.creditsCharged > 0) {
+            await User.updateOne({ _id: request.userId }, { $inc: { credits: request.creditsCharged } });
+        }
+        request.answer = message;
+        request.status = 'answered';
+        request.answeredAt = new Date();
+        await request.save();
+    };
+
+    try {
+        if (request.type === 'tarot') {
+            const picks = (request.cards || []).map((c) => ({
+                card: TAROT_CARDS.find((t) => t.nameTR === c.name),
+                name: c.name,
+                isReversed: c.isReversed,
+                position: c.position,
+            }));
+
+            const spread = await generateTarotSpreadReading(
+                picks.map((p) => ({
+                    nameTR: p.name,
+                    isReversed: p.isReversed,
+                    position: p.position,
+                    keywordsTR: p.card?.keywordsTR || [],
+                })),
+                request.question === '-' ? '' : request.question,
+                user
+            );
+
+            const genelYorum = [spread.answer, spread.synthesis].filter(Boolean).join('\n\n');
+            const kartMetinleri = picks.map((p, i) =>
+                `${p.position} — ${p.name}${p.isReversed ? ' (Ters)' : ' (Düz)'}\n${spread.interpretations[i] || ''}`
+            );
+            request.answer = [...kartMetinleri, genelYorum ? `Genel Değerlendirme\n${genelYorum}` : '']
+                .filter(Boolean).join('\n\n');
+            request.status = 'answered';
+            request.answeredAt = new Date();
+            await request.save();
+
+            // Geçmiş/kişiselleştirme için okuma kaydı
+            await new Reading({
+                userId: request.userId,
+                type: 'tarot',
+                question: request.question === '-' ? '' : request.question,
+                date: new Date(),
+                cards: picks.map((p, i) => ({
+                    card: p.card ? { ...p.card } : { nameTR: p.name },
+                    isReversed: p.isReversed,
+                    position: p.position,
+                    interpretation: spread.interpretations[i] || '',
+                })),
+                result: genelYorum || undefined,
+            }).save();
+        } else {
+            // kahve
+            const result = await generateCoffeeReading(request.images || [], user, request.question === '-' ? '' : request.question);
+
+            if (result.rejected) {
+                await refund(
+                    'Fotoğraflar net bir kahve fincanı olarak doğrulanamadı, bu yüzden falına bakamadım. ' +
+                    `Harcanan ${request.creditsCharged} kredi hesabına iade edildi. ` +
+                    'Fincanın içini, kenarlarını ve tabağını aydınlık bir ortamda net çekip yeniden gönderebilirsin.'
+                );
+                await sendPushToUser(request.userId, 'Kahve Falın Hakkında', 'Fotoğraflar doğrulanamadı, kredin iade edildi. Yeni fotoğraflarla tekrar deneyebilirsin.', { requestId: request._id });
+                return;
+            }
+            if (result.unavailable) {
+                await refund(
+                    'Şu an yoğunluk nedeniyle fincanını okuyamadım. ' +
+                    `Harcanan ${request.creditsCharged} kredi hesabına iade edildi. Birazdan tekrar dener misin?`
+                );
+                await sendPushToUser(request.userId, 'Kahve Falın Hakkında', 'Geçici bir yoğunluk oldu, kredin iade edildi. Birazdan tekrar deneyebilirsin.', { requestId: request._id });
+                return;
+            }
+
+            const bolumler: Array<[string, string | undefined]> = [
+                ['Sorunun Cevabı', result.soruCevabi],
+                ['Aşk Hayatı', result.askHayati],
+                ['Kariyer & İş Hayatı', result.kariyer],
+                ['Aile & Yakınlar', result.aile],
+            ];
+            request.answer = bolumler
+                .filter(([, text]) => !!text)
+                .map(([baslik, text]) => `${baslik}\n${text}`)
+                .join('\n\n');
+            request.status = 'answered';
+            request.answeredAt = new Date();
+            await request.save();
+
+            await new Reading({
+                userId: request.userId,
+                type: 'coffee',
+                question: request.question === '-' ? '' : request.question,
+                date: new Date(),
+                result: JSON.stringify(result),
+                imageUri: null,
+            }).save();
+        }
+
+        await sendPushToUser(
+            request.userId,
+            'Falın Hazır',
+            `Valeria ${request.type === 'tarot' ? 'tarot açılımını' : 'kahve falını'} yorumladı. Görmek için dokun.`,
+            { requestId: request._id }
+        );
+    } catch (error) {
+        console.error('Valeria async fal hatası:', error);
+        await refund(
+            'Teknik bir sorun nedeniyle falını tamamlayamadım. ' +
+            `Harcanan ${request.creditsCharged} kredi hesabına iade edildi. Lütfen birazdan tekrar dene.`
+        );
+        await sendPushToUser(request.userId, 'Falın Hakkında', 'Teknik bir sorun oluştu, kredin iade edildi. Birazdan tekrar deneyebilirsin.', { requestId: request._id });
+    }
+}
+
 router.post('/advisor-request', authMiddleware, async (req: AuthRequest, res: Response) => {
     try {
         const { advisorId, type, question, images } = req.body;
-        if (!advisorId || !type || !question) {
-            return res.status(400).json({ error: 'Danışman, tür ve soru zorunludur', code: 'MISSING_FIELDS' });
+        if (!advisorId || !type) {
+            return res.status(400).json({ error: 'Danışman ve tür zorunludur', code: 'MISSING_FIELDS' });
+        }
+        const isValeria = String(advisorId) === VALERIA_ADVISOR_ID;
+        // Tarotta soru isteğe bağlı (model zorunlu tuttuğu için '-' saklanır)
+        const soru = (question || '').trim();
+        if (!soru && type !== 'tarot') {
+            return res.status(400).json({ error: 'Soru zorunludur', code: 'MISSING_FIELDS' });
         }
         if (type === 'kahve') {
             if (!images || !Array.isArray(images) || images.length !== 4) {
@@ -399,39 +552,72 @@ router.post('/advisor-request', authMiddleware, async (req: AuthRequest, res: Re
         const user = await User.findById(req.user!._id);
         if (!user) return res.status(404).json({ error: 'Kullanıcı bulunamadı', code: 'NOT_FOUND' });
 
-        // 10 kredi
-        if (user.credits < 10) {
+        // Ücret: Valeria → tür bazlı; insan danışman → sabit; seans → 0 (seans
+        // paketi zaten ayrıca ücretlendirildi).
+        const cost = isValeria
+            ? (VALERIA_COSTS[type] ?? 10)
+            : (type === 'advisor_session' ? 0 : HUMAN_REQUEST_COST);
+
+        if (user.credits < cost) {
             return res.status(400).json({
                 error: 'Yetersiz kredi',
                 code: 'INSUFFICIENT_CREDITS',
-                details: { required: 10, available: user.credits }
+                details: { required: cost, available: user.credits }
             });
         }
+        if (cost > 0) {
+            user.credits -= cost;
+            await user.save();
+        }
 
-        user.credits -= 10;
-        await user.save();
+        // Danışman adı (panelde ve uygulamada gösterim için)
+        let advisorName = 'Valeria';
+        if (!isValeria) {
+            const adv = await Advisor.findOne({ advisorId: Number(advisorId) }).lean();
+            advisorName = adv?.name || 'Danışman';
+        }
+
+        // Tarot isteklerinde kartlar sunucuda çekilir: hem panel hem uygulama
+        // hangi kartların açıldığını görür; Valeria da aynı kartları yorumlar.
+        const cards = type === 'tarot'
+            ? drawSpreadCards().map((p) => ({ name: p.name, isReversed: p.isReversed, position: p.position }))
+            : [];
 
         const request = new ReadingRequest({
             userId: user._id.toString(),
-            advisorId,
+            advisorId: String(advisorId),
+            advisorName,
             type,
-            question,
+            question: soru || '-',
             status: 'pending',
             images: type === 'kahve' ? images : [],
+            cards,
+            creditsCharged: cost,
         });
         await request.save();
 
+        // Valeria: cevap arka planda üretilir — istek ANINDA döner.
+        if (isValeria) {
+            setImmediate(() => {
+                processValeriaRequest(request._id.toString()).catch((e) =>
+                    console.error('processValeriaRequest:', e)
+                );
+            });
+        }
+
         return res.json({
             id: request._id,
-            advisorId,
+            advisorId: String(advisorId),
+            advisorName,
             type,
-            question,
+            question: soru,
+            cards,
             status: 'pending',
             createdAt: request.createdAt,
         });
     } catch (error: any) {
         console.error('Advisor request error:', error);
-        return res.status(500).json({ error: error.message || 'Fal isteği gönderilemedi', code: 'SERVER_ERROR', raw: error });
+        return res.status(500).json({ error: error.message || 'Fal isteği gönderilemedi', code: 'SERVER_ERROR' });
     }
 });
 

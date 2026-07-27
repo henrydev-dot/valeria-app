@@ -76,7 +76,9 @@ export default function ProfileScreen() {
     // Yerel önizleme (yeni seçilen fotoğraf) varsa üzerine yazma.
     const remoteAvatar = (profile as any).avatarUrl as string | null | undefined;
     useEffect(() => {
-        if (remoteAvatar && !avatarUri) {
+        // Yalnız gerçek sunucu yolu ('/api/...') kabul edilir — eski backend'in
+        // placeholder değerleri kırık resim göstermesin.
+        if (remoteAvatar && remoteAvatar.startsWith('/') && !avatarUri) {
             setAvatarUri(`${api.API_HOST}${remoteAvatar}`);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -179,8 +181,12 @@ export default function ProfileScreen() {
             try {
                 const mime = asset.mimeType || 'image/jpeg';
                 const res = await api.profile.uploadAvatar(asset.base64, mime);
-                // Sunucu URL'ine geç: bir sonraki açılışta da aynı kaynaktan gelir.
-                if (res?.avatarUrl) setAvatarUri(`${api.API_HOST}${res.avatarUrl}`);
+                // Sunucu URL'ine geç (yalnız gerçek yol dönerse): sonraki açılışta
+                // da aynı kaynaktan gelir. Eski backend placeholder dönerse yerel
+                // önizlemede kal — kırık resim gösterme.
+                if (res?.avatarUrl?.startsWith?.('/')) {
+                    setAvatarUri(`${api.API_HOST}${res.avatarUrl}`);
+                }
             } catch (e: any) {
                 Alert.alert(
                     'Yükleme Başarısız',

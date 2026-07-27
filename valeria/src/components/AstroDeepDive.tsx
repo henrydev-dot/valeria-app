@@ -45,6 +45,9 @@ export function AstroDeepDive({ analysis }: { analysis: any }) {
     const [question, setQuestion] = useState('');
     const [insight, setInsight] = useState<string>('');
     const [insightLoading, setInsightLoading] = useState(false);
+    // Sayfa uzamasın: bölümler önizleme gösterir, istenirse açılır.
+    const [showAllHouses, setShowAllHouses] = useState(false);
+    const [showAllCal, setShowAllCal] = useState(false);
 
     useEffect(() => {
         (async () => {
@@ -95,10 +98,10 @@ export function AstroDeepDive({ analysis }: { analysis: any }) {
                         Hangi evinde hangi burç var? Dokun; dilersen Valeria o yerleşimi senin için yorumlasın.
                     </AppText>
                     <Card padded={false}>
-                        {houses.map((h, i) => (
+                        {(showAllHouses ? houses : houses.slice(0, 4)).map((h, i, arr) => (
                             <TouchableOpacity
                                 key={h.house}
-                                style={[styles.houseRow, i < houses.length - 1 && styles.houseRowBorder]}
+                                style={[styles.houseRow, i < arr.length - 1 && styles.houseRowBorder]}
                                 onPress={() => openHouse(h)}
                                 accessibilityRole="button"
                                 accessibilityLabel={`${h.house}. ev, ${h.sign}. Detay için dokun.`}
@@ -123,6 +126,22 @@ export function AstroDeepDive({ analysis }: { analysis: any }) {
                             </TouchableOpacity>
                         ))}
                     </Card>
+                    {houses.length > 4 && (
+                        <TouchableOpacity
+                            style={styles.expandBtn}
+                            onPress={() => setShowAllHouses(!showAllHouses)}
+                            accessibilityRole="button"
+                        >
+                            <AppText variant="callout" color={Colors.accentYellow} style={styles.expandText}>
+                                {showAllHouses ? 'Küçült' : `12 Evin Tümünü Gör`}
+                            </AppText>
+                            <Ionicons
+                                name={showAllHouses ? 'chevron-up' : 'chevron-down'}
+                                size={15}
+                                color={Colors.accentYellow}
+                            />
+                        </TouchableOpacity>
+                    )}
                 </View>
             )}
 
@@ -174,7 +193,7 @@ export function AstroDeepDive({ analysis }: { analysis: any }) {
                         </View>
                     )}
 
-                    {retroData.calendar.map((c: any, i: number) => {
+                    {(showAllCal ? retroData.calendar : retroData.calendar.slice(0, 3)).map((c: any, i: number) => {
                         const color = CAL_TYPE_COLOR[c.type] || Colors.info;
                         return (
                             <Card key={i} style={[styles.calCard, { borderLeftColor: color }]}>
@@ -191,6 +210,22 @@ export function AstroDeepDive({ analysis }: { analysis: any }) {
                             </Card>
                         );
                     })}
+                    {retroData.calendar.length > 3 && (
+                        <TouchableOpacity
+                            style={styles.expandBtn}
+                            onPress={() => setShowAllCal(!showAllCal)}
+                            accessibilityRole="button"
+                        >
+                            <AppText variant="callout" color={Colors.accentYellow} style={styles.expandText}>
+                                {showAllCal ? 'Küçült' : `Tüm Takvimi Gör (${retroData.calendar.length})`}
+                            </AppText>
+                            <Ionicons
+                                name={showAllCal ? 'chevron-up' : 'chevron-down'}
+                                size={15}
+                                color={Colors.accentYellow}
+                            />
+                        </TouchableOpacity>
+                    )}
                 </View>
             )}
 
@@ -288,6 +323,12 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.purpleA15, borderRadius: BorderRadius.full,
         paddingHorizontal: Spacing.sm, paddingVertical: 3, maxWidth: 130,
     },
+    // Bölüm aç/kapa
+    expandBtn: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        gap: Spacing.xs, paddingVertical: Spacing.md,
+    },
+    expandText: { fontWeight: FontWeight.bold },
     // Retrolar
     retroCard: { marginBottom: Spacing.md },
     retroHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
