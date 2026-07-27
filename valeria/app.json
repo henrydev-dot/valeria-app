@@ -51,8 +51,7 @@
           "cameraPermission": "Kahve falı için fincan fotoğrafı çekmek amacıyla kameraya erişim gereklidir."
         }
       ],
-      "expo-apple-authentication",
-      "react-native-iap"
+      "expo-apple-authentication"
     ],
     "extra": {
       "eas": {

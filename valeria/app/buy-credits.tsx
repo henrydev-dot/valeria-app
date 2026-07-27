@@ -9,7 +9,10 @@ import { Features } from '../src/config';
 import { Colors } from '../src/theme/colors';
 import { Spacing, BorderRadius } from '../src/theme/spacing';
 
-// react-native-iap yalnız native build'de vardır (Expo Go'da yok) — koşullu yükle.
+// IAP kütüphanesi şu an pakete DAHİL DEĞİL (Paid Apps evrakları beklenirken
+// build'den çıkarıldı) — require başarısız olur, RNIap null kalır ve ekran
+// "çok yakında" durumunu gösterir. Satın alma açılırken SDK 54+ uyumlu
+// `expo-iap` eklenip buradaki require ona çevrilecek.
 let RNIap: any = null;
 try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires

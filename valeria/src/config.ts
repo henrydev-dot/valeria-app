@@ -26,9 +26,12 @@ export const Config = {
  * IAP + server-side receipt validation are wired.
  */
 export const Features = {
-    // Gerçek StoreKit IAP kodu hazır (buy-credits + backend verify-purchase),
+    // Gerçek StoreKit IAP akışı hazır (buy-credits + backend verify-purchase),
     // ancak Paid Apps sözleşmesi/evraklar tamamlanana kadar KAPALI tutuluyor.
-    // Ürünler ASC'de onaylanınca true yapıp yeni build almak yeterli.
+    // AÇARKEN: react-native-iap v12, Expo SDK 54 yeni mimaride pod hatası
+    // veriyordu ve build'den çıkarıldı. Yeniden etkinleştirirken SDK 54+
+    // uyumlu halefi olan `expo-iap` paketini ekleyip buy-credits.tsx'teki
+    // require'ı ona çevir, sonra bu bayrağı true yap ve yeni build al.
     purchasesEnabled: false,
     adsEnabled: false, // no real ad SDK — hide "reklam izle"; use honest daily reward instead
 } as const;
