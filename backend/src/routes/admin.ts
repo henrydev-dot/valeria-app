@@ -121,6 +121,8 @@ router.post('/requests/:id/answer', async (req: Request, res: Response) => {
         }
 
         request.answer = answer;
+        // Fal sohbetine de ekle — uygulamadaki chat ekranı thread'i gösterir
+        request.thread.push({ role: 'advisor', text: answer, at: new Date() });
         request.status = 'answered';
         request.answeredAt = new Date();
         await request.save();

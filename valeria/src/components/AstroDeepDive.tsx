@@ -41,6 +41,7 @@ export function AstroDeepDive({ analysis }: { analysis: any }) {
     const credits = useEntitlementsStore((s) => s.credits);
 
     const [retroData, setRetroData] = useState<any>(null);
+    const [retroLoading, setRetroLoading] = useState(true);
     const [selected, setSelected] = useState<HouseRow | null>(null);
     const [question, setQuestion] = useState('');
     const [insight, setInsight] = useState<string>('');
@@ -55,6 +56,7 @@ export function AstroDeepDive({ analysis }: { analysis: any }) {
                 const data = await api.astrology.retroCalendar();
                 setRetroData(data);
             } catch { /* takvim gelmezse bölüm gizlenir */ }
+            finally { setRetroLoading(false); }
         })();
     }, []);
 
@@ -176,8 +178,23 @@ export function AstroDeepDive({ analysis }: { analysis: any }) {
                 </View>
             )}
 
-            {/* ── RETRO TAKVİMİ ── */}
-            {retroData?.calendar?.length > 0 && (
+            {/* ── RETRO TAKVİMİ (yüklenirken iskelet — sayfa zıplamasın) ── */}
+            {retroLoading && (
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <MaterialCommunityIcons name="calendar-sync" size={18} color={Colors.info} />
+                        <AppText variant="h2" style={styles.sectionTitle}>Retro Takvimi 2026</AppText>
+                    </View>
+                    {[0, 1, 2].map((i) => (
+                        <Card key={i} style={styles.calCard}>
+                            <Skeleton height={14} width="55%" />
+                            <Skeleton height={11} width="40%" style={styles.skelGap} />
+                            <Skeleton height={11} width="90%" style={styles.skelGap} />
+                        </Card>
+                    ))}
+                </View>
+            )}
+            {!retroLoading && retroData?.calendar?.length > 0 && (
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <MaterialCommunityIcons name="calendar-sync" size={18} color={Colors.info} />

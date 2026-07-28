@@ -6,6 +6,12 @@ export interface IRequestCard {
     position: string; // Geçmiş | Şimdi | Gelecek
 }
 
+export interface IThreadMessage {
+    role: 'user' | 'advisor';
+    text: string;
+    at: Date;
+}
+
 export interface IReadingRequest extends Document {
     userId: string;
     advisorId: string; // 'valeria' | insan danışman advisorId ('1','2',...)
@@ -19,6 +25,8 @@ export interface IReadingRequest extends Document {
     images?: string[];
     cards?: IRequestCard[]; // tarot isteklerinde sunucuda çekilen kartlar
     creditsCharged: number; // iade gerektiğinde (ör. geçersiz fincan) kullanılır
+    // Fal sohbeti: ilk soru + fal yorumu + ek soru/cevaplar sırayla
+    thread: IThreadMessage[];
 }
 
 const ReadingRequestSchema = new Schema<IReadingRequest>({
@@ -40,6 +48,14 @@ const ReadingRequestSchema = new Schema<IReadingRequest>({
         default: [],
     },
     creditsCharged: { type: Number, default: 0 },
+    thread: {
+        type: [{
+            role: { type: String, enum: ['user', 'advisor'], required: true },
+            text: { type: String, required: true },
+            at: { type: Date, default: Date.now },
+        }],
+        default: [],
+    },
 }, {
     timestamps: true
 });

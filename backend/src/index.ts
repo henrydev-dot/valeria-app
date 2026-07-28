@@ -31,7 +31,13 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files (god images, tarot cards, etc.)
-app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')));
+// Görseller sürümsüz ve nadiren değişir — istemci 30 gün önbelleğe alsın ki
+// ana sayfa kartları/arketip görselleri ikinci açılıştan itibaren anında gelsin.
+app.use('/images', express.static(path.join(process.cwd(), 'public', 'images'), {
+    maxAge: '30d',
+    immutable: false,
+    etag: true,
+}));
 
 // ==================== API Routes ====================
 app.use('/api/auth', authRoutes);

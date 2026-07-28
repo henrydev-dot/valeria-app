@@ -8,7 +8,8 @@ import { sendPushToUser } from '../services/push';
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware';
 import { performCalculations } from '../utils/calculations';
 import { generateTarotInterpretation, generateTarotSpreadReading, generateCoffeeReading, askHoraryQuestion, generateNumerologyReading } from '../services/geminiService';
-import { buildHistoryBlock } from '../services/promptContext';
+import { buildHistoryBlock, buildNatalBlock } from '../services/promptContext';
+import { aiGenerate } from '../services/aiClient';
 import { TAROT_CARDS } from '../data/seedData';
 import { UserInput, TransitData, PlanetPosition } from '../types';
 import { ZODIAC_DATA } from '../constants';
@@ -420,6 +421,7 @@ async function processValeriaRequest(requestId: string): Promise<void> {
             await User.updateOne({ _id: request.userId }, { $inc: { credits: request.creditsCharged } });
         }
         request.answer = message;
+        request.thread.push({ role: 'advisor', text: message, at: new Date() });
         request.status = 'answered';
         request.answeredAt = new Date();
         await request.save();
@@ -451,6 +453,7 @@ async function processValeriaRequest(requestId: string): Promise<void> {
             );
             request.answer = [...kartMetinleri, genelYorum ? `Genel Değerlendirme\n${genelYorum}` : '']
                 .filter(Boolean).join('\n\n');
+            request.thread.push({ role: 'advisor', text: request.answer, at: new Date() });
             request.status = 'answered';
             request.answeredAt = new Date();
             await request.save();
@@ -501,6 +504,7 @@ async function processValeriaRequest(requestId: string): Promise<void> {
                 .filter(([, text]) => !!text)
                 .map(([baslik, text]) => `${baslik}\n${text}`)
                 .join('\n\n');
+            request.thread.push({ role: 'advisor', text: request.answer, at: new Date() });
             request.status = 'answered';
             request.answeredAt = new Date();
             await request.save();
@@ -593,6 +597,8 @@ router.post('/advisor-request', authMiddleware, async (req: AuthRequest, res: Re
             images: type === 'kahve' ? images : [],
             cards,
             creditsCharged: cost,
+            // Sohbet dizisi ilk kullanıcı sorusuyla başlar
+            thread: soru ? [{ role: 'user', text: soru, at: new Date() }] : [],
         });
         await request.save();
 
@@ -622,16 +628,141 @@ router.post('/advisor-request', authMiddleware, async (req: AuthRequest, res: Re
 });
 
 // GET /readings/advisor-requests 🔐
+// NOT: 'images' HARİÇ — 4 adet base64 fotoğraf istek başına birkaç MB tutuyor
+// ve liste yüklemesini dakikalarca uzatıyordu. Liste yalnız metin verisi taşır.
 router.get('/advisor-requests', authMiddleware, async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.user!._id;
         const requests = await ReadingRequest.find({ userId: userId.toString() })
+            .select('-images')
             .sort({ createdAt: -1 })
             .limit(20)
             .lean();
         return res.json(requests);
     } catch (error: any) {
         return res.status(500).json({ error: 'İstekler yüklenemedi', code: 'SERVER_ERROR' });
+    }
+});
+
+// GET /readings/advisor-requests/:id 🔐 — fal sohbet ekranı için tek istek
+router.get('/advisor-requests/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+    try {
+        const request = await ReadingRequest.findOne({
+            _id: req.params.id,
+            userId: req.user!._id.toString(),
+        }).select('-images').lean();
+        if (!request) return res.status(404).json({ error: 'Fal isteği bulunamadı', code: 'NOT_FOUND' });
+        return res.json(request);
+    } catch (error: any) {
+        return res.status(500).json({ error: 'İstek yüklenemedi', code: 'SERVER_ERROR' });
+    }
+});
+
+// POST /readings/advisor-requests/:id/follow-up 🔐 — fala özel ek soru (10 kredi)
+// Valeria: yanıt arka planda üretilip sohbete eklenir + bildirim gider.
+// İnsan danışman: istek yeniden 'pending' olur, panelde görünür, panelden
+// verilen cevap sohbete eklenir.
+const FOLLOW_UP_COST = 10;
+const MAX_THREAD_MESSAGES = 40;
+
+async function processValeriaFollowUp(requestId: string): Promise<void> {
+    const request = await ReadingRequest.findById(requestId);
+    if (!request) return;
+    const user = await User.findById(request.userId);
+    if (!user) return;
+
+    try {
+        const kartSatiri = (request.cards || [])
+            .map((c) => `${c.position}: ${c.name}${c.isReversed ? ' (Ters)' : ''}`)
+            .join(', ');
+        const sohbet = request.thread
+            .map((m) => `${m.role === 'user' ? 'Danışan' : 'Valeria'}: ${m.text}`)
+            .join('\n\n');
+
+        const prompt = [
+            `FAL TÜRÜ: ${request.type === 'tarot' ? 'Tarot açılımı (Geçmiş/Şimdi/Gelecek)' : 'Kahve falı'}`,
+            kartSatiri ? `AÇILAN KARTLAR: ${kartSatiri}` : '',
+            buildNatalBlock(user),
+            'ŞİMDİYE KADARKİ FAL SOHBETİ (GİZLİ bağlam — birebir alıntılama):',
+            sohbet,
+            '',
+            'GÖREV: Danışanın SON sorusuna, yukarıdaki falın bütünlüğünü koruyarak yanıt ver.',
+            'Aynı falın devamı gibi konuş; kartlara/fincana atıfta bulunabilirsin.',
+            'Soruya net cevap ver, 2-4 paragrafı geçme. Selamlaşma ve kapanış cümlesi yazma.',
+        ].filter(Boolean).join('\n');
+
+        const cevap = (await aiGenerate(prompt, { tier: 'quality' })).trim();
+        if (!cevap) throw new Error('Boş yanıt');
+
+        request.thread.push({ role: 'advisor', text: cevap, at: new Date() });
+        request.status = 'answered';
+        request.answeredAt = new Date();
+        await request.save();
+
+        await sendPushToUser(request.userId, 'Valeria Yanıtladı', 'Ek sorunun cevabı hazır. Görmek için dokun.', { requestId: request._id });
+    } catch (error) {
+        console.error('Valeria follow-up hatası:', error);
+        // Krediyi iade et ve durumu cevaplanmışa çek ki sohbet kilitlenmesin
+        await User.updateOne({ _id: request.userId }, { $inc: { credits: FOLLOW_UP_COST } });
+        request.thread.push({
+            role: 'advisor',
+            text: 'Teknik bir sorun nedeniyle bu soruna şu an yanıt veremedim; 10 kredin iade edildi. Lütfen birazdan tekrar sor.',
+            at: new Date(),
+        });
+        request.status = 'answered';
+        await request.save();
+    }
+}
+
+router.post('/advisor-requests/:id/follow-up', authMiddleware, async (req: AuthRequest, res: Response) => {
+    try {
+        const question = (req.body?.question || '').trim();
+        if (!question) return res.status(400).json({ error: 'Soru zorunludur', code: 'MISSING_FIELDS' });
+        if (question.length > 500) return res.status(400).json({ error: 'Soru çok uzun (en fazla 500 karakter)', code: 'TOO_LONG' });
+
+        const request = await ReadingRequest.findOne({
+            _id: req.params.id,
+            userId: req.user!._id.toString(),
+        });
+        if (!request) return res.status(404).json({ error: 'Fal isteği bulunamadı', code: 'NOT_FOUND' });
+        if (request.status !== 'answered') {
+            return res.status(400).json({ error: 'Önce falının yorumlanmasını bekle', code: 'STILL_PENDING' });
+        }
+        if (request.thread.length >= MAX_THREAD_MESSAGES) {
+            return res.status(400).json({ error: 'Bu fal sohbeti en fazla soruya ulaştı. Yeni bir fal baktırabilirsin.', code: 'THREAD_FULL' });
+        }
+
+        const user = await User.findById(req.user!._id);
+        if (!user) return res.status(404).json({ error: 'Kullanıcı bulunamadı', code: 'NOT_FOUND' });
+        if (user.credits < FOLLOW_UP_COST) {
+            return res.status(400).json({
+                error: 'Yetersiz kredi',
+                code: 'INSUFFICIENT_CREDITS',
+                details: { required: FOLLOW_UP_COST, available: user.credits }
+            });
+        }
+        user.credits -= FOLLOW_UP_COST;
+        await user.save();
+
+        request.thread.push({ role: 'user', text: question, at: new Date() });
+        request.status = 'pending'; // cevap gelene dek "yanıt bekleniyor"
+        await request.save();
+
+        if (request.advisorId === VALERIA_ADVISOR_ID) {
+            setImmediate(() => {
+                processValeriaFollowUp(request._id.toString()).catch((e) =>
+                    console.error('processValeriaFollowUp:', e)
+                );
+            });
+        }
+        // İnsan danışman: istek 'pending' olarak panele düşer; panelden verilen
+        // cevap sohbete eklenir.
+
+        const fresh = await ReadingRequest.findById(request._id).select('-images').lean();
+        return res.json(fresh);
+    } catch (error: any) {
+        console.error('Follow-up error:', error);
+        return res.status(500).json({ error: 'Ek soru gönderilemedi', code: 'SERVER_ERROR' });
     }
 });
 

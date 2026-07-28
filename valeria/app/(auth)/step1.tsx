@@ -20,13 +20,13 @@ export default function Step1() {
             step={1}
             totalSteps={TOTAL_ONBOARDING_STEPS}
             title="Sana nasıl hitap edelim?"
-            subtitle="İsmini günlük rehberliğinde ve kişisel yorumlarında kullanacağız."
+            subtitle="Tam ismini günlük rehberliğinde, numeroloji hesabında ve kişisel yorumlarında kullanacağız."
             onNext={handleNext}
             nextDisabled={name.trim().length < 2}
         >
             <Field
-                label="Adın"
-                placeholder="Örneğin: Deniz"
+                label="Adın Soyadın"
+                placeholder="Örneğin: Deniz Yılmaz"
                 value={name}
                 onChangeText={setName}
                 autoFocus

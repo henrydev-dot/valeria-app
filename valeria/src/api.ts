@@ -200,6 +200,16 @@ export const readings = {
     advisorRequests: () =>
         apiFetch<any[]>('/readings/advisor-requests'),
 
+    advisorRequestDetail: (id: string) =>
+        apiFetch<any>(`/readings/advisor-requests/${id}`),
+
+    // Fala özel ek soru (10 kredi) — cevap sohbete düşer
+    advisorFollowUp: (id: string, question: string) =>
+        apiFetch<any>(`/readings/advisor-requests/${id}/follow-up`, {
+            method: 'POST',
+            body: JSON.stringify({ question }),
+        }),
+
     numerologyAI: (data: { lifePath: number; expression: number; soulUrge: number; personality: number }) =>
         apiFetch<any>('/readings/numerology-ai', {
             method: 'POST',

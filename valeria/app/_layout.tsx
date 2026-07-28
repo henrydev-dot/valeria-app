@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -88,6 +88,24 @@ export default function RootLayout() {
         SplashScreen.hideAsync().catch(() => { });
     }, []);
 
+    // Bildirime dokununca ilgili fal sohbetini aç (data.requestId push'la gelir).
+    useEffect(() => {
+        const openFromNotification = (response: Notifications.NotificationResponse | null) => {
+            const requestId = response?.notification?.request?.content?.data?.requestId;
+            if (requestId) {
+                // Kök navigasyon hazır olmadan push edilirse kaybolabilir — küçük gecikme yeterli.
+                setTimeout(() => {
+                    router.push({ pathname: '/fal-detail', params: { id: String(requestId) } } as any);
+                }, 400);
+            }
+        };
+        // Uygulama kapalıyken bildirime dokunularak açıldıysa
+        Notifications.getLastNotificationResponseAsync().then(openFromNotification).catch(() => { });
+        // Uygulama açıkken/arka plandayken dokunma
+        const sub = Notifications.addNotificationResponseReceivedListener(openFromNotification);
+        return () => sub.remove();
+    }, []);
+
     if (!isReady) {
         return (
             <View style={styles.loading}>
@@ -113,6 +131,7 @@ export default function RootLayout() {
                     <Stack.Screen name="tarot-reading" options={{ presentation: 'modal' }} />
                     <Stack.Screen name="coffee-reading" options={{ presentation: 'modal' }} />
                     <Stack.Screen name="reading-history" />
+                    <Stack.Screen name="fal-detail" />
                     <Stack.Screen name="advisor-detail" />
                     <Stack.Screen name="learning-card" />
                     <Stack.Screen name="buy-credits" options={{ presentation: 'modal' }} />

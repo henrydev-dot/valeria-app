@@ -31,6 +31,7 @@ interface ReadingRequest {
     createdAt: string;
     images?: string[];
     cards?: Array<{ name: string; isReversed: boolean; position: string }>;
+    thread?: Array<{ role: "user" | "advisor"; text: string; at: string }>;
 }
 
 export default function AdminDashboard() {
@@ -484,6 +485,26 @@ export default function AdminDashboard() {
                                 </div>
                             )}
                         </div>
+
+                        {/* Fal sohbeti — ek soru geldiyse falcı önceki konuşmayı görür */}
+                        {selectedRequest.thread && selectedRequest.thread.length > 0 && (
+                            <div className="mb-6 space-y-3 max-h-64 overflow-y-auto pr-1">
+                                {selectedRequest.thread.map((m, i) => (
+                                    <div
+                                        key={i}
+                                        className={`rounded-xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${m.role === "user"
+                                            ? "bg-[#f5c842]/10 border border-[#f5c842]/25 text-[#ffe9a8] ml-8"
+                                            : "bg-purple-500/10 border border-purple-500/25 text-purple-100 mr-8"
+                                            }`}
+                                    >
+                                        <div className="text-[10px] uppercase tracking-wide opacity-60 mb-1">
+                                            {m.role === "user" ? "Danışan" : "Falcı"}
+                                        </div>
+                                        {m.text}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         <form onSubmit={handleSendReply} className="flex flex-col gap-4">
                             <label className="text-sm font-medium text-purple-300">Yorumunu Yaz</label>

@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { AnalysisResult, NumerologyData, PlanetPosition, TransitData, UserInput } from '../types';
 import { aiGenerate } from './aiClient';
+import { safeJsonParse } from '../utils/safeJson';
 import { buildNatalBlock, buildHistoryBlock } from './promptContext';
 import { IMA_KURALLARI, KAHVE_SYSTEM, TAROT_SYSTEM, HORARY_SYSTEM, kahveSembolNotlari, KAHVE_SEMBOLLER } from './falBilgisi';
 import { TAROT_CARDS } from '../data/seedData';
@@ -87,7 +88,7 @@ export const generateInterpretation = async (
                 cleanText = cleanText.slice(0, -3);
             }
 
-            const rawData = JSON.parse(cleanText);
+            const rawData = safeJsonParse(cleanText);
 
             return {
                 personalitySummary: rawData.personalitySummary || `${astrology.sun.sign} burcunun ışıltısı ve ${astrology.rising.sign} burcunun duruşuyla etkileyici bir auranız var.`,
@@ -190,7 +191,7 @@ export const askHoraryQuestion = async (
         const m = t.match(/\{[\s\S]*\}/);
         if (!m) return t ? { verdict: t, comment: '' } : null;
         try {
-            const parsed = JSON.parse(m[0]);
+            const parsed = safeJsonParse(m[0]);
             if (parsed.netYanit) return { verdict: String(parsed.netYanit), comment: String(parsed.yorum || '') };
         } catch { /* düşerse null */ }
         return null;
@@ -320,7 +321,7 @@ export const generateTarotSpreadReading = async (
         text = text.replace(/```json|```/g, '').trim();
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
+            const parsed = safeJsonParse(jsonMatch[0]);
             const interpretations = cards.map((c, i) =>
                 parsed?.kartlar?.[i]?.yorum || cannedTarot(c.nameTR, c.isReversed, user));
             return {
@@ -414,7 +415,7 @@ const extractCupSymbols = async (imagesBase64: string[]): Promise<CupExtraction>
         const raw = (response.text || '').replace(/```json|```/g, '').trim();
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
         if (!jsonMatch) return { kind: 'unavailable' };
-        const parsed = JSON.parse(jsonMatch[0]);
+        const parsed = safeJsonParse(jsonMatch[0]);
         if (parsed.isCoffeeCup === false) return { kind: 'invalid' };
         return {
             kind: 'ok',
@@ -497,7 +498,7 @@ export const generateCoffeeReading = async (
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             try {
-                const parsed = JSON.parse(jsonMatch[0]);
+                const parsed = safeJsonParse(jsonMatch[0]);
                 return {
                     soruCevabi: parsed.soruCevabi || 'Fincanınız ilginç mesajlar taşıyor...',
                     askHayati: parsed.askHayati || '',
@@ -560,7 +561,7 @@ export const generateDailyHoroscope = async (sign: string): Promise<{
             if (cleanText.startsWith("```json")) cleanText = cleanText.slice(7);
             if (cleanText.startsWith("```")) cleanText = cleanText.slice(3);
             if (cleanText.endsWith("```")) cleanText = cleanText.slice(0, -3);
-            return JSON.parse(cleanText);
+            return safeJsonParse(cleanText);
         }
         throw new Error("Boş yanıt");
     } catch (error) {
@@ -608,7 +609,7 @@ export const generateWeeklyHoroscope = async (sign: string): Promise<{
             if (cleanText.startsWith("```json")) cleanText = cleanText.slice(7);
             if (cleanText.startsWith("```")) cleanText = cleanText.slice(3);
             if (cleanText.endsWith("```")) cleanText = cleanText.slice(0, -3);
-            return JSON.parse(cleanText);
+            return safeJsonParse(cleanText);
         }
         throw new Error("Boş yanıt");
     } catch (error) {
@@ -659,7 +660,7 @@ export const generateCompatibility = async (sign1: string, sign2: string): Promi
             if (cleanText.startsWith("```json")) cleanText = cleanText.slice(7);
             if (cleanText.startsWith("```")) cleanText = cleanText.slice(3);
             if (cleanText.endsWith("```")) cleanText = cleanText.slice(0, -3);
-            return JSON.parse(cleanText);
+            return safeJsonParse(cleanText);
         }
         throw new Error("Boş yanıt");
     } catch (error) {
@@ -749,7 +750,7 @@ export const generateNumerologyReading = async (
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             try {
-                const parsed = JSON.parse(jsonMatch[0]);
+                const parsed = safeJsonParse(jsonMatch[0]);
                 return {
                     lifePath: parsed.lifePath || '',
                     expression: parsed.expression || '',
