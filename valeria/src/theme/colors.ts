@@ -53,7 +53,9 @@ export const Colors = {
     tagPro: '#F5C842',
 
     // Overlay
-    overlay: 'rgba(0, 0, 0, 0.6)',
+    // Modal arkası karartma: 0.6 yeterince karartmıyordu, arkadaki sayfa
+    // dikkat dağıtacak kadar görünüyordu.
+    overlay: 'rgba(0, 0, 0, 0.78)',
     scrim: 'rgba(10, 10, 26, 0.72)',
 
     // Transparent helpers

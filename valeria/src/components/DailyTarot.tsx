@@ -259,9 +259,13 @@ export function DailyTarot() {
                         outputRange: ['0deg', '180deg'],
                     });
 
-                    // Cost label per card position
-                    const costLabel = index === 0 ? 'ÜCRETSİZ' : index === 1 ? '5 Kredi' : '10 Kredi';
-                    const isFreeCard = index === 0;
+                    // Rozet, GERÇEK ücretle aynı kurala bağlı: ücret kartın
+                    // konumuna değil, kaçıncı AÇILIŞ olduğuna göre belirlenir
+                    // (1. açılış ücretsiz, 2.si 5, 3.sü 10). Kart açıldıkça
+                    // kapalı kartların rozeti de güncellenir.
+                    const nextCost = revealedCount === 0 ? 0 : revealedCount === 1 ? 5 : 10;
+                    const costLabel = nextCost === 0 ? 'ÜCRETSİZ' : `${nextCost} Kredi`;
+                    const isFreeCard = nextCost === 0;
 
                     return (
                         <TouchableOpacity

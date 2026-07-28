@@ -267,7 +267,13 @@ export function AstroDeepDive({ analysis }: { analysis: any }) {
             {/* ── EV DETAY MODALI ── */}
             {/* KeyboardAvoidingView: soru yazarken alan klavyenin ALTINDA kalmasın.
                 Boş alana dokunma: klavye açıksa klavyeyi, değilse modalı kapatır. */}
-            <Modal visible={!!selected} transparent animationType="slide" onRequestClose={() => setSelected(null)}>
+            <Modal
+                visible={!!selected}
+                transparent
+                animationType="slide"
+                statusBarTranslucent
+                onRequestClose={() => setSelected(null)}
+            >
                 <KeyboardAvoidingView
                     style={styles.overlay}
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
