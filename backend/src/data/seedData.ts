@@ -72,7 +72,7 @@ export const DEMO_RITUALS = [
 // liste veritabanıyla senkronlanır (listede olmayan danışmanlar kaldırılır).
 export const DEMO_ADVISORS = [
     {
-        advisorId: 1, name: "Ayşe Yıldız", specialties: ["tarot", "kahve falı"], rating: 4.8, sessions: 1250,
+        advisorId: 1, name: "Ayten Sarı", specialties: ["tarot", "kahve falı"], rating: 4.8, sessions: 1250,
         bio: "15 yıllık deneyimli tarot ve kahve falı uzmanı. Binlerce kişiye rehberlik etmiş, sezgisel okuma konusunda uzmanlaşmış bir falcı.",
         packages: [{ duration: "15 dk", credits: 30 }, { duration: "30 dk", credits: 50 }, { duration: "60 dk", credits: 90 }],
         reviews: [
@@ -82,7 +82,7 @@ export const DEMO_ADVISORS = [
         ]
     },
     {
-        advisorId: 2, name: "Metin Aydın", specialties: ["kahve falı", "tarot"], rating: 4.9, sessions: 980,
+        advisorId: 2, name: "Metin Uysal", specialties: ["kahve falı", "tarot"], rating: 4.9, sessions: 980,
         bio: "Kahve falı ve tarot konusunda uzman. Doğal sezgileri ve derin spiritüel bilgisiyle tanınan, aile geleneğinden gelen bir falcı.",
         packages: [{ duration: "15 dk", credits: 30 }, { duration: "30 dk", credits: 50 }, { duration: "60 dk", credits: 90 }],
         reviews: [
