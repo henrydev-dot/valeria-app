@@ -3,14 +3,13 @@ import { User } from '../models/User';
 import { Reading } from '../models/Reading';
 import { ReadingRequest } from '../models/ReadingRequest';
 import { FalReading } from '../models/FalReading';
-import { Advisor } from '../models/Advisor';
 import { sendPushToUser } from '../services/push';
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware';
 import { performCalculations } from '../utils/calculations';
 import { generateTarotInterpretation, generateTarotSpreadReading, generateCoffeeReading, askHoraryQuestion, generateNumerologyReading } from '../services/geminiService';
 import { buildHistoryBlock, buildNatalBlock } from '../services/promptContext';
 import { aiGenerate } from '../services/aiClient';
-import { TAROT_CARDS } from '../data/seedData';
+import { TAROT_CARDS, DEMO_ADVISORS } from '../data/seedData';
 import { UserInput, TransitData, PlanetPosition } from '../types';
 import { ZODIAC_DATA } from '../constants';
 
@@ -575,10 +574,11 @@ router.post('/advisor-request', authMiddleware, async (req: AuthRequest, res: Re
             await user.save();
         }
 
-        // Danışman adı (panelde ve uygulamada gösterim için)
+        // Danışman adı (panelde ve uygulamada gösterim için) — sabit kadrodan
+        // çözülür; veritabanındaki eski kayıtlar sonucu etkileyemez.
         let advisorName = 'Valeria';
         if (!isValeria) {
-            const adv = await Advisor.findOne({ advisorId: Number(advisorId) }).lean();
+            const adv = DEMO_ADVISORS.find((a) => String(a.advisorId) === String(advisorId));
             advisorName = adv?.name || 'Danışman';
         }
 

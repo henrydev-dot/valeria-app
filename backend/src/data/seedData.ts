@@ -72,8 +72,8 @@ export const DEMO_RITUALS = [
 // liste veritabanıyla senkronlanır (listede olmayan danışmanlar kaldırılır).
 export const DEMO_ADVISORS = [
     {
-        advisorId: 1, name: "Ayten Sarı", specialties: ["tarot", "kahve falı"], rating: 4.8, sessions: 1250,
-        bio: "15 yıllık deneyimli tarot ve kahve falı uzmanı. Binlerce kişiye rehberlik etmiş, sezgisel okuma konusunda uzmanlaşmış bir falcı.",
+        advisorId: 1, name: "Ayten Sarı", specialties: ["Falcı"], rating: 4.8, sessions: 1250,
+        bio: "15 yıllık deneyimli falcı. Kahve falı ve tarot konusunda binlerce kişiye rehberlik etmiş, sezgisel okumasıyla tanınan bir isim.",
         packages: [{ duration: "15 dk", credits: 30 }, { duration: "30 dk", credits: 50 }, { duration: "60 dk", credits: 90 }],
         reviews: [
             { user: "Mehmet K.", rating: 5, text: "Çok isabetli yorumlar yaptı, hayatımda gerçekten değişim oldu." },
@@ -82,8 +82,8 @@ export const DEMO_ADVISORS = [
         ]
     },
     {
-        advisorId: 2, name: "Metin Uysal", specialties: ["kahve falı", "tarot"], rating: 4.9, sessions: 980,
-        bio: "Kahve falı ve tarot konusunda uzman. Doğal sezgileri ve derin spiritüel bilgisiyle tanınan, aile geleneğinden gelen bir falcı.",
+        advisorId: 2, name: "Metin Uysal", specialties: ["Medyum"], rating: 4.9, sessions: 980,
+        bio: "Aile geleneğinden gelen medyum. Kahve falı ve tarotta derin sezgileri ve net yorumlarıyla tanınır.",
         packages: [{ duration: "15 dk", credits: 30 }, { duration: "30 dk", credits: 50 }, { duration: "60 dk", credits: 90 }],
         reviews: [
             { user: "Selin D.", rating: 5, text: "Kahve falı inanılmaz detaylıydı, her şeyi bildi." },

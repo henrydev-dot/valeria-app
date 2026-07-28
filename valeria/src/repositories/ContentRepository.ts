@@ -1,6 +1,6 @@
 import { TarotCard, Advisor, LearningCard, ZodiacSign } from '../types';
-import * as api from '../api';
 import tarotData from '../../content/tarot_major_arcana_tr.json';
+import advisorsData from '../../content/advisors_tr.json';
 import learningCardsData from '../../content/discover_learning_cards_tr.json';
 import zodiacData from '../../content/zodiac_tr.json';
 import homeTemplatesData from '../../content/home_content_templates_tr.json';
@@ -22,17 +22,13 @@ export class ContentRepository {
         return tarotData as TarotCard[];
     }
 
-    // Falcı kadrosu SUNUCUDAN gelir (tek doğruluk kaynağı: backend'in
-    // açılışta senkronladığı liste). Eskiden buradaki gömülü JSON dönüyordu —
-    // uygulamada sahte/eski falcılar görünüyordu. API'ye ulaşılamazsa boş
-    // liste döner; ekran "şu an uzman falcı yok" durumunu gösterir.
+    // Falcı kadrosu SABİT: Ayten Sarı (Falcı) + Metin Uysal (Medyum).
+    // Bilinçli olarak HARDCODED — sunucu/veritabanı durumundan bağımsız,
+    // her koşulda yalnızca bu iki isim görünür. Kadro değişikliği bu dosya
+    // + content/advisors_tr.json üzerinden yapılır (backend advisorId'leri
+    // 1=Ayten, 2=Metin ile eşleşmeli).
     static async getAdvisors(): Promise<Advisor[]> {
-        try {
-            const list = await api.advisors.list();
-            return (Array.isArray(list) ? list : []) as Advisor[];
-        } catch {
-            return [];
-        }
+        return advisorsData as Advisor[];
     }
 
     static async getLearningCards(): Promise<LearningCard[]> {

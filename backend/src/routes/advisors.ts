@@ -1,15 +1,17 @@
 import { Router, Response } from 'express';
-import { Advisor } from '../models/Advisor';
 import { authMiddleware, AuthRequest } from '../middleware/authMiddleware';
 import { User } from '../models/User';
+import { DEMO_ADVISORS } from '../data/seedData';
 
 const router = Router();
 
 // GET /advisors 🔐
+// Kadro BİLİNÇLİ olarak koddan (sabit liste) döner, veritabanından DEĞİL:
+// eski/artık kayıtlar hangi ortamda kalırsa kalsın kullanıcı yalnızca
+// Ayten Sarı + Metin Uysal görür. Kadro değişikliği = seedData.DEMO_ADVISORS.
 router.get('/', authMiddleware, async (_req: AuthRequest, res: Response) => {
     try {
-        const advisors = await Advisor.find().sort({ rating: -1 });
-        return res.json(advisors.map(a => ({
+        return res.json(DEMO_ADVISORS.map(a => ({
             id: a.advisorId,
             name: a.name,
             specialties: a.specialties,
