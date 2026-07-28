@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Modal, TouchableOpacity, TextInput, Alert, ScrollView } from 'react-native';
+import {
+    StyleSheet, View, Modal, TouchableOpacity, TextInput, Alert, ScrollView,
+    KeyboardAvoidingView, Keyboard, Platform, Pressable,
+} from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AppText } from './AppText';
 import { Card } from './Card';
@@ -262,10 +265,27 @@ export function AstroDeepDive({ analysis }: { analysis: any }) {
             )}
 
             {/* ── EV DETAY MODALI ── */}
+            {/* KeyboardAvoidingView: soru yazarken alan klavyenin ALTINDA kalmasın.
+                Boş alana dokunma: klavye açıksa klavyeyi, değilse modalı kapatır. */}
             <Modal visible={!!selected} transparent animationType="slide" onRequestClose={() => setSelected(null)}>
-                <View style={styles.overlay}>
+                <KeyboardAvoidingView
+                    style={styles.overlay}
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                >
+                    <Pressable
+                        style={styles.overlayDismiss}
+                        onPress={() => {
+                            if (Keyboard.isVisible()) Keyboard.dismiss();
+                            else setSelected(null);
+                        }}
+                        accessibilityLabel="Kapat"
+                    />
                     <View style={styles.sheet}>
-                        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
+                            keyboardDismissMode="on-drag"
+                        >
                             <View style={styles.sheetHeader}>
                                 <View style={styles.houseNoLg}>
                                     <AppText variant="h2" color={Colors.accentYellow}>{selected?.house}</AppText>
@@ -343,7 +363,7 @@ export function AstroDeepDive({ analysis }: { analysis: any }) {
                             )}
                         </ScrollView>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
         </>
     );
@@ -393,6 +413,7 @@ const styles = StyleSheet.create({
     calNote: { marginTop: Spacing.xs, lineHeight: 18 },
     // Modal
     overlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'flex-end' },
+    overlayDismiss: { flex: 1 }, // sheet üstündeki boş alan — dokununca klavye/modal kapanır
     sheet: {
         backgroundColor: Colors.backgroundModal,
         borderTopLeftRadius: BorderRadius.xxl, borderTopRightRadius: BorderRadius.xxl,
