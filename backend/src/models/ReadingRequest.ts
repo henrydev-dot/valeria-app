@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IRequestCard {
     name: string;
+    cardId?: number; // 0-21 — istemci görseli /images/cards/<cardId>.jpeg'den alır
     isReversed: boolean;
     position: string; // Geçmiş | Şimdi | Gelecek
 }
@@ -42,6 +43,7 @@ const ReadingRequestSchema = new Schema<IReadingRequest>({
     cards: {
         type: [{
             name: { type: String, required: true },
+            cardId: { type: Number },
             isReversed: { type: Boolean, default: false },
             position: { type: String, default: '' },
         }],

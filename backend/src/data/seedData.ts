@@ -67,11 +67,13 @@ export const DEMO_RITUALS = [
     { contentId: "ritual_005", category: "ritual", title: "Koruma Kalkanı Ritüeli", description: "Psişik koruma ve energetik sınır oluşturma", detail: "Siyah turmalin veya obsidyen ile çalışın. Taşı avuçlarınızda tutarak beyaz ışıktan bir kalkan oluşturduğunuzu hayal edin. 'Bu kalkan beni her türlü negatif enerjiden korur' ifadesini 3 kez tekrarlayın.", gradient: ["#2F4F4F", "#696969"], isFree: false, unlockCost: 8, tip: "Her sabah evden çıkmadan önce yapın" }
 ];
 
-// ==================== DEMO ADVISORS ====================
+// ==================== ADVISORS ====================
+// Uygulamadaki İNSAN falcı kadrosu: yalnızca bu ikisi. Sunucu açılışında bu
+// liste veritabanıyla senkronlanır (listede olmayan danışmanlar kaldırılır).
 export const DEMO_ADVISORS = [
     {
-        advisorId: 1, name: "Ayşe Yıldız", specialties: ["tarot", "astroloji", "rüya yorumu"], rating: 4.8, sessions: 1250,
-        bio: "15 yıllık deneyimli tarot ve astroloji uzmanı. Binlerce kişiye rehberlik etmiş, sezgisel okuma konusunda uzmanlaşmış bir danışman.",
+        advisorId: 1, name: "Ayşe Yıldız", specialties: ["tarot", "kahve falı"], rating: 4.8, sessions: 1250,
+        bio: "15 yıllık deneyimli tarot ve kahve falı uzmanı. Binlerce kişiye rehberlik etmiş, sezgisel okuma konusunda uzmanlaşmış bir falcı.",
         packages: [{ duration: "15 dk", credits: 30 }, { duration: "30 dk", credits: 50 }, { duration: "60 dk", credits: 90 }],
         reviews: [
             { user: "Mehmet K.", rating: 5, text: "Çok isabetli yorumlar yaptı, hayatımda gerçekten değişim oldu." },
@@ -80,22 +82,12 @@ export const DEMO_ADVISORS = [
         ]
     },
     {
-        advisorId: 2, name: "Elif Rüzgar", specialties: ["kahve falı", "el falı", "kristal terapi"], rating: 4.9, sessions: 980,
-        bio: "Kahve falı ve kristal terapi konusunda uzman. Doğal sezgileri ve derin spiritüel bilgisi ile tanınan bir danışman.",
+        advisorId: 2, name: "Metin Aydın", specialties: ["kahve falı", "tarot"], rating: 4.9, sessions: 980,
+        bio: "Kahve falı ve tarot konusunda uzman. Doğal sezgileri ve derin spiritüel bilgisiyle tanınan, aile geleneğinden gelen bir falcı.",
         packages: [{ duration: "15 dk", credits: 30 }, { duration: "30 dk", credits: 50 }, { duration: "60 dk", credits: 90 }],
         reviews: [
             { user: "Selin D.", rating: 5, text: "Kahve falı inanılmaz detaylıydı, her şeyi bildi." },
-            { user: "Can E.", rating: 5, text: "Kristal terapisi çok rahatlatıcıydı." }
-        ]
-    },
-    {
-        advisorId: 3, name: "Kerem Demir", specialties: ["astroloji", "numeroloji", "rün okuma"], rating: 4.7, sessions: 750,
-        bio: "Astroloji ve numeroloji uzmanı. Natal harita yorumlama ve kişisel gelişim danışmanlığı konularında deneyimli.",
-        packages: [{ duration: "15 dk", credits: 30 }, { duration: "30 dk", credits: 50 }, { duration: "60 dk", credits: 90 }],
-        reviews: [
-            { user: "Derya F.", rating: 5, text: "Natal harita yorumu çok detaylı ve doğruydu." },
-            { user: "Burak G.", rating: 4, text: "Numeroloji analizi çok ilginçti." },
-            { user: "Nisa H.", rating: 5, text: "Rün okuması harika bir deneyimdi." }
+            { user: "Can E.", rating: 5, text: "Yorumları hem net hem içten, tekrar baktıracağım." }
         ]
     }
 ];

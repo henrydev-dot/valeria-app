@@ -39,7 +39,7 @@ const READING_TYPES: ReadingTypeDef[] = [
         description: 'Geçmiş, şimdi ve gelecek için üç kart çek.',
         icon: 'albums',
         color: Colors.accentYellow,
-        cost: 30,
+        cost: 25,
         route: '/tarot-reading',
         usesAdvisor: true,
     },
@@ -49,7 +49,7 @@ const READING_TYPES: ReadingTypeDef[] = [
         description: 'Fincanındaki sembolleri Valeria yorumlasın.',
         icon: 'cafe',
         color: Colors.purpleLight,
-        cost: 20,
+        cost: 25,
         route: '/coffee-reading',
         usesAdvisor: true,
     },
@@ -80,8 +80,8 @@ const READING_TYPES: ReadingTypeDef[] = [
     },
 ];
 
-/** Backend deducts this many credits per human-advisor request. */
-const ADVISOR_REQUEST_COST = 10;
+/** İnsan falcıya fal göndermenin bedeli (sunucu da aynı tutarı keser). */
+const ADVISOR_REQUEST_COST = 100;
 
 const VALERIA_ID = 'valeria';
 

@@ -135,6 +135,22 @@ const startServer = async () => {
         await mongoose.connect(MONGODB_URI);
         console.log('✅ MongoDB bağlantısı başarılı (valerifal)');
 
+        // Danışman kadrosunu koda sabitlenen listeyle senkronla: listedekiler
+        // güncellenir, listede OLMAYAN eski danışmanlar kaldırılır. Böylece
+        // deploy tek başına kadroyu düzeltir (manuel seed gerekmez).
+        try {
+            const { Advisor } = await import('./models/Advisor');
+            const { DEMO_ADVISORS } = await import('./data/seedData');
+            for (const adv of DEMO_ADVISORS) {
+                await Advisor.findOneAndUpdate({ advisorId: adv.advisorId }, adv, { upsert: true });
+            }
+            const validIds = DEMO_ADVISORS.map((a) => a.advisorId);
+            const removed = await Advisor.deleteMany({ advisorId: { $nin: validIds } });
+            console.log(`👤 Danışmanlar senkronlandı: ${DEMO_ADVISORS.length} aktif${removed.deletedCount ? `, ${removed.deletedCount} kaldırıldı` : ''}`);
+        } catch (syncErr) {
+            console.error('Danışman senkron hatası (kritik değil):', syncErr);
+        }
+
         app.listen(Number(PORT), '0.0.0.0', () => {
             console.log(`🚀 Valeria API v2.0 çalışıyor: http://0.0.0.0:${PORT}`);
             console.log(`📋 API Dökümantasyon: http://localhost:${PORT}`);

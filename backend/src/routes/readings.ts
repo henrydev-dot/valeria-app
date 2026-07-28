@@ -23,12 +23,12 @@ router.post('/tarot', authMiddleware, async (req: AuthRequest, res: Response) =>
         const user = await User.findById(req.user!._id);
         if (!user) return res.status(404).json({ error: 'Kullanıcı bulunamadı', code: 'NOT_FOUND' });
 
-        // Kredi kontrolü (30 kredi)
-        if (user.credits < 30) {
+        // Kredi kontrolü (25 kredi)
+        if (user.credits < 25) {
             return res.status(400).json({
                 error: 'Yetersiz kredi',
                 code: 'INSUFFICIENT_CREDITS',
-                details: { required: 30, available: user.credits }
+                details: { required: 25, available: user.credits }
             });
         }
 
@@ -66,7 +66,7 @@ router.post('/tarot', authMiddleware, async (req: AuthRequest, res: Response) =>
         }));
 
         // Kredi düş
-        user.credits -= 30;
+        user.credits -= 25;
         await user.save();
 
         // Sorunun cevabı falın kendi akışında verilir: cevap + sentez tek metin
@@ -129,12 +129,12 @@ router.post('/coffee', authMiddleware, async (req: AuthRequest, res: Response) =
         const user = await User.findById(req.user!._id);
         if (!user) return res.status(404).json({ error: 'Kullanıcı bulunamadı', code: 'NOT_FOUND' });
 
-        // Kredi kontrolü (20 kredi)
-        if (user.credits < 20) {
+        // Kredi kontrolü (25 kredi)
+        if (user.credits < 25) {
             return res.status(400).json({
                 error: 'Yetersiz kredi',
                 code: 'INSUFFICIENT_CREDITS',
-                details: { required: 20, available: user.credits }
+                details: { required: 25, available: user.credits }
             });
         }
 
@@ -154,7 +154,7 @@ router.post('/coffee', authMiddleware, async (req: AuthRequest, res: Response) =
             });
         }
 
-        user.credits -= 20;
+        user.credits -= 25;
         await user.save();
 
         const reading = new Reading({
@@ -391,8 +391,9 @@ router.post('/numerology-ai', authMiddleware, async (req: AuthRequest, res: Resp
 // zeka yorumlar (istek ANINDA döner, cevap 10-15 sn içinde isteğe yazılır ve
 // push bildirimi gider); insan danışmansa panelden cevaplanana dek bekler.
 const VALERIA_ADVISOR_ID = 'valeria';
-const VALERIA_COSTS: Record<string, number> = { tarot: 30, kahve: 20 };
-const HUMAN_REQUEST_COST = 10;
+// Fiyatlar: Valeria (AI) tarot ve kahve 25'er kredi; gerçek falcıya fal 100 kredi.
+const VALERIA_COSTS: Record<string, number> = { tarot: 25, kahve: 25 };
+const HUMAN_REQUEST_COST = 100;
 const SPREAD_POSITIONS = ['Geçmiş', 'Şimdi', 'Gelecek'];
 
 function drawSpreadCards() {
@@ -584,7 +585,7 @@ router.post('/advisor-request', authMiddleware, async (req: AuthRequest, res: Re
         // Tarot isteklerinde kartlar sunucuda çekilir: hem panel hem uygulama
         // hangi kartların açıldığını görür; Valeria da aynı kartları yorumlar.
         const cards = type === 'tarot'
-            ? drawSpreadCards().map((p) => ({ name: p.name, isReversed: p.isReversed, position: p.position }))
+            ? drawSpreadCards().map((p) => ({ name: p.name, cardId: p.card.id, isReversed: p.isReversed, position: p.position }))
             : [];
 
         const request = new ReadingRequest({

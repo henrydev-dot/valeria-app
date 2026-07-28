@@ -24,7 +24,8 @@ import { Spacing, BorderRadius } from '../src/theme/spacing';
 import * as api from '../src/api';
 import { Features } from '../src/config';
 
-const COFFEE_COST = 20;
+const COFFEE_COST = 25;
+const ADVISOR_COFFEE_COST = 100; // insan falcıya kahve falı
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024; // ~6MB guard
 const IMAGE_LABELS = ['Fincan İçi (Üst)', 'Fincan İçi (Yan)', 'Tabak', 'Fincan Dibi'];
 
@@ -95,6 +96,13 @@ export default function CoffeeReadingScreen() {
             Alert.alert('Soru Gerekli', 'Lütfen merak ettiğiniz bir soru yazın.');
             return;
         }
+        if (isAdvisor && credits < ADVISOR_COFFEE_COST) {
+            Alert.alert(
+                'Yetersiz Kredi',
+                `Gerçek falcıya fal göndermek ${ADVISOR_COFFEE_COST} kredi (mevcut: ${credits}). Dilersen Valeria'ya ${COFFEE_COST} krediye baktırabilirsin.`
+            );
+            return;
+        }
         if (!isAdvisor && credits < COFFEE_COST) {
             if (Features.purchasesEnabled) {
                 Alert.alert(
@@ -153,14 +161,12 @@ export default function CoffeeReadingScreen() {
                                 ? ' Falınız gerçek bir yorumcuya iletilecek.'
                                 : ' Yapay zeka fincanınızı yorumlayacak.'}
                         </AppText>
-                        {!isAdvisor ? (
-                            <View style={styles.costPill}>
-                                <Ionicons name="diamond" size={14} color={Colors.accentYellow} />
-                                <AppText variant="bodyStrong" color={Colors.accentYellow}>
-                                    {COFFEE_COST} kredi
-                                </AppText>
-                            </View>
-                        ) : null}
+                        <View style={styles.costPill}>
+                            <Ionicons name="diamond" size={14} color={Colors.accentYellow} />
+                            <AppText variant="bodyStrong" color={Colors.accentYellow}>
+                                {isAdvisor ? ADVISOR_COFFEE_COST : COFFEE_COST} kredi
+                            </AppText>
+                        </View>
                     </Card>
 
                     <AppText variant="label" style={styles.label}>

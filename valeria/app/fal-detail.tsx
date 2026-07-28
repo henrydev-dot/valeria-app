@@ -20,15 +20,12 @@ import * as api from '../src/api';
 import { API_HOST } from '../src/api';
 import { Colors } from '../src/theme/colors';
 import { Spacing, BorderRadius } from '../src/theme/spacing';
-import TAROT_DATA from '../content/tarot_major_arcana_tr.json';
+import { resolveTarotCardId } from '../src/utils/tarotCards';
 
 const FOLLOW_UP_COST = 10;
 // Kart görselleri 1:1.777 oranında
 const CHAT_CARD_W = 88;
 const CHAT_CARD_H = Math.round(CHAT_CARD_W * 1.777);
-
-const tarotIdByName = (name: string): number | null =>
-    (TAROT_DATA as any[]).find((t) => t.nameTR === name)?.id ?? null;
 
 interface ThreadMsg {
     role: 'user' | 'advisor';
@@ -213,7 +210,7 @@ export default function FalDetailScreen() {
                             {request.type === 'tarot' && request.cards?.length > 0 && (
                                 <View style={styles.mediaRow}>
                                     {request.cards.map((c: any, i: number) => {
-                                        const cardId = tarotIdByName(c.name);
+                                        const cardId = resolveTarotCardId(c);
                                         return (
                                             <View key={i} style={styles.mediaCardCol}>
                                                 <AppText variant="label" color={Colors.textMuted}>{c.position}</AppText>

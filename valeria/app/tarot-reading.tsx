@@ -24,7 +24,7 @@ import { Spacing, BorderRadius, Shadows } from '../src/theme/spacing';
 import * as api from '../src/api';
 import { API_HOST } from '../src/api';
 import { Features } from '../src/config';
-import TAROT_DATA from '../content/tarot_major_arcana_tr.json';
+import { resolveTarotCardId, tarotNameEN } from '../src/utils/tarotCards';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_GAP = Spacing.sm;
@@ -33,7 +33,7 @@ const CARD_W = Math.floor((SCREEN_W - H_PADDING - CARD_GAP * 2) / 3);
 // Kart görselleri 600×1066 (1:1.777) — aynı oran, kırpılma yok.
 const CARD_H = Math.round(CARD_W * 1.777);
 
-const TAROT_COST = 30;
+const TAROT_COST = 25;
 const POSITIONS = ['Geçmiş', 'Şimdi', 'Gelecek'];
 const BACK_IMAGE = { uri: `${API_HOST}/images/cards/back.jpeg` };
 
@@ -109,12 +109,10 @@ export default function TarotReadingScreen() {
                 question.trim()
             );
             const rawCards: any[] = result.cards || [];
-            const localByName = (name: string) =>
-                (TAROT_DATA as any[]).find((t) => t.nameTR === name);
             const mapped: DrawnCard[] = rawCards.map((c: any, idx: number) => ({
                 nameTR: c.name || `Kart ${idx + 1}`,
-                nameEN: localByName(c.name)?.nameEN || '',
-                id: localByName(c.name)?.id ?? null,
+                nameEN: tarotNameEN(c.name || ''),
+                id: resolveTarotCardId(c),
                 isReversed: c.isReversed || false,
                 position: c.position || POSITIONS[idx] || `Kart ${idx + 1}`,
                 interpretation: '',
