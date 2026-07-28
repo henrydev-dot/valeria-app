@@ -178,6 +178,20 @@ export default function AstrologyScreen() {
 
     const [chartData, setChartData] = useState<any>(null);
     const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+    // Yüklenirken dönen bilgilendirici mesajlar — sayfa "takılı" hissettirmesin
+    const LOADING_MSGS = [
+        'Yıldızlar hizalanıyor...',
+        'Gezegen konumların hesaplanıyor...',
+        'Geçişler (transitler) okunuyor...',
+        'Evlerin çiziliyor...',
+    ];
+    const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
+    const loadingMsg = LOADING_MSGS[loadingMsgIdx % LOADING_MSGS.length];
+    useEffect(() => {
+        if (status !== 'loading') return;
+        const iv = setInterval(() => setLoadingMsgIdx((i) => i + 1), 2500);
+        return () => clearInterval(iv);
+    }, [status]);
     const [refreshing, setRefreshing] = useState(false);
     const [analysis, setAnalysis] = useState<any>(null);
     const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -335,10 +349,10 @@ export default function AstrologyScreen() {
                 <View style={styles.chartSkeleton}>
                     <Skeleton width={CHART_SIZE} height={CHART_SIZE} radius={CHART_SIZE / 2} />
                 </View>
+                <LoadingView text={loadingMsg} />
                 <Skeleton height={64} radius={BorderRadius.lg} style={styles.blockGap} />
                 <Skeleton height={120} radius={BorderRadius.xl} style={styles.blockGap} />
                 <Skeleton height={120} radius={BorderRadius.xl} style={styles.blockGap} />
-                <LoadingView text="Yıldızlar hizalanıyor..." />
             </Screen>
         );
     }

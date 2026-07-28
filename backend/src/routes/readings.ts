@@ -658,6 +658,22 @@ router.get('/advisor-requests/:id', authMiddleware, async (req: AuthRequest, res
     }
 });
 
+// GET /readings/advisor-requests/:id/images 🔐 — kahve fincanı fotoğrafları.
+// Sohbet metni anında yüklensin diye ayrı tutulur; ekran fotoğrafları
+// arkadan tembel yükler.
+router.get('/advisor-requests/:id/images', authMiddleware, async (req: AuthRequest, res: Response) => {
+    try {
+        const request = await ReadingRequest.findOne({
+            _id: req.params.id,
+            userId: req.user!._id.toString(),
+        }).select('images').lean();
+        if (!request) return res.status(404).json({ error: 'Fal isteği bulunamadı', code: 'NOT_FOUND' });
+        return res.json({ images: request.images || [] });
+    } catch (error: any) {
+        return res.status(500).json({ error: 'Fotoğraflar yüklenemedi', code: 'SERVER_ERROR' });
+    }
+});
+
 // POST /readings/advisor-requests/:id/follow-up 🔐 — fala özel ek soru (10 kredi)
 // Valeria: yanıt arka planda üretilip sohbete eklenir + bildirim gider.
 // İnsan danışman: istek yeniden 'pending' olur, panelde görünür, panelden

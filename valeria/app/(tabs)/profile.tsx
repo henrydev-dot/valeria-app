@@ -68,8 +68,28 @@ export default function ProfileScreen() {
     const level = useEntitlementsStore((s) => s.level);
     const streakDays = useEntitlementsStore((s) => s.streakDays);
     const dailyQuestionsRemaining = useEntitlementsStore((s) => s.dailyQuestionsRemaining);
+    const dailyRewardAvailableAt = useEntitlementsStore((s) => s.dailyRewardAvailableAt);
     const refreshEnt = useEntitlementsStore((s) => s.refresh);
     const xpInLevel = xp % 100;
+
+    // Günlük ödül durumu: alınmışsa kart pasifleşir ve kalan süre görünür.
+    // Dakikada bir tazele ki geri sayım aksın ve süre dolunca kart aktifleşsin.
+    const [rewardTick, setRewardTick] = useState(0);
+    useEffect(() => {
+        const iv = setInterval(() => setRewardTick((t) => t + 1), 60000);
+        return () => clearInterval(iv);
+    }, []);
+    const rewardRemainingMs = dailyRewardAvailableAt
+        ? new Date(dailyRewardAvailableAt).getTime() - Date.now()
+        : 0;
+    const rewardClaimed = rewardRemainingMs > 0;
+    const rewardCountdown = (() => {
+        const h = Math.floor(rewardRemainingMs / 3600000);
+        const m = Math.max(1, Math.ceil((rewardRemainingMs % 3600000) / 60000));
+        return h > 0 ? `${h} sa ${m} dk` : `${m} dk`;
+    })();
+    // rewardTick sadece yeniden render tetikler
+    void rewardTick;
     const [avatarUri, setAvatarUri] = useState<string | null>(null);
 
     // Sunucuda kayıtlı avatarı yükle (uygulama yeniden açılınca da görünsün).
@@ -295,32 +315,47 @@ export default function ProfileScreen() {
                 <ProgressBar progress={xpInLevel / 100} />
             </Card>
 
-            {/* Günlük Ücretsiz Kredi (ads disabled → honest free daily reward; no ad plays) */}
-            <Card
-                onPress={async () => {
-                    const watchAd = useEntitlementsStore.getState().watchAd;
-                    const result = await watchAd();
-                    Alert.alert(
-                        result.ok ? 'Tebrikler!' : 'Günlük Ödül',
-                        result.ok
-                            ? `${result.rewarded ?? 25} kredi kazandınız! Yarın tekrar gel.`
-                            : result.message || 'Günlük ödül alınamadı, tekrar deneyin.'
-                    );
-                }}
-                accessibilityLabel="Günlük ücretsiz kredini al, 25 kredi kazan"
-                style={styles.adWatchCard}
-            >
-                <View style={styles.adWatchLeft}>
-                    <Ionicons name="gift-outline" size={28} color={Colors.accentYellow} />
-                    <View style={styles.adWatchTexts}>
-                        <AppText variant="bodyStrong">Günlük Ücretsiz Kredi</AppText>
-                        <AppText variant="caption">24 saatte bir 25 kredi kazan</AppText>
+            {/* Günlük Ücretsiz Kredi — alındıysa pasifleşir ve geri sayım gösterir */}
+            {rewardClaimed ? (
+                <Card style={[styles.adWatchCard, styles.adWatchClaimed]} accessibilityLabel="Günlük ödül alındı">
+                    <View style={styles.adWatchLeft}>
+                        <Ionicons name="checkmark-circle" size={28} color={Colors.success} />
+                        <View style={styles.adWatchTexts}>
+                            <AppText variant="bodyStrong" color={Colors.textSecondary}>Günlük Ödülünü Aldın</AppText>
+                            <AppText variant="caption">Yeni ödül: {rewardCountdown} sonra</AppText>
+                        </View>
                     </View>
-                </View>
-                <View style={styles.adWatchBadge}>
-                    <AppText variant="bodyStrong" color={Colors.textOnAccent}>+25</AppText>
-                </View>
-            </Card>
+                    <View style={[styles.adWatchBadge, styles.adWatchBadgeClaimed]}>
+                        <Ionicons name="time-outline" size={16} color={Colors.textMuted} />
+                    </View>
+                </Card>
+            ) : (
+                <Card
+                    onPress={async () => {
+                        const watchAd = useEntitlementsStore.getState().watchAd;
+                        const result = await watchAd();
+                        Alert.alert(
+                            result.ok ? 'Tebrikler!' : 'Günlük Ödül',
+                            result.ok
+                                ? `${result.rewarded ?? 25} kredi kazandınız! Yarın tekrar gel.`
+                                : result.message || 'Günlük ödül alınamadı, tekrar deneyin.'
+                        );
+                    }}
+                    accessibilityLabel="Günlük ücretsiz kredini al, 25 kredi kazan"
+                    style={styles.adWatchCard}
+                >
+                    <View style={styles.adWatchLeft}>
+                        <Ionicons name="gift-outline" size={28} color={Colors.accentYellow} />
+                        <View style={styles.adWatchTexts}>
+                            <AppText variant="bodyStrong">Günlük Ücretsiz Kredi</AppText>
+                            <AppText variant="caption">24 saatte bir 25 kredi kazan</AppText>
+                        </View>
+                    </View>
+                    <View style={styles.adWatchBadge}>
+                        <AppText variant="bodyStrong" color={Colors.textOnAccent}>+25</AppText>
+                    </View>
+                </Card>
+            )}
 
             {/* Bilgilerimi Düzenle — ilişki & iş durumu */}
             <Card style={styles.section} padded={false}>
@@ -670,6 +705,8 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.accentYellow, borderRadius: BorderRadius.full,
         paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs,
     },
+    adWatchClaimed: { borderColor: Colors.border, opacity: 0.75 },
+    adWatchBadgeClaimed: { backgroundColor: Colors.surface2 },
 
     // Upgrade Card
     upgradeCard: {

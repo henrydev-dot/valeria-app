@@ -21,6 +21,12 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
             await user.save();
         }
 
+        // Günlük ödül durumu: alınmışsa bir sonraki hak zamanı (istemci geri
+        // sayım gösterir), alınabilir durumdaysa null.
+        const rewardLast = user.lastDailyRewardAt ? new Date(user.lastDailyRewardAt).getTime() : 0;
+        const rewardNext = rewardLast + 24 * 60 * 60 * 1000;
+        const dailyRewardAvailableAt = rewardLast && rewardNext > Date.now() ? new Date(rewardNext) : null;
+
         return res.json({
             credits: user.credits,
             xp: user.xp,
@@ -29,7 +35,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
             dailyQuestionsRemaining: user.dailyQuestionsRemaining,
             unlockedContentIds: user.unlockedContentIds,
             lastResetDate: user.lastResetDate,
-            lastLoginDate: user.lastLoginDate
+            lastLoginDate: user.lastLoginDate,
+            dailyRewardAvailableAt
         });
     } catch (error: any) {
         return res.status(500).json({ error: 'Sunucu hatası', code: 'SERVER_ERROR' });

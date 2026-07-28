@@ -8,6 +8,8 @@ interface EntitlementsState {
     streakDays: number;
     dailyQuestionsRemaining: number;
     unlockedContentIds: string[];
+    /** Günlük ödül alınmışsa bir sonraki hak zamanı (ISO); alınabilirse null. */
+    dailyRewardAvailableAt: string | null;
     isLoading: boolean;
     load: () => Promise<void>;
     spendCredits: (amount: number, reason?: string, contentId?: string) => Promise<boolean>;
@@ -24,6 +26,7 @@ export const useEntitlementsStore = create<EntitlementsState>((set, get) => ({
     streakDays: 0,
     dailyQuestionsRemaining: 3,
     unlockedContentIds: [],
+    dailyRewardAvailableAt: null,
     isLoading: true,
 
     load: async () => {
@@ -39,6 +42,7 @@ export const useEntitlementsStore = create<EntitlementsState>((set, get) => ({
                 streakDays: ent.streakDays || 0,
                 dailyQuestionsRemaining: ent.dailyQuestionsRemaining ?? 3,
                 unlockedContentIds: ent.unlockedContentIds || [],
+                dailyRewardAvailableAt: ent.dailyRewardAvailableAt || null,
                 isLoading: false,
             });
         } catch (e) {
@@ -81,10 +85,16 @@ export const useEntitlementsStore = create<EntitlementsState>((set, get) => ({
     watchAd: async () => {
         try {
             const res = await api.entitlements.adWatch();
-            set({ credits: res.credits });
+            set({
+                credits: res.credits,
+                // Kart hemen "alındı" durumuna geçsin — tekrar tıklanabilir kalmasın
+                dailyRewardAvailableAt: res.nextAvailableAt || null,
+            });
             return { ok: true as const, rewarded: res.rewarded ?? 25 };
         } catch (e: any) {
-            // 429 REWARD_COOLDOWN: sunucu kalan süreyi insan diliyle söylüyor
+            // 429 REWARD_COOLDOWN: sunucu kalan süreyi insan diliyle söylüyor;
+            // durumu da tazele ki kart doğru görünsün.
+            get().load().catch(() => { });
             return { ok: false as const, message: e?.message || 'Günlük ödül alınamadı' };
         }
     },

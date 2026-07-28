@@ -26,8 +26,17 @@ const isRetroNow = (body: string): boolean => {
 };
 
 // GET /astrology/retro-calendar 🔐 — 2026 retro takvimi + şu an retro olanlar
+// "Şu an retroda" hesabı 8 gezegen için efemeris taraması gerektiriyor ve her
+// istekte yeniden yapılıyordu — sayfanın geç gelmesinin ana sebebi. Retro durumu
+// saatler mertebesinde değiştiği için sonuç 6 saat bellekte tutulur.
+let retroCache: { data: any; at: number } | null = null;
+const RETRO_CACHE_MS = 6 * 60 * 60 * 1000;
+
 router.get('/retro-calendar', authMiddleware, async (_req: AuthRequest, res: Response) => {
     try {
+        if (retroCache && Date.now() - retroCache.at < RETRO_CACHE_MS) {
+            return res.json(retroCache.data);
+        }
         const bodies: Array<{ body: string; name: string }> = [
             { body: 'Mercury', name: 'Merkür' }, { body: 'Venus', name: 'Venüs' },
             { body: 'Mars', name: 'Mars' }, { body: 'Jupiter', name: 'Jüpiter' },
@@ -35,11 +44,13 @@ router.get('/retro-calendar', authMiddleware, async (_req: AuthRequest, res: Res
             { body: 'Neptune', name: 'Neptün' }, { body: 'Pluto', name: 'Plüton' },
         ];
         const currentlyRetro = bodies.filter(b => isRetroNow(b.body)).map(b => b.name);
-        return res.json({
+        const data = {
             currentlyRetro,
             calendar: RETROGRADE_CALENDAR_2026,
             natalRetroMeanings: NATAL_RETROGRADE_MEANINGS,
-        });
+        };
+        retroCache = { data, at: Date.now() };
+        return res.json(data);
     } catch (error: any) {
         return res.status(500).json({ error: 'Retro takvimi hatası', code: 'SERVER_ERROR' });
     }

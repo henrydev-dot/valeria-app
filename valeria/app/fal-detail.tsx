@@ -9,6 +9,7 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Alert,
+    Image,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,10 +17,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppText, LoadingView, EmptyState } from '../src/components';
 import { useEntitlementsStore } from '../src/stores/useEntitlementsStore';
 import * as api from '../src/api';
+import { API_HOST } from '../src/api';
 import { Colors } from '../src/theme/colors';
 import { Spacing, BorderRadius } from '../src/theme/spacing';
+import TAROT_DATA from '../content/tarot_major_arcana_tr.json';
 
 const FOLLOW_UP_COST = 10;
+// Kart görselleri 1:1.777 oranında
+const CHAT_CARD_W = 88;
+const CHAT_CARD_H = Math.round(CHAT_CARD_W * 1.777);
+
+const tarotIdByName = (name: string): number | null =>
+    (TAROT_DATA as any[]).find((t) => t.nameTR === name)?.id ?? null;
 
 interface ThreadMsg {
     role: 'user' | 'advisor';
@@ -41,6 +50,8 @@ export default function FalDetailScreen() {
     const [error, setError] = useState(false);
     const [question, setQuestion] = useState('');
     const [sending, setSending] = useState(false);
+    // Kahve fincanı fotoğrafları — sohbet metni beklemesin diye ayrı yüklenir
+    const [cupImages, setCupImages] = useState<string[] | null>(null);
 
     const scrollRef = useRef<ScrollView>(null);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -61,6 +72,15 @@ export default function FalDetailScreen() {
     useEffect(() => {
         load();
     }, [load]);
+
+    // Kahve falıysa fincan fotoğraflarını arkadan getir (büyük base64 veriler)
+    useEffect(() => {
+        if (request?.type === 'kahve' && cupImages === null) {
+            api.readings.advisorRequestImages(String(request._id))
+                .then((res) => setCupImages(res.images || []))
+                .catch(() => setCupImages([]));
+        }
+    }, [request?.type, request?._id, cupImages]);
 
     // Yanıt beklenirken 5 sn'de bir tazele (Valeria 10-20 sn içinde yanıtlar).
     useEffect(() => {
@@ -189,16 +209,57 @@ export default function FalDetailScreen() {
                                     {new Date(request.createdAt).toLocaleDateString('tr-TR')}
                                 </AppText>
                             </View>
-                            {request.cards?.length > 0 && (
-                                <View style={styles.cardChips}>
-                                    {request.cards.map((c: any, i: number) => (
-                                        <View key={i} style={styles.cardChip}>
-                                            <AppText variant="caption" color={Colors.accentYellow}>
-                                                {c.position}: {c.name}{c.isReversed ? ' (Ters)' : ''}
-                                            </AppText>
-                                        </View>
-                                    ))}
+                            {/* Tarot: açılan kartların görselleri */}
+                            {request.type === 'tarot' && request.cards?.length > 0 && (
+                                <View style={styles.mediaRow}>
+                                    {request.cards.map((c: any, i: number) => {
+                                        const cardId = tarotIdByName(c.name);
+                                        return (
+                                            <View key={i} style={styles.mediaCardCol}>
+                                                <AppText variant="label" color={Colors.textMuted}>{c.position}</AppText>
+                                                {cardId != null ? (
+                                                    <Image
+                                                        source={{ uri: `${API_HOST}/images/cards/${cardId}.jpeg` }}
+                                                        style={[styles.mediaCard, c.isReversed && styles.mediaCardReversed]}
+                                                        resizeMode="cover"
+                                                    />
+                                                ) : (
+                                                    <View style={[styles.mediaCard, styles.mediaCardEmpty]}>
+                                                        <Ionicons name="albums" size={20} color={Colors.textMuted} />
+                                                    </View>
+                                                )}
+                                                <AppText variant="caption" center numberOfLines={2} style={styles.mediaCardName}>
+                                                    {c.name}{c.isReversed ? '\n(Ters)' : ''}
+                                                </AppText>
+                                            </View>
+                                        );
+                                    })}
                                 </View>
+                            )}
+
+                            {/* Kahve: fincan fotoğrafları */}
+                            {request.type === 'kahve' && (
+                                cupImages === null ? (
+                                    <View style={styles.cupLoadingRow}>
+                                        <ActivityIndicator size="small" color={Colors.accentYellow} />
+                                        <AppText variant="caption" color={Colors.textMuted}>
+                                            Fincan fotoğrafların yükleniyor...
+                                        </AppText>
+                                    </View>
+                                ) : cupImages.length > 0 ? (
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                        <View style={styles.cupRow}>
+                                            {cupImages.map((img, i) => (
+                                                <Image
+                                                    key={i}
+                                                    source={{ uri: img }}
+                                                    style={styles.cupImage}
+                                                    resizeMode="cover"
+                                                />
+                                            ))}
+                                        </View>
+                                    </ScrollView>
+                                ) : null
                             )}
                         </View>
 
@@ -295,6 +356,30 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.goldA12, borderRadius: BorderRadius.full,
         paddingHorizontal: Spacing.sm, paddingVertical: 3,
         borderWidth: 1, borderColor: Colors.borderAccent,
+    },
+    // Sohbet üstü medya: tarot kartları / fincan fotoğrafları
+    mediaRow: {
+        flexDirection: 'row', justifyContent: 'center',
+        gap: Spacing.md, marginTop: Spacing.xs,
+    },
+    mediaCardCol: { alignItems: 'center', gap: Spacing.xs, width: CHAT_CARD_W + 8 },
+    mediaCard: {
+        width: CHAT_CARD_W, height: CHAT_CARD_H,
+        borderRadius: BorderRadius.md,
+        borderWidth: 1, borderColor: Colors.borderAccent,
+        backgroundColor: Colors.surface2,
+    },
+    mediaCardReversed: { transform: [{ rotate: '180deg' }] },
+    mediaCardEmpty: { alignItems: 'center', justifyContent: 'center' },
+    mediaCardName: { minHeight: 28 },
+    cupLoadingRow: {
+        flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+        paddingVertical: Spacing.sm,
+    },
+    cupRow: { flexDirection: 'row', gap: Spacing.sm, paddingVertical: Spacing.xs },
+    cupImage: {
+        width: 76, height: 76, borderRadius: BorderRadius.md,
+        borderWidth: 1, borderColor: Colors.border,
     },
     bubble: {
         maxWidth: '88%', borderRadius: BorderRadius.xl,

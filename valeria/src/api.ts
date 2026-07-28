@@ -203,6 +203,10 @@ export const readings = {
     advisorRequestDetail: (id: string) =>
         apiFetch<any>(`/readings/advisor-requests/${id}`),
 
+    // Kahve fincanı fotoğrafları (büyük base64 — sohbet açıldıktan sonra tembel yüklenir)
+    advisorRequestImages: (id: string) =>
+        apiFetch<{ images: string[] }>(`/readings/advisor-requests/${id}/images`),
+
     // Fala özel ek soru (10 kredi) — cevap sohbete düşer
     advisorFollowUp: (id: string, question: string) =>
         apiFetch<any>(`/readings/advisor-requests/${id}/follow-up`, {
