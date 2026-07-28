@@ -29,6 +29,11 @@ export interface IUser extends Document {
     element: string;
     energyScore: number;
     numerologyAI?: any; // To store purchased AI numerology
+    // Haftalık astroloji yorumu (kozmik özet + ilişki analizi + kehanet):
+    // haftada BİR kez üretilir ve saklanır; kullanıcı kredi ile yeniletebilir.
+    weeklyAnalysis?: { data: any; weekKey: string; computedAt: Date } | null;
+    // Ev yorumları: { "1": { insight, question, at } } — kullanıcıya kayıtlı kalır.
+    houseInsights?: Record<string, { insight: string; question?: string; at: Date }>;
 
     // Status
     onboardingComplete: boolean;
@@ -84,6 +89,8 @@ const UserSchema = new Schema<IUser>({
     element: { type: String, default: 'Ateş' },
     energyScore: { type: Number, default: 85 },
     numerologyAI: { type: Schema.Types.Mixed },
+    weeklyAnalysis: { type: Schema.Types.Mixed, default: null },
+    houseInsights: { type: Schema.Types.Mixed, default: {} },
 
     // Status
     onboardingComplete: { type: Boolean, default: false },

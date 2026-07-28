@@ -63,10 +63,16 @@ export function AstroDeepDive({ analysis }: { analysis: any }) {
     const houses: HouseRow[] = Array.isArray(analysis?.houses) ? analysis.houses : [];
     const natalRetros: any[] = Array.isArray(analysis?.retrogradePlanets) ? analysis.retrogradePlanets : [];
 
+    const [insightSavedAt, setInsightSavedAt] = useState<string | null>(null);
+
     const openHouse = (h: HouseRow) => {
         setSelected(h);
         setQuestion('');
-        setInsight('');
+        // Bu ev için KAYITLI yorum varsa kredi harcamadan direkt göster;
+        // kullanıcı isterse "Yeniden Yorumlat" ile krediyle günceller.
+        const saved = analysis?.houseInsights?.[String(h.house)];
+        setInsight(saved?.insight || '');
+        setInsightSavedAt(saved?.at || null);
     };
 
     const askInsight = async () => {
@@ -79,6 +85,15 @@ export function AstroDeepDive({ analysis }: { analysis: any }) {
         try {
             const res = await api.astrology.houseInsight(selected.house, question.trim() || undefined);
             setInsight(res.insight || '');
+            setInsightSavedAt(res.savedAt || new Date().toISOString());
+            // Yerel analiz nesnesini de güncelle ki modal kapatılıp açılınca
+            // yeni kayıt görünsün (sayfa yeniden yüklenmeden).
+            if (analysis) {
+                analysis.houseInsights = {
+                    ...(analysis.houseInsights || {}),
+                    [String(selected.house)]: { insight: res.insight, question: question.trim() || undefined, at: res.savedAt },
+                };
+            }
             await refreshEnt();
         } catch (e: any) {
             Alert.alert('Hata', e?.message || 'Yorum alınamadı');
@@ -278,13 +293,28 @@ export function AstroDeepDive({ analysis }: { analysis: any }) {
                             <AppText variant="body" style={styles.sheetMeaning}>{selected?.meaning}</AppText>
 
                             {insight ? (
-                                <Card glow style={styles.insightCard}>
-                                    <View style={styles.insightHeader}>
-                                        <Ionicons name="sparkles" size={15} color={Colors.accentYellow} />
-                                        <AppText variant="label" color={Colors.accentYellow}>Valeria'nın Yorumu</AppText>
-                                    </View>
-                                    <AppText variant="body" style={styles.insightText}>{insight}</AppText>
-                                </Card>
+                                <>
+                                    <Card glow style={styles.insightCard}>
+                                        <View style={styles.insightHeader}>
+                                            <Ionicons name="sparkles" size={15} color={Colors.accentYellow} />
+                                            <AppText variant="label" color={Colors.accentYellow}>Valeria'nın Yorumu</AppText>
+                                            {insightSavedAt ? (
+                                                <AppText variant="caption" color={Colors.textMuted} style={styles.insightDate}>
+                                                    {new Date(insightSavedAt).toLocaleDateString('tr-TR')}
+                                                </AppText>
+                                            ) : null}
+                                        </View>
+                                        <AppText variant="body" style={styles.insightText}>{insight}</AppText>
+                                    </Card>
+                                    {/* Kayıtlı yorum ücretsiz görünür; yenilemek kredi ister */}
+                                    <Button
+                                        title={`Yeniden Yorumlat (${INSIGHT_COST} Kredi)`}
+                                        variant="secondary"
+                                        size="md"
+                                        onPress={() => { setInsight(''); setQuestion(''); }}
+                                        icon={<Ionicons name="refresh" size={14} color={Colors.textPrimary} />}
+                                    />
+                                </>
                             ) : insightLoading ? (
                                 <Card style={styles.insightCard}>
                                     <Skeleton height={13} />
@@ -379,6 +409,7 @@ const styles = StyleSheet.create({
     sheetMeaning: { lineHeight: 22, marginBottom: Spacing.lg },
     insightCard: { marginBottom: Spacing.md },
     insightHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.sm },
+    insightDate: { marginLeft: 'auto' },
     insightText: { lineHeight: 22 },
     skelGap: { marginTop: Spacing.sm },
     qLabel: { marginBottom: Spacing.sm },

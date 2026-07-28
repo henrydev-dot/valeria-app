@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View, Image, Dimensions, Modal, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Image, Dimensions, Modal, TouchableOpacity, Alert } from 'react-native';
 import Svg, { Circle, Line, Text as SvgText, G, Image as SvgImage } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -7,6 +7,7 @@ import {
 } from '../../src/components';
 import { useUserStore } from '../../src/stores/useUserStore';
 import { useContentStore } from '../../src/stores/useContentStore';
+import { useEntitlementsStore } from '../../src/stores/useEntitlementsStore';
 import { Colors } from '../../src/theme/colors';
 import { Spacing, BorderRadius, FontWeight } from '../../src/theme/spacing';
 import { fillTemplate, pickRandom } from '../../src/utils/templateEngine';
@@ -194,8 +195,41 @@ export default function AstrologyScreen() {
     }, [status]);
     const [refreshing, setRefreshing] = useState(false);
     const [analysis, setAnalysis] = useState<any>(null);
-    const [analysisLoading, setAnalysisLoading] = useState(false);
+    const [analysisLoading, setAnalysisLoading] = useState(true);
+    const [refreshingAnalysis, setRefreshingAnalysis] = useState(false);
     const [selected, setSelected] = useState<SelectedPlacement | null>(null);
+
+    // Haftalık yorumun hesaplanma tarihi (kart altındaki etiket için)
+    const analysisDateLabel = analysis?.computedAt
+        ? `${new Date(analysis.computedAt).toLocaleDateString('tr-TR')} tarihinde hazırlandı`
+        : 'bu haftaya özel';
+
+    const confirmRefreshAnalysis = () => {
+        const cost = analysis?.refreshCost ?? 25;
+        Alert.alert(
+            'Yorumları Yenile',
+            `Kozmik özet, ilişki analizi ve haftalık kehanet yeniden yorumlanacak. Bu işlem ${cost} kredi harcayacak. Devam edilsin mi?`,
+            [
+                { text: 'Vazgeç', style: 'cancel' },
+                {
+                    text: `${cost} Kredi ile Yenile`,
+                    onPress: async () => {
+                        setRefreshingAnalysis(true);
+                        try {
+                            const data = await api.astrology.refreshAnalysis();
+                            setAnalysis(data);
+                            useEntitlementsStore.getState().refresh().catch(() => { });
+                            Alert.alert('Hazır', 'Yorumların yenilendi ve kaydedildi.');
+                        } catch (e: any) {
+                            Alert.alert('Yenilenemedi', e?.message || 'Lütfen birazdan tekrar dene. Kredin alınmadı.');
+                        } finally {
+                            setRefreshingAnalysis(false);
+                        }
+                    },
+                },
+            ]
+        );
+    };
 
     const loadChart = useCallback(async (isRefresh = false) => {
         if (!isRefresh) setStatus('loading');
@@ -590,41 +624,70 @@ export default function AstrologyScreen() {
                     onPress={() => openLuminary('Yükselen', profile.risingSign, 'Yükselen')} />
             </View>
 
-            {/* Text sections */}
-            {sections.map((section) => {
-                const text = section.ai || section.fallback;
-                return (
-                    <View key={section.key} style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <Ionicons name={section.icon} size={18} color={section.iconColor} />
-                            <AppText variant="h2" style={styles.sectionTitle}>{section.title}</AppText>
-                        </View>
-                        <Card glow={section.glow}>
-                            {analysisLoading && !text ? (
-                                <>
-                                    <Skeleton height={14} style={styles.line} />
-                                    <Skeleton height={14} width="90%" style={styles.line} />
-                                    <Skeleton height={14} width="75%" />
-                                </>
-                            ) : text ? (
-                                <>
-                                    <AppText variant="body">{text}</AppText>
-                                    <AppText variant="caption" style={styles.sourceTag}>
-                                        {section.ai ? 'Doğum haritana özel yorum' : 'Örnek yorum'}
-                                    </AppText>
-                                </>
-                            ) : (
-                                <AppText variant="body" color={Colors.textMuted}>
-                                    Bu bölüm için yorum bulunamadı.
-                                </AppText>
-                            )}
-                        </Card>
-                    </View>
-                );
-            })}
-
-            {/* Evler + Retrolar + Retro Takvimi */}
+            {/* ÖNCE Evler + Retrolar + Retro Takvimi (istenen sıralama) */}
             <AstroDeepDive analysis={analysis} />
+
+            {/* SONRA haftalık yorumlar — haftada 1 üretilir ve kayıtlıdır;
+                yüklenirken İSKELET gösterilir (şablon metin gösterip sonra
+                değiştirme yok). */}
+            {sections.map((section) => (
+                <View key={section.key} style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Ionicons name={section.icon} size={18} color={section.iconColor} />
+                        <AppText variant="h2" style={styles.sectionTitle}>{section.title}</AppText>
+                    </View>
+                    <Card glow={section.glow}>
+                        {analysisLoading ? (
+                            <>
+                                <Skeleton height={14} style={styles.line} />
+                                <Skeleton height={14} width="90%" style={styles.line} />
+                                <Skeleton height={14} width="75%" />
+                            </>
+                        ) : section.ai ? (
+                            <>
+                                <AppText variant="body">{section.ai}</AppText>
+                                <AppText variant="caption" style={styles.sourceTag}>
+                                    Doğum haritana özel · {analysisDateLabel}
+                                </AppText>
+                            </>
+                        ) : section.fallback ? (
+                            <>
+                                <AppText variant="body">{section.fallback}</AppText>
+                                <AppText variant="caption" style={styles.sourceTag}>
+                                    Genel yorum — kişisel yorumun hazırlanamadı, sayfayı yenilemeyi dene
+                                </AppText>
+                            </>
+                        ) : (
+                            <AppText variant="body" color={Colors.textMuted}>
+                                Bu bölüm için yorum bulunamadı.
+                            </AppText>
+                        )}
+                    </Card>
+                </View>
+            ))}
+
+            {/* Yorumları kredi ile yenileme — haftalık otomatik yenileme dışında */}
+            {!analysisLoading && analysis?.computedAt ? (
+                <Card style={styles.refreshCard}>
+                    <View style={styles.refreshRow}>
+                        <Ionicons name="refresh-circle-outline" size={22} color={Colors.purpleLight} />
+                        <View style={styles.refreshTexts}>
+                            <AppText variant="bodyStrong">Yorumlar her hafta kendiliğinden yenilenir</AppText>
+                            <AppText variant="caption" color={Colors.textMuted}>
+                                Beklemeden yeni yorum istersen kredinle yeniletebilirsin.
+                            </AppText>
+                        </View>
+                    </View>
+                    <Button
+                        title={refreshingAnalysis ? ' ' : `Şimdi Yenile (${analysis?.refreshCost ?? 25} Kredi)`}
+                        loading={refreshingAnalysis}
+                        variant="secondary"
+                        size="md"
+                        onPress={confirmRefreshAnalysis}
+                        style={styles.refreshBtn}
+                    />
+                </Card>
+            ) : null}
 
             {/* Info sheet */}
             <Modal visible={!!selected} transparent animationType="fade" onRequestClose={() => setSelected(null)}>
@@ -693,6 +756,10 @@ const styles = StyleSheet.create({
     sectionTitle: { flex: 1 },
     line: { marginBottom: Spacing.sm },
     sourceTag: { marginTop: Spacing.md, fontStyle: 'italic' },
+    refreshCard: { marginBottom: Spacing.xl, gap: Spacing.md },
+    refreshRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
+    refreshTexts: { flex: 1, gap: 2 },
+    refreshBtn: { alignSelf: 'stretch' },
     overlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: 'center', paddingHorizontal: Spacing.xl },
     sheetWrap: { width: '100%' },
     sheetSub: { marginTop: Spacing.xs },

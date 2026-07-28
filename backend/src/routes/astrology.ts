@@ -120,6 +120,14 @@ router.post('/house-insight', authMiddleware, async (req: AuthRequest, res: Resp
         if (!insight) throw new Error('Boş yanıt');
 
         user.credits -= HOUSE_INSIGHT_COST;
+        // Yorum kullanıcıya KAYDEDİLİR: ev tekrar açıldığında kredi harcamadan
+        // görünür; kullanıcı isterse yeniden yorumlatıp kaydın üzerine yazar.
+        const savedAt = new Date();
+        user.houseInsights = {
+            ...(user.houseInsights || {}),
+            [String(house)]: { insight, question: question || undefined, at: savedAt },
+        };
+        user.markModified('houseInsights');
         await user.save();
 
         return res.json({
@@ -128,6 +136,7 @@ router.post('/house-insight', authMiddleware, async (req: AuthRequest, res: Resp
             meaning: HOUSE_MEANINGS[house],
             planets: planetsInHouse,
             insight,
+            savedAt,
             credits: user.credits
         });
     } catch (error: any) {
@@ -249,7 +258,79 @@ router.get('/natal-chart', authMiddleware, async (req: AuthRequest, res: Respons
 });
 // POST /astrology/compatibility 🔐
 
-// GET /astrology/full-analysis 🔐
+// ─── Haftalık analiz yardımcıları ──────────────────────────────────
+// Kozmik özet + ilişki analizi + haftalık kehanet haftada BİR üretilir ve
+// kullanıcıya kaydedilir; her sayfa açılışında yeniden AI çağrılmaz. Kullanıcı
+// isterse kredi karşılığı yeniletir (POST /full-analysis/refresh).
+const ANALYSIS_REFRESH_COST = 25;
+
+/** Haftanın anahtarı: o haftanın pazartesi tarihi (UTC, YYYY-MM-DD). */
+function currentWeekKey(): string {
+    const d = new Date();
+    const day = (d.getUTCDay() + 6) % 7; // pazartesi=0
+    d.setUTCDate(d.getUTCDate() - day);
+    return d.toISOString().slice(0, 10);
+}
+
+function buildUserInput(user: any): UserInput {
+    return {
+        name: user.name,
+        birthDate: user.birthDate,
+        birthTime: user.birthTime,
+        birthCity: user.birthCity || 'İstanbul',
+        birthDistrict: user.birthDistrict || undefined,
+        birthCountry: user.birthCountry || 'Türkiye',
+        latitude: user.latitude || '41.0082',
+        longitude: user.longitude || '28.9784',
+        gender: user.gender,
+        relationshipStatus: user.relationshipStatus,
+        jobStatus: user.workStatus
+    };
+}
+
+function buildHousesAndRetros(calcData: any) {
+    const houses = calcData.astrology.houses.map((h: any) => {
+        const planetsInHouse = calcData.astrology.planets
+            .filter((p: any) => p.house === h.houseNumber)
+            .map((p: any) => ({
+                name: p.planetNameTR,
+                sign: ZODIAC_DATA[p.sign]?.name || p.sign,
+                degree: Math.round(p.degree * 10) / 10,
+                isRetrograde: p.retrograde || false
+            }));
+        return {
+            house: h.houseNumber,
+            sign: ZODIAC_DATA[h.sign]?.name || h.sign,
+            meaning: HOUSE_MEANINGS[h.houseNumber] || '',
+            planets: planetsInHouse
+        };
+    });
+    const retrogradePlanets = calcData.astrology.planets
+        .filter((p: any) => p.retrograde)
+        .map((p: any) => ({
+            name: p.planetNameTR,
+            sign: ZODIAC_DATA[p.sign]?.name || p.sign,
+            house: p.house
+        }));
+    return { houses, retrogradePlanets };
+}
+
+function analysisResponse(user: any, houses: any, retrogradePlanets: any, ai: any, computedAt: Date | null, weekKey: string) {
+    return {
+        houses,
+        retrogradePlanets,
+        loveAnalysis: ai?.relationshipAnalysis,
+        personalitySummary: ai?.personalitySummary,
+        prediction: ai?.prediction,
+        computedAt,
+        weekKey,
+        refreshCost: ANALYSIS_REFRESH_COST,
+        houseInsights: user.houseInsights || {},
+    };
+}
+
+// GET /astrology/full-analysis 🔐 — haftalık kayıttan okur; kayıt yoksa bir
+// kez üretip saklar. Evler/retrolar her zaman yerel hesaptan gelir (hızlı).
 router.get('/full-analysis', authMiddleware, async (req: AuthRequest, res: Response) => {
     try {
         const user = await User.findById(req.user!._id);
@@ -259,70 +340,88 @@ router.get('/full-analysis', authMiddleware, async (req: AuthRequest, res: Respo
             return res.status(400).json({ error: 'Doğum bilgileri eksik.', code: 'MISSING_DATA' });
         }
 
-        const inputData: UserInput = {
-            name: user.name,
-            birthDate: user.birthDate,
-            birthTime: user.birthTime,
-            birthCity: user.birthCity || 'İstanbul',
-            birthDistrict: user.birthDistrict || undefined,
-            birthCountry: user.birthCountry || 'Türkiye',
-            latitude: user.latitude || '41.0082',
-            longitude: user.longitude || '28.9784',
-            gender: user.gender,
-            relationshipStatus: user.relationshipStatus,
-            jobStatus: user.workStatus
-        };
-
+        const inputData = buildUserInput(user);
         const calcData = performCalculations(inputData);
+        const { houses, retrogradePlanets } = buildHousesAndRetros(calcData);
 
-        // Houses with meanings and planets
-        const houses = calcData.astrology.houses.map(h => {
-            const planetsInHouse = calcData.astrology.planets
-                .filter(p => p.house === h.houseNumber)
-                .map(p => ({
-                    name: p.planetNameTR,
-                    sign: ZODIAC_DATA[p.sign]?.name || p.sign,
-                    degree: Math.round(p.degree * 10) / 10,
-                    isRetrograde: p.retrograde || false
-                }));
-            return {
-                house: h.houseNumber,
-                sign: ZODIAC_DATA[h.sign]?.name || h.sign,
-                meaning: HOUSE_MEANINGS[h.houseNumber] || '',
-                planets: planetsInHouse
-            };
-        });
+        const weekKey = currentWeekKey();
+        const saved = user.weeklyAnalysis;
 
-        // Retrograde planets
-        const retrogradePlanets = calcData.astrology.planets
-            .filter(p => p.retrograde)
-            .map(p => ({
-                name: p.planetNameTR,
-                sign: ZODIAC_DATA[p.sign]?.name || p.sign,
-                house: p.house
-            }));
+        // Bu haftanın kaydı varsa: AI ÇAĞRILMAZ, kayıtlı yorum döner.
+        if (saved?.weekKey === weekKey && saved?.data) {
+            return res.json(analysisResponse(user, houses, retrogradePlanets, saved.data, saved.computedAt, weekKey));
+        }
 
-        // Love & Relationship analysis from Gemini
+        // Yeni hafta (veya hiç kayıt yok): bir kez üret ve sakla.
         const aiData = await generateInterpretation(
             inputData,
-            {
-                sun: calcData.astrology.sun,
-                moon: calcData.astrology.moon,
-                rising: calcData.astrology.rising
-            },
+            { sun: calcData.astrology.sun, moon: calcData.astrology.moon, rising: calcData.astrology.rising },
             calcData.numerology
         );
 
-        return res.json({
-            houses,
-            retrogradePlanets,
-            loveAnalysis: aiData.relationshipAnalysis,
-            personalitySummary: aiData.personalitySummary,
-            prediction: aiData.prediction
-        });
+        let computedAt: Date | null = new Date();
+        if (!(aiData as any)._fallback) {
+            user.weeklyAnalysis = { data: aiData, weekKey, computedAt };
+            user.markModified('weeklyAnalysis');
+            await user.save();
+        } else if (saved?.data) {
+            // AI şu an üretemedi → eski haftanın kaydı olduğu gibi kalsın,
+            // kullanıcıya en son kayıtlı yorumu göster (sonraki açılışta denenir).
+            return res.json(analysisResponse(user, houses, retrogradePlanets, saved.data, saved.computedAt, saved.weekKey));
+        }
+
+        return res.json(analysisResponse(user, houses, retrogradePlanets, aiData, computedAt, weekKey));
     } catch (error: any) {
         console.error('Full analysis error:', error);
         return res.status(500).json({ error: 'Analiz hatası', code: 'SERVER_ERROR' });
+    }
+});
+
+// POST /astrology/full-analysis/refresh 🔐 — kullanıcı isteğiyle yeniden
+// yorumlatma (25 kredi). Üretim başarısızsa kredi ALINMAZ.
+router.post('/full-analysis/refresh', authMiddleware, async (req: AuthRequest, res: Response) => {
+    try {
+        const user = await User.findById(req.user!._id);
+        if (!user) return res.status(404).json({ error: 'Kullanıcı bulunamadı', code: 'NOT_FOUND' });
+        if (!user.birthDate || !user.birthTime) {
+            return res.status(400).json({ error: 'Doğum bilgileri eksik.', code: 'MISSING_DATA' });
+        }
+        if (user.credits < ANALYSIS_REFRESH_COST) {
+            return res.status(400).json({
+                error: 'Yetersiz kredi',
+                code: 'INSUFFICIENT_CREDITS',
+                details: { required: ANALYSIS_REFRESH_COST, available: user.credits }
+            });
+        }
+
+        const inputData = buildUserInput(user);
+        const calcData = performCalculations(inputData);
+        const { houses, retrogradePlanets } = buildHousesAndRetros(calcData);
+
+        const aiData = await generateInterpretation(
+            inputData,
+            { sun: calcData.astrology.sun, moon: calcData.astrology.moon, rising: calcData.astrology.rising },
+            calcData.numerology
+        );
+        if ((aiData as any)._fallback) {
+            // Gerçek üretim olmadı → ücret alma
+            return res.status(503).json({ error: 'Yorum şu an yenilenemedi, lütfen birazdan tekrar dene. Kredin alınmadı.', code: 'REFRESH_UNAVAILABLE' });
+        }
+
+        const weekKey = currentWeekKey();
+        const computedAt = new Date();
+        user.credits -= ANALYSIS_REFRESH_COST;
+        user.weeklyAnalysis = { data: aiData, weekKey, computedAt };
+        user.markModified('weeklyAnalysis');
+        await user.save();
+
+        return res.json({
+            ...analysisResponse(user, houses, retrogradePlanets, aiData, computedAt, weekKey),
+            credits: user.credits,
+        });
+    } catch (error: any) {
+        console.error('Analysis refresh error:', error);
+        return res.status(500).json({ error: 'Yenileme hatası', code: 'SERVER_ERROR' });
     }
 });
 

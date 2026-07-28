@@ -35,7 +35,9 @@ export const generateInterpretation = async (
     astrology: { sun: PlanetPosition; moon: PlanetPosition; rising: PlanetPosition },
     numerology: NumerologyData
 ): Promise<AnalysisResult['aiInterpretation']> => {
-    if (AI_BYPASS) return cannedInterpretation(inputData.name, astrology.sun.sign, astrology.moon.sign, astrology.rising.sign, numerology.lifePath);
+    // _fallback işareti: gerçek AI üretimi DEĞİL → haftalık kayda YAZILMAZ
+    // (bir sonraki açılışta yeniden denenir).
+    if (AI_BYPASS) return { ...cannedInterpretation(inputData.name, astrology.sun.sign, astrology.moon.sign, astrology.rising.sign, numerology.lifePath), _fallback: true } as any;
 
     const sunData = ZODIAC_DATA[astrology.sun.sign];
     const moonData = ZODIAC_DATA[astrology.moon.sign];
@@ -107,7 +109,9 @@ export const generateInterpretation = async (
         }
     } catch (error) {
         console.error("AI Error, using fallback:", error);
+        // _fallback: gerçek AI üretimi değil → haftalık kayda yazılmaz
         return {
+            _fallback: true,
             personalitySummary: "Gezegenlerin dansı, karmaşık ama güçlü bir karaktere sahip olduğunuzu gösteriyor.",
             detailedAnalysis: "Analiz sırasında kozmik bir yoğunluk yaşandı, ancak haritanız gösteriyor ki şu an hayatınızda önemli bir geçiş evresindesiniz. Güneşiniz size yaşam enerjisi verirken, Ay burcunuz duygusal ihtiyaçlarınızı belirliyor.",
             strengths: ["Azim", "Analitik Zeka", "Tutku"],
@@ -118,7 +122,7 @@ export const generateInterpretation = async (
                 idealPartner: "Size güven verecek sadık bir partner.",
                 attractionDynamics: "Duygusal derinliği olan bağlar."
             }
-        };
+        } as any;
     }
 };
 

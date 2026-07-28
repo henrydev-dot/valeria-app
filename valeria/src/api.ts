@@ -244,6 +244,8 @@ export const astrology = {
         }),
     transits: () => apiFetch<any>('/transits'),
     fullAnalysis: () => apiFetch<any>('/astrology/full-analysis'),
+    // Haftalık yorumu kredi karşılığı yeniden ürettirir (25 kredi)
+    refreshAnalysis: () => apiFetch<any>('/astrology/full-analysis/refresh', { method: 'POST' }),
     retroCalendar: () => apiFetch<any>('/astrology/retro-calendar'),
     houseInsight: (house: number, question?: string) =>
         apiFetch<any>('/astrology/house-insight', {
